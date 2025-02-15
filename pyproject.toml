@@ -10,7 +10,9 @@ build-backend = "hatchling.build"
 [project]
 name = "upathtools"
 description = "UPath utilities"
-authors = [{name = "Philipp Temminghoff", email = "philipptemminghoff@googlemail.com"}]
+authors = [
+    { name = "Philipp Temminghoff", email = "philipptemminghoff@googlemail.com" },
+]
 readme = "README.md"
 dynamic = ["version"]
 classifiers = [
@@ -30,21 +32,42 @@ classifiers = [
 ]
 keywords = []
 requires-python = ">=3.12"
-dependencies = []
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
+dependencies = [
+
+    # Only add below (Copier)
+]
 
 [tool.uv]
-default-groups = ["lint", "docs"]
+default-groups = ["dev", "lint", "docs"]
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pyreadline3"]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pyreadline3",
+    "devtools",
+    # Only add below (Copier)
+]
 benchmark = ["pyinstrument"]
-lint = ["ruff", "mypy[faster-cache]"]
-docs = ["mkdocs-mknodes", "mkdocs-material"]
+lint = [
+    "ruff",
+    "mypy[faster-cache]; python_version < '3.14'",
+    "mypy; python_version >= '3.14'",
+    # Only add below (Copier)
+]
+docs = [
+    "mkdocs-mknodes",
+    "mkdocs-material",
+    # Only add below (Copier)
+]
 
 [project.urls]
 Documentation = "https://phil65.github.io/upathtools/"
 Source = "https://github.com/phil65/upathtools"
+Issues = "https://github.com/phil65/upathtools/issues"
+Discussions = "https://github.com/phil65/upathtools/discussions"
+"Code coverage" = "https://app.codecov.io/gh/phil65/upathtools"
 
 [tool.pytest.ini_options]
 testpaths = "tests/"
@@ -67,6 +90,7 @@ disable_error_code = ["misc", "import"]
 pretty = true
 check_untyped_defs = true
 exclude = ['venv/', '.venv/', 'tests/']
+plugins = []
 
 [tool.ruff]
 line-length = 90
@@ -128,7 +152,7 @@ select = [
     # "TD",   # flake8-todos
     "T10", # flake8-debugger
     # "T20",  # flake8-print
-    "TCH", # flake8-type-checking
+    "TC", # flake8-type-checking
     "TID", # flake8-tidy-imports
     "TRY", # tryceratops
     "UP",  # PyUpgrade
@@ -186,10 +210,14 @@ combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "I001"]
+"scripts/*" = ["INP001"]
 
 [tool.pyright]
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.12"
 pythonPlatform = "All"
+typeCheckingMode = "basic"
 deprecateTypingAliases = true
 reportMissingTypeStubs = false
 reportUnusedCallResult = false
@@ -198,6 +226,10 @@ reportAny = false
 reportImplicitOverride = false
 reportUnusedFunction = false
 reportImplicitStringConcatenation = false
+reportIgnoreCommentWithoutRule = false
+reportUnannotatedClassAttribute = false
+reportSelfClsParameterName = false
+reportPrivateImportUsage = false
 
 [tool.mknodes]
 allowed-commit-types = [

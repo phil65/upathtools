@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v1.5.3
+_commit: v1.8.3
 _src_path: .\copier-phil65\
 author_email: philipptemminghoff@googlemail.com
 author_fullname: Philipp Temminghoff
@@ -7,6 +7,7 @@ author_username: phil65
 copyright_date: '2024'
 copyright_holder: Philipp Temminghoff
 copyright_holder_email: philipptemminghoff@googlemail.com
+libraries_use_pydantic: false
 libraries_use_qt: false
 project_description: UPath utilities
 project_name: UPathTools
