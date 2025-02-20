@@ -36,7 +36,7 @@ license = { file = "LICENSE" }
 dependencies = [
     # Only add below (Copier)
     "fsspec>=2025.2.0",
-    "morefs>=0.2.2",
+    "morefs[asynclocalfs]>=0.2.2",
     "universal-pathlib>=0.2.6",
 ]
 
