@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal, overload
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    import fsspec
     from fsspec.asyn import AsyncFileSystem
     from upath import UPath
 
@@ -23,27 +24,36 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=32)
-def _get_cached_fs(protocol: str) -> AsyncFileSystem:
+def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFileSystem:
     """Cached filesystem creation."""
     import fsspec
     from fsspec.asyn import AsyncFileSystem
     from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
     from morefs.asyn_local import AsyncLocalFileSystem
 
-    if protocol in ("", "file"):
-        return AsyncLocalFileSystem()
+    if isinstance(protocol_or_fs, str):
+        if protocol_or_fs in ("", "file"):
+            return AsyncLocalFileSystem()
 
-    fs = fsspec.filesystem(protocol, asynchronous=True)
+        fs = fsspec.filesystem(protocol_or_fs, asynchronous=True)
+    else:
+        fs = protocol_or_fs
     if not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs)
     return fs
 
 
-async def get_async_fs(path: StrPath) -> AsyncFileSystem:
+async def get_async_fs(
+    path_or_fs: StrPath | fsspec.AbstractFileSystem,
+) -> AsyncFileSystem:
     """Get appropriate async filesystem for path."""
+    import fsspec
     from upath import UPath
 
-    path_obj = UPath(path)
+    if isinstance(path_or_fs, fsspec.AbstractFileSystem):
+        return _get_cached_fs(path_or_fs)
+
+    path_obj = UPath(path_or_fs)
     return _get_cached_fs(path_obj.protocol)
 
 
