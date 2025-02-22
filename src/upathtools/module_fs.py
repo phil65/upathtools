@@ -7,7 +7,7 @@ import inspect
 from io import BytesIO
 import os
 from types import ModuleType
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -86,6 +86,22 @@ class ModuleFS(AbstractFileSystem):
                 obj.__module__ = module_name
 
         self._module = module
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
 
     def ls(
         self,

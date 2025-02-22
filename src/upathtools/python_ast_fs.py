@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 import os
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -88,6 +88,22 @@ class PythonAstFS(AbstractFileSystem):
                         end_line=node.end_lineno or node.lineno,
                         doc=ast.get_docstring(node),
                     )
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
 
     def ls(
         self,
