@@ -7,7 +7,7 @@ from functools import lru_cache
 from itertools import batched
 import logging
 import os
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 
 if TYPE_CHECKING:
@@ -206,6 +206,7 @@ async def read_folder(
     return result
 
 
+@overload
 async def list_files(
     path: StrPath,
     *,
@@ -214,7 +215,33 @@ async def list_files(
     include_dirs: bool = False,
     exclude: list[str] | None = None,
     max_depth: int | None = None,
-) -> list[UPath]:
+    detail: Literal[False] = False,
+) -> list[UPath]: ...
+
+
+@overload
+async def list_files(
+    path: StrPath,
+    *,
+    pattern: str = "**/*",
+    recursive: bool = True,
+    include_dirs: bool = False,
+    exclude: list[str] | None = None,
+    max_depth: int | None = None,
+    detail: Literal[True],
+) -> list[dict[str, Any]]: ...
+
+
+async def list_files(
+    path: StrPath,
+    *,
+    pattern: str = "**/*",
+    recursive: bool = True,
+    include_dirs: bool = False,
+    exclude: list[str] | None = None,
+    max_depth: int | None = None,
+    detail: bool = False,
+) -> list[UPath] | list[dict[str, Any]]:
     """List files in a folder matching a pattern.
 
     Args:
@@ -224,6 +251,7 @@ async def list_files(
         include_dirs: Whether to include directories in results
         exclude: List of patterns to exclude (uses fnmatch against relative paths)
         max_depth: Maximum directory depth for recursive search
+        detail: Include file details in the result
 
     Returns:
         List of UPath objects for matching files
@@ -241,32 +269,60 @@ async def list_files(
         raise FileNotFoundError(msg)
 
     fs = await get_async_fs(base_path)
-    matching_files: list[UPath] = []
+    matching_files: list[UPath | dict[str, Any]] = []
 
     # Get all matching paths
     if recursive:
-        paths = await fs._glob(str(base_path / pattern), maxdepth=max_depth)
+        paths = await fs._glob(
+            str(base_path / pattern), maxdepth=max_depth, detail=detail
+        )
     else:
-        paths = await fs._glob(str(base_path / pattern))
+        paths = await fs._glob(str(base_path / pattern), detail=detail)
 
     # Filter and collect paths
-    for file_path in paths:
-        path_obj = UPath(file_path)
-        rel_path = os.path.relpath(file_path, str(base_path))  # type: ignore
 
-        # Skip excluded patterns
-        if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
-            continue
+    # Filter and collect paths
+    if detail:
+        assert isinstance(paths, dict)
+        for file_path, file_info in paths.items():
+            assert isinstance(file_path, str)
+            rel_path = os.path.relpath(file_path, str(base_path))
 
-        # Skip directories unless explicitly included
-        is_dir = await fs._isdir(file_path)
-        if is_dir and not include_dirs:
-            continue
+            # Skip excluded patterns
+            if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
+                continue
 
-        if not is_dir:
-            matching_files.append(path_obj)
+            # Skip directories unless explicitly included
+            is_dir = await fs._isdir(file_path)
+            if is_dir and not include_dirs:
+                continue
 
-    return matching_files
+            if not is_dir:
+                matching_files.append({
+                    **file_info,
+                    "name": os.path.basename(file_path),  # noqa: PTH119
+                    "path": file_path,
+                })
+    else:
+        for file_path in paths:
+            assert isinstance(file_path, str)
+
+            path_obj = UPath(file_path)
+            rel_path = os.path.relpath(file_path, str(base_path))
+
+            # Skip excluded patterns
+            if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
+                continue
+
+            # Skip directories unless explicitly included
+            is_dir = await fs._isdir(file_path)
+            if is_dir and not include_dirs:
+                continue
+
+            if not is_dir:
+                matching_files.append(path_obj)
+
+    return matching_files  # type: ignore
 
 
 if __name__ == "__main__":
