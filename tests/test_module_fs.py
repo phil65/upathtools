@@ -1,4 +1,4 @@
-"""Tests for ModuleFileSystem."""
+"""Tests for ModuleFS."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.module_fs import ModuleFileSystem
+from upathtools.module_fs import ModuleFS
 
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-fsspec.register_implementation("mod", ModuleFileSystem)
+fsspec.register_implementation("mod", ModuleFS)
 
 
 @pytest.fixture

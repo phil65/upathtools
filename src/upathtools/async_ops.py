@@ -27,14 +27,14 @@ if not loaded:
     import fsspec
 
     from upathtools.distribution_fs import DistributionFS
-    from upathtools.module_fs import ModuleFileSystem
+    from upathtools.module_fs import ModuleFS
     from upathtools.package_fs import PackageFS
     from upathtools.python_ast_fs import PythonAstFS
 
-    fsspec.register_implementation("pkg", PackageFS)
-    fsspec.register_implementation("distribution", DistributionFS)
-    fsspec.register_implementation("mod", ModuleFileSystem)
-    fsspec.register_implementation("pyast", PythonAstFS)
+    fsspec.register_implementation("pkg", PackageFS, clobber=True)
+    fsspec.register_implementation("distribution", DistributionFS, clobber=True)
+    fsspec.register_implementation("mod", ModuleFS, clobber=True)
+    fsspec.register_implementation("pyast", PythonAstFS, clobber=True)
     loaded = True
 
 

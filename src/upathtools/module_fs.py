@@ -25,7 +25,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class ModuleFileSystem(AbstractFileSystem):
+class ModuleFS(AbstractFileSystem):
     """Runtime-based filesystem for browsing a single Python module."""
 
     protocol = "mod"
@@ -202,7 +202,7 @@ class ModuleFileSystem(AbstractFileSystem):
         }
 
 
-fsspec.register_implementation("mod", ModuleFileSystem)
+fsspec.register_implementation("mod", ModuleFS)
 
 
 if __name__ == "__main__":
