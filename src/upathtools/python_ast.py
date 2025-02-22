@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+import os
 from typing import Any, Literal
 
 import fsspec
@@ -157,8 +158,36 @@ class PythonAstFS(AbstractFileSystem):
 
         return io.BytesIO(content)
 
+    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+        """Get info about the module or a specific member."""
+        self._load()
+        assert self._source is not None
 
-# Register the filesystem
+        path = self._strip_protocol(path).strip("/")  # type: ignore
+
+        if not path:
+            # Root path - return info about the module itself
+            return {
+                "name": os.path.splitext(os.path.basename(self.path))[0],  # noqa: PTH119, PTH122
+                "type": "module",
+                "size": len(self._source),
+                "doc": ast.get_docstring(ast.parse(self._source)),
+            }
+
+        # Get specific member info
+        if path not in self._members:
+            msg = f"Member {path} not found"
+            raise FileNotFoundError(msg)
+
+        member = self._members[path]
+        return {
+            "name": member.name,
+            "type": member.type,
+            "size": member.end_line - member.start_line,
+            "doc": member.doc,
+        }
+
+
 fsspec.register_implementation("pyast", PythonAstFS)
 
 
