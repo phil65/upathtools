@@ -22,6 +22,21 @@ StrPath = str | os.PathLike[str]
 
 logger = logging.getLogger(__name__)
 
+loaded = False
+if not loaded:
+    import fsspec
+
+    from upathtools.distributionfs import DistributionFS
+    from upathtools.module_fs import ModuleFileSystem
+    from upathtools.package_fs import PackageFS
+    from upathtools.python_ast import PythonAstFS
+
+    fsspec.register_implementation("pkg", PackageFS)
+    fsspec.register_implementation("distribution", DistributionFS)
+    fsspec.register_implementation("mod", ModuleFileSystem)
+    fsspec.register_implementation("pyast", PythonAstFS)
+    loaded = True
+
 
 @lru_cache(maxsize=32)
 def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFileSystem:
