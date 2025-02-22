@@ -26,10 +26,10 @@ loaded = False
 if not loaded:
     import fsspec
 
-    from upathtools.distributionfs import DistributionFS
+    from upathtools.distribution_fs import DistributionFS
     from upathtools.module_fs import ModuleFileSystem
     from upathtools.package_fs import PackageFS
-    from upathtools.python_ast import PythonAstFS
+    from upathtools.python_ast_fs import PythonAstFS
 
     fsspec.register_implementation("pkg", PackageFS)
     fsspec.register_implementation("distribution", DistributionFS)

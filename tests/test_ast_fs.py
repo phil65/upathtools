@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.python_ast import PythonAstFS
+from upathtools.python_ast_fs import PythonAstFS
 
 
 if TYPE_CHECKING:

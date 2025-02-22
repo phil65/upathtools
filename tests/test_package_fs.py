@@ -8,7 +8,7 @@ import fsspec
 import pytest
 
 from upathtools.package_fs import PackageFS
-from upathtools.python_ast import PythonAstFS
+from upathtools.python_ast_fs import PythonAstFS
 
 
 if TYPE_CHECKING:
