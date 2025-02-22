@@ -28,7 +28,7 @@ class ModuleMember:
 class PythonAstFS(AbstractFileSystem):
     """Browse Python modules statically using AST."""
 
-    protocol = "pyast"
+    protocol = "ast"
 
     def __init__(
         self,
@@ -188,10 +188,10 @@ class PythonAstFS(AbstractFileSystem):
         }
 
 
-fsspec.register_implementation("pyast", PythonAstFS)
+fsspec.register_implementation("ast", PythonAstFS)
 
 
 if __name__ == "__main__":
-    fs = fsspec.filesystem("pyast", fo="duties.py")
+    fs = fsspec.filesystem("ast", fo="duties.py")
     print(fs.ls("/"))
     print(fs.cat("build"))

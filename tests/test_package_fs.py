@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 fsspec.register_implementation("pkg", PackageFS)
-fsspec.register_implementation("pyast", PythonAstFS)
+fsspec.register_implementation("ast", PythonAstFS)
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ def test_chained_ast_access(example_package: str, tmp_path: Path) -> None:
     temp_file.write_bytes(module_content)
 
     # Then analyze it with PythonAstFS
-    ast_fs = fsspec.filesystem("pyast", fo=str(temp_file))
+    ast_fs = fsspec.filesystem("ast", fo=str(temp_file))
 
     # Check if we can list the members
     members = ast_fs.ls("/", detail=True)

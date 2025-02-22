@@ -34,7 +34,7 @@ if not loaded:
     fsspec.register_implementation("pkg", PackageFS, clobber=True)
     fsspec.register_implementation("distribution", DistributionFS, clobber=True)
     fsspec.register_implementation("mod", ModuleFS, clobber=True)
-    fsspec.register_implementation("pyast", PythonAstFS, clobber=True)
+    fsspec.register_implementation("ast", PythonAstFS, clobber=True)
     loaded = True
 
 

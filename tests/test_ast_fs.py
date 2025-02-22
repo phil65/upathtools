@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-fsspec.register_implementation("pyast", PythonAstFS)
+fsspec.register_implementation("ast", PythonAstFS)
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ class TestClass:
 
 def test_static_module_direct_file(example_py: Path) -> None:
     """Test direct file access."""
-    fs = fsspec.filesystem("pyast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", fo=str(example_py))
 
     # Test listing
     members = fs.ls("/", detail=True)
@@ -51,7 +51,7 @@ def test_static_module_direct_file(example_py: Path) -> None:
 
 def test_static_module_without_py_extension(example_py: Path) -> None:
     """Test access without .py extension."""
-    fs = fsspec.filesystem("pyast", fo=str(example_py.with_suffix("")))
+    fs = fsspec.filesystem("ast", fo=str(example_py.with_suffix("")))
 
     members = fs.ls("/", detail=False)
     assert len(members) == 2  # noqa: PLR2004
@@ -65,11 +65,11 @@ def test_chained_access(example_py: Path) -> None:
     assert example_py.read_text()
 
     # Use forward slashes and normalize the path
-    url = f"pyast::file://{example_py.as_posix()}"
+    url = f"ast::file://{example_py.as_posix()}"
     print(f"Debug: URL = {url}")
 
     # Try with explicit filesystem first
-    fs = fsspec.filesystem("pyast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", fo=str(example_py))
     content = fs.cat().decode()
     assert "test_func" in content
 
@@ -81,7 +81,7 @@ def test_chained_access(example_py: Path) -> None:
 
 def test_member_not_found(example_py: Path) -> None:
     """Test error when requesting non-existent member."""
-    fs = fsspec.filesystem("pyast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", fo=str(example_py))
 
     with pytest.raises(FileNotFoundError):
         fs.cat("non_existent")
@@ -89,7 +89,7 @@ def test_member_not_found(example_py: Path) -> None:
 
 def test_lazy_loading(example_py: Path) -> None:
     """Test that file is only loaded when needed."""
-    fs = fsspec.filesystem("pyast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", fo=str(example_py))
     assert fs._source is None
 
     # Access triggers loading
