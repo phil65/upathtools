@@ -1,4 +1,4 @@
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from upathtools.async_ops import read_path, read_folder, list_files
 
