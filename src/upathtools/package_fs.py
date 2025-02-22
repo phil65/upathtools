@@ -1,8 +1,7 @@
-"""Filesystem implementation for browsing Python packages hierarchically."""
+"""Filesystem implementation for browsing a single Python package."""
 
 from __future__ import annotations
 
-import importlib.metadata
 import importlib.util
 import os
 import pkgutil
@@ -14,25 +13,33 @@ from fsspec.spec import AbstractFileSystem
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    import types
     from types import ModuleType
 
 
-class PyModuleFS(AbstractFileSystem):
-    """Hierarchical filesystem for browsing Python packages."""
+class PackageFS(AbstractFileSystem):
+    """Filesystem for browsing a single package's structure."""
 
-    protocol = "pypkg"
+    protocol = "pkg"
 
-    def __init__(self, *args: Any, **storage_options: Any) -> None:
-        """Initialize the filesystem."""
-        super().__init__(*args, **storage_options)
+    def __init__(
+        self,
+        package: str | types.ModuleType = "",
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the filesystem.
+
+        Args:
+            package: Name of the package to browse (e.g., "requests")
+            kwargs: Additional keyword arguments for the filesystem
+        """
+        super().__init__(**kwargs)
+        if not package:
+            msg = "Package name required"
+            raise ValueError(msg)
+
+        self.package = package if isinstance(package, str) else package.__name__
         self._module_cache: dict[str, ModuleType] = {}
-
-    def _normalize_path(self, path: str) -> str:
-        """Convert any path format to internal path format."""
-        clean_path = self._strip_protocol(path).strip("/")  # type: ignore
-        if not clean_path:
-            return ""
-        return clean_path.replace(".", "/")
 
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
@@ -61,14 +68,15 @@ class PyModuleFS(AbstractFileSystem):
         detail: bool = True,
         **kwargs: Any,
     ) -> Sequence[str | dict[str, Any]]:
-        """List contents of a path."""
-        norm_path = self._normalize_path(path)
+        """List contents of a path within the package."""
+        path = path.removesuffix(".py")
+        path = self._strip_protocol(path).strip("/")  # type: ignore
 
-        if not norm_path:
-            return self._list_packages(detail)
+        # Construct full module name
+        module_name = self.package
+        if path:
+            module_name = f"{module_name}.{path.replace('/', '.')}"
 
-        # Convert path to module name
-        module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
             contents: list[str | dict[str, Any]] = []
@@ -76,11 +84,11 @@ class PyModuleFS(AbstractFileSystem):
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
                 for item in pkgutil.iter_modules(module.__path__):
-                    full_name = f"{module_name}.{item.name}"
                     if not detail:
                         contents.append(item.name)
                     else:
-                        sub_module = self._get_module(full_name)
+                        sub_name = f"{module_name}.{item.name}"
+                        sub_module = self._get_module(sub_name)
                         contents.append({
                             "name": item.name,
                             "type": "package" if item.ispkg else "module",
@@ -94,32 +102,24 @@ class PyModuleFS(AbstractFileSystem):
         else:
             return contents
 
-    def _list_packages(self, detail: bool) -> list[dict[str, Any]] | list[str]:
-        """List all installed packages."""
-        packages = list(importlib.metadata.distributions())
-
-        if not detail:
-            return [pkg.metadata["Name"] for pkg in packages]
-
-        return [
-            {
-                "name": pkg.metadata["Name"],
-                "type": "package",
-                "size": 0,
-                "version": pkg.version,
-                "mtime": None,
-            }
-            for pkg in packages
-        ]
+    def _get_mtime(self, module: ModuleType) -> float | None:
+        """Get modification time of a module."""
+        try:
+            if hasattr(module, "__file__") and module.__file__:
+                return os.path.getmtime(module.__file__)  # noqa: PTH204
+        except (OSError, AttributeError):
+            pass
+        return None
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get info about a path."""
-        norm_path = self._normalize_path(path)
+        path = self._strip_protocol(path).strip("/")  # type: ignore
 
-        if not norm_path:
-            return {"name": "", "type": "directory", "size": 0}
+        # Construct full module name
+        module_name = self.package
+        if path:
+            module_name = f"{module_name}.{path.replace('/', '.')}"
 
-        module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
             type_ = "package" if hasattr(module, "__path__") else "module"
@@ -135,23 +135,16 @@ class PyModuleFS(AbstractFileSystem):
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
 
-    def _get_mtime(self, module: ModuleType) -> float | None:
-        """Get modification time of a module."""
-        try:
-            if hasattr(module, "__file__") and module.__file__:
-                return os.path.getmtime(module.__file__)  # noqa: PTH204
-        except (OSError, AttributeError):
-            pass
-        return None
-
     def cat(self, path: str) -> bytes:
         """Get module file content."""
-        norm_path = self._normalize_path(path)
-        if not norm_path:
-            msg = "Cannot read source of root directory"
-            raise FileNotFoundError(msg)
+        path = path.removesuffix(".py")
+        path = self._strip_protocol(path).strip("/")  # type: ignore
 
-        module_name = norm_path.replace("/", ".")
+        # Construct full module name
+        module_name = self.package
+        if path:
+            module_name = f"{module_name}.{path.replace('/', '.')}"
+
         try:
             module = self._get_module(module_name)
             if not module.__file__:
@@ -166,17 +159,17 @@ class PyModuleFS(AbstractFileSystem):
 
 
 # Register the filesystem
-fsspec.register_implementation("pypkg", PyModuleFS)
+fsspec.register_implementation("pkg", PackageFS, clobber=True)
+
 
 if __name__ == "__main__":
-    fs = PyModuleFS()
+    # Create a filesystem instance
+    fs = PackageFS("upathtools")
 
-    # List root
-    print("Root level (installed packages):")
-    for item in fs.ls("/", detail=True):
-        print(f"- {item['name']} ({item['type']})")
+    # List files in the package
+    for path in fs.ls("/"):
+        print(path)
 
-    # Explore a package
-    print("\nContents of requests:")
-    for item in fs.ls("requests", detail=True):
-        print(f"- {item})")
+    # Read a file from the package
+    content = fs.cat("/package_fs")
+    print(content.decode("utf-8"))
