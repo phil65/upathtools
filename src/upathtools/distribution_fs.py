@@ -10,11 +10,28 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
+from upath import UPath, registry
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import ModuleType
+
+
+class DistributionPath(UPath):
+    """UPath implementation for browsing Python distributions."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    @property
+    def path(self) -> str:
+        path = super().path
+        return "/" if path == "." else path
 
 
 class DistributionFS(AbstractFileSystem):
@@ -26,6 +43,10 @@ class DistributionFS(AbstractFileSystem):
         """Initialize the filesystem."""
         super().__init__(*args, **storage_options)
         self._module_cache: dict[str, ModuleType] = {}
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return DistributionPath(path)
 
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""
@@ -166,7 +187,8 @@ class DistributionFS(AbstractFileSystem):
 
 
 # Register the filesystem
-fsspec.register_implementation("distribution", DistributionFS)
+fsspec.register_implementation("distribution", DistributionFS, clobber=True)
+registry.register_implementation("distribution", DistributionPath)
 
 if __name__ == "__main__":
     fs = DistributionFS()

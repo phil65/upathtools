@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -11,6 +12,22 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+class UnionPath(UPath):
+    """UPath implementation for browsing UnionFS."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    @property
+    def path(self) -> str:
+        path = super().path
+        return "/" if path == "." else path
 
 
 class UnionFileSystem(AsyncFileSystem):
@@ -22,6 +39,10 @@ class UnionFileSystem(AsyncFileSystem):
         super().__init__()
         self.filesystems = filesystems
         logger.debug("Created UnionFileSystem with protocols: %s", list(filesystems))
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return UnionPath(path)
 
     def _get_fs_and_path(self, path: str) -> tuple[AbstractFileSystem, str]:
         """Get filesystem and normalized path."""

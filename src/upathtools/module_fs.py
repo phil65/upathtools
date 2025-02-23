@@ -11,6 +11,7 @@ from typing import Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
+from upath import UPath, registry
 
 
 NodeType = Literal["function", "class"]
@@ -23,6 +24,22 @@ class ModuleMember:
     name: str
     type: NodeType
     doc: str | None = None
+
+
+class ModulePath(UPath):
+    """UPath implementation for browsing Python modules."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    @property
+    def path(self) -> str:
+        path = super().path
+        return "/" if path == "." else path
 
 
 class ModuleFS(AbstractFileSystem):
@@ -47,6 +64,10 @@ class ModuleFS(AbstractFileSystem):
         self._module: ModuleType | None = None
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return ModulePath(path)
 
     def _load(self) -> None:
         """Load the module if not already loaded."""
@@ -218,7 +239,8 @@ class ModuleFS(AbstractFileSystem):
         }
 
 
-fsspec.register_implementation("mod", ModuleFS)
+fsspec.register_implementation("mod", ModuleFS, clobber=True)
+registry.register_implementation("mod", ModulePath, clobber=True)
 
 
 if __name__ == "__main__":

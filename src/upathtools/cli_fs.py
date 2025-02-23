@@ -5,13 +5,38 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from typing import Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
+from upath import UPath, registry
+
+
+if TYPE_CHECKING:
+    import os
 
 
 logger = logging.getLogger(__name__)
+
+
+class CliPath(UPath):
+    """UPath implementation for CLI filesystems."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    def rename(
+        self,
+        target: str | os.PathLike[str] | UPath,
+        **kwargs: Any,
+    ) -> Self:
+        """Rename operation is not supported."""
+        msg = "CliPath does not support rename operations"
+        raise NotImplementedError(msg)
 
 
 class CliFS(AbstractFileSystem):
@@ -36,6 +61,10 @@ class CliFS(AbstractFileSystem):
         self.shell = shell
         self.encoding = encoding
         self._available_commands: dict[str, str] | None = None
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return CliPath(path)
 
     def _get_available_commands(self) -> dict[str, str]:
         """Get mapping of available commands to their full paths."""
@@ -211,7 +240,8 @@ class CliFS(AbstractFileSystem):
 
 
 # Register filesystem
-fsspec.register_implementation("cli", CliFS)
+fsspec.register_implementation("cli", CliFS, clobber=True)
+registry.register_implementation("cli", CliPath, clobber=True)
 
 
 if __name__ == "__main__":

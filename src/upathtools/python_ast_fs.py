@@ -9,6 +9,7 @@ from typing import Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
+from upath import UPath
 
 
 NodeType = Literal["function", "class", "import", "assign"]
@@ -23,6 +24,17 @@ class ModuleMember:
     start_line: int
     end_line: int
     doc: str | None = None
+
+
+class AstPath(UPath):
+    """UPath implementation for browsing Python AST."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
 
 
 class PythonAstFS(AbstractFileSystem):
@@ -47,6 +59,10 @@ class PythonAstFS(AbstractFileSystem):
         # Initialize empty state
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return AstPath(path)
 
     def _load(self) -> None:
         """Load and parse the source file if not already loaded."""
@@ -204,7 +220,7 @@ class PythonAstFS(AbstractFileSystem):
         }
 
 
-fsspec.register_implementation("ast", PythonAstFS)
+fsspec.register_implementation("ast", PythonAstFS, clobber=True)
 
 
 if __name__ == "__main__":

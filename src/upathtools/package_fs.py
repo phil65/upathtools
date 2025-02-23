@@ -9,12 +9,29 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
+from upath import UPath, registry
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     import types
     from types import ModuleType
+
+
+class PackagePath(UPath):
+    """UPath implementation for browsing Python packages."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    @property
+    def path(self) -> str:
+        path = super().path
+        return "/" if path == "." else path
 
 
 class PackageFS(AbstractFileSystem):
@@ -40,6 +57,10 @@ class PackageFS(AbstractFileSystem):
 
         self.package = package if isinstance(package, str) else package.__name__
         self._module_cache: dict[str, ModuleType] = {}
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return PackagePath(path)
 
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
@@ -160,6 +181,7 @@ class PackageFS(AbstractFileSystem):
 
 # Register the filesystem
 fsspec.register_implementation("pkg", PackageFS, clobber=True)
+registry.register_implementation("pkg", PackagePath, clobber=True)
 
 
 if __name__ == "__main__":
