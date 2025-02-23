@@ -9,6 +9,8 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+from upath import registry
+
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -26,15 +28,24 @@ loaded = False
 if not loaded:
     import fsspec
 
-    from upathtools.distribution_fs import DistributionFS
-    from upathtools.module_fs import ModuleFS
-    from upathtools.package_fs import PackageFS
-    from upathtools.python_ast_fs import PythonAstFS
+    from upathtools.distribution_fs import DistributionFS, DistributionPath
+    from upathtools.module_fs import ModuleFS, ModulePath
+    from upathtools.package_fs import PackageFS, PackagePath
+    from upathtools.python_ast_fs import AstPath, PythonAstFS
+    from upathtools.union_fs import UnionFileSystem, UnionPath
 
     fsspec.register_implementation("pkg", PackageFS, clobber=True)
     fsspec.register_implementation("distribution", DistributionFS, clobber=True)
     fsspec.register_implementation("mod", ModuleFS, clobber=True)
     fsspec.register_implementation("ast", PythonAstFS, clobber=True)
+    fsspec.register_implementation("union", UnionFileSystem, clobber=True)
+
+    registry.register_implementation("pkg", PackagePath, clobber=True)
+    registry.register_implementation("distribution", DistributionPath, clobber=True)
+    registry.register_implementation("mod", ModulePath, clobber=True)
+    registry.register_implementation("ast", AstPath, clobber=True)
+    registry.register_implementation("union", UnionPath, clobber=True)
+
     loaded = True
 
 
