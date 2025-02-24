@@ -112,5 +112,65 @@ async def test_file_operations(union_fs: UnionFileSystem):
         await union_fs._cat_file("memory://test2.txt")
 
 
+def test_root_path_representation():
+    """Test root path string representation."""
+    from upath import UPath
+
+    from upathtools.union_fs import UnionPath
+
+    # Test regular UPath root
+    path = UPath("union://")
+    assert str(path) == "union://"
+    assert path.path == "/"
+
+    # Test our UnionPath root
+    path = UnionPath("union://")
+    assert str(path) == "union://"
+    assert path.path == "/"
+
+    # Test with extra slashes
+    path = UPath("union:///")
+    assert str(path) == "union://"
+    assert path.path == "/"
+
+    path = UnionPath("union:///")
+    assert str(path) == "union://"
+    assert path.path == "/"
+
+
+@pytest.mark.asyncio
+async def test_filesystem_root_operations(union_fs: UnionFileSystem):
+    """Test filesystem operations with root paths."""
+    # Test listing with different root path formats
+    root_listings = [
+        await union_fs._ls("union://"),
+        await union_fs._ls("union:///"),
+        await union_fs._ls("/"),
+        await union_fs._ls(""),
+    ]
+
+    # All should give same results
+    assert all(
+        len(listing) == 2  # noqa: PLR2004
+        for listing in root_listings
+    )  # memory:// and file://
+    assert all(
+        {item["name"] for item in listing} == {"memory://", "file://"}
+        for listing in root_listings
+    )
+
+    # Test info with different root path formats
+    root_infos = [
+        await union_fs._info("union://"),
+        await union_fs._info("union:///"),
+        await union_fs._info("/"),
+        await union_fs._info(""),
+    ]
+
+    # All should give same results
+    assert all(info["type"] == "directory" for info in root_infos)
+    assert all(not info["name"] for info in root_infos)  # empty name for root
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
