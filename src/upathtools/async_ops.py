@@ -351,6 +351,77 @@ async def list_files(
     return matching_files  # type: ignore
 
 
+async def read_folder_as_text(
+    path: StrPath,
+    *,
+    pattern: str = "**/*",
+    recursive: bool = True,
+    include_dirs: bool = False,
+    exclude: list[str] | None = None,
+    max_depth: int | None = None,
+    encoding: str = "utf-8",
+    load_parallel: bool = True,
+    chunk_size: int = 50,
+) -> str:
+    """Read files in a folder and combine them into a single text document.
+
+    The output format is a markdown-style document where each file's content
+    is preceded by a header containing the filename.
+
+    Args:
+        path: Base directory to read from
+        pattern: Glob pattern to match files against (e.g. "**/*.py" for Python files)
+        recursive: Whether to search subdirectories
+        include_dirs: Whether to include directories in results
+        exclude: List of patterns to exclude (uses fnmatch against relative paths)
+        max_depth: Maximum directory depth for recursive search
+        encoding: File encoding for text files
+        load_parallel: Whether to load files concurrently
+        chunk_size: Number of files to load in parallel when load_parallel=True
+
+    Returns:
+        A text document containing all file contents with headers
+
+    Example:
+        ```python
+        text = await read_folder_as_text("src", pattern="**/*.py")
+        # Returns:
+        # # Content of src/main.py
+        # def main():
+        #     ...
+        #
+        # # Content of src/utils.py
+        # def helper():
+        #     ...
+        # ```
+    """
+    file_contents = await read_folder(
+        path,
+        pattern=pattern,
+        recursive=recursive,
+        include_dirs=include_dirs,
+        exclude=exclude,
+        max_depth=max_depth,
+        mode="rt",
+        encoding=encoding,
+        load_parallel=load_parallel,
+        chunk_size=chunk_size,
+    )
+
+    result_parts: list[str] = []
+    for rel_path, content in sorted(file_contents.items()):
+        assert isinstance(content, str), "Expected string content in text mode"
+        result_parts.extend([
+            f"# Content of {rel_path}",
+            "",
+            content.rstrip(),
+            "",
+            "",  # Extra newline for separation
+        ])
+
+    return "\n".join(result_parts).rstrip() + "\n"
+
+
 if __name__ == "__main__":
     import asyncio
     from pprint import pprint
