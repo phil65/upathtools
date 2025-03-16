@@ -10,7 +10,6 @@ import logging
 import os
 import re
 from typing import TYPE_CHECKING, Any, Literal
-from urllib.parse import urlparse
 import weakref
 
 from fsspec.asyn import (
@@ -30,13 +29,14 @@ from fsspec.utils import (
     nullcontext,
     tokenize,
 )
-import httpx
 from upath import UPath
-from yarl import URL
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+
+    import httpx
+    from yarl import URL
 
 
 # URL pattern in HTML href tags
@@ -54,6 +54,8 @@ class HttpPath(UPath):
 
 async def get_client(**kwargs: Any) -> httpx.AsyncClient:
     """Create and return an async HTTP client."""
+    import httpx
+
     return httpx.AsyncClient(follow_redirects=True, **kwargs)
 
 
@@ -106,6 +108,8 @@ class HTTPFileSystem(AsyncFileSystem):
         return "http"
 
     def encode_url(self, url: str) -> URL:
+        from yarl import URL
+
         return URL(url, encoded=self.encoded)
 
     @staticmethod
@@ -164,6 +168,8 @@ class HTTPFileSystem(AsyncFileSystem):
 
     async def _ls_real(self, url: str, detail: bool = True, **kwargs: Any) -> list | dict:
         """List contents of a URL path."""
+        from urllib.parse import urlparse
+
         kw = self.kwargs.copy()
         kw.update(kwargs)
         logger.debug("URL: %s", url)
@@ -346,6 +352,8 @@ class HTTPFileSystem(AsyncFileSystem):
         self._raise_not_found_for_status(r, rpath)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
+        import httpx
+
         kw = self.kwargs.copy()
         kw.update(kwargs)
         try:
