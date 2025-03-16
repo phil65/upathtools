@@ -40,6 +40,9 @@ dependencies = [
     "universal-pathlib>=0.2.6",
 ]
 
+[project.optional-dependencies]
+httpx = ["httpx", "yarl"]
+
 [tool.uv]
 default-groups = ["dev", "lint", "docs"]
 
