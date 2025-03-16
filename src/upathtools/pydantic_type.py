@@ -169,9 +169,9 @@ if __name__ == "__main__":
 
     try:
         config = FileConfig(
-            input_file="github://phil65:mknodes@main/README.md",
-            output_dir="output",
-            temp_path="temp/workspace",
+            input_file="github://phil65:mknodes@main/README.md",  # type: ignore
+            output_dir="output",  # type: ignore
+            temp_path="temp/workspace",  # type: ignore
         )
         print(f"{config=!r}")
     except ValueError as e:
