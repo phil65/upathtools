@@ -1,7 +1,7 @@
 __version__ = "0.6.1"
 
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
-from upathtools.httpx_fs import HttpPath, HTTPFileSystem
+from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 
 
 def register_http_filesystems():
@@ -21,14 +21,14 @@ def register_all_filesystems():
     from upath import registry
 
     # Import all filesystem implementations to ensure they're available
-    from upathtools.cli_fs import CliFS, CliPath
-    from upathtools.distribution_fs import DistributionFS, DistributionPath
-    from upathtools.flat_union_fs import FlatUnionFileSystem, FlatUnionPath
-    from upathtools.markdown_fs import MarkdownFS, MarkdownPath
-    from upathtools.module_fs import ModuleFS, ModulePath
-    from upathtools.package_fs import PackageFS, PackagePath
-    from upathtools.python_ast_fs import AstPath, PythonAstFS
-    from upathtools.union_fs import UnionFileSystem, UnionPath
+    from upathtools.filesystems.cli_fs import CliFS, CliPath
+    from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
+    from upathtools.filesystems.flat_union_fs import FlatUnionFileSystem, FlatUnionPath
+    from upathtools.filesystems.markdown_fs import MarkdownFS, MarkdownPath
+    from upathtools.filesystems.module_fs import ModuleFS, ModulePath
+    from upathtools.filesystems.package_fs import PackageFS, PackagePath
+    from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
+    from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 
     # Register HTTP filesystems
     register_http_filesystems()

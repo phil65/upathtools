@@ -3,8 +3,9 @@ from __future__ import annotations
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 import pytest
+from upath import UPath
 
-from upathtools.union_fs import UnionFileSystem
+from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 
 
 @pytest.fixture
@@ -114,10 +115,6 @@ async def test_file_operations(union_fs: UnionFileSystem):
 
 def test_root_path_representation():
     """Test root path string representation."""
-    from upath import UPath
-
-    from upathtools.union_fs import UnionPath
-
     # Test regular UPath root
     path = UPath("union://")
     assert str(path) == "union://"

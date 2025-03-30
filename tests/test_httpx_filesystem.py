@@ -19,7 +19,8 @@ import fsspec.registry
 import fsspec.utils
 import pytest
 
-from upathtools.httpx_fs import HTTPFileSystem
+from upathtools import HTTPFileSystem
+from upathtools.filesystems.httpx_fs import HTTPStreamFile as OurHTTPStreamFile
 
 
 logger = logging.getLogger(__name__)
@@ -534,9 +535,6 @@ def test_content_encoding_gzip(server):
         "http", headers={"give_length": "true", "gzip_encoding": "true"}
     )
     url = server.realfile
-
-    from upathtools.httpx_fs import HTTPStreamFile as OurHTTPStreamFile
-
     with h.open(url, "rb") as f:
         assert isinstance(f, OurHTTPStreamFile)
 

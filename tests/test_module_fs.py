@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.module_fs import ModuleFS
+from upathtools.filesystems.module_fs import ModuleFS
 
 
 if TYPE_CHECKING:

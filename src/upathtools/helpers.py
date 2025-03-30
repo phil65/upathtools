@@ -9,6 +9,7 @@ import upath
 
 if TYPE_CHECKING:
     import os
+    from pathlib import Path
     from typing import Any
 
 
@@ -117,3 +118,52 @@ def write_file(
         kwargs["errors"] = errors
     with output_p.open(mode=mode, **kwargs) as f:  # type: ignore[call-overload]
         f.write(content)  # type: ignore
+
+
+def multi_glob(
+    directory: str | None = None,
+    keep_globs: list[str] | None = None,
+    drop_globs: list[str] | None = None,
+) -> list[Path]:
+    """Return a list of all files matching multiple globs.
+
+    Return a list of all files in the given directory that match the
+    patterns in keep_globs and do not match the patterns in drop_globs.
+    The patterns are defined using glob syntax.
+
+    Args:
+        directory: The directory to search in. If not provided, the current
+            working directory is used.
+        keep_globs: A list of glob patterns to keep.
+        drop_globs: A list of glob patterns to drop.
+
+    Returns:
+        A list of Path objects representing the files that match the given
+        patterns.
+
+    Raises:
+        ValueError: If the directory does not exist.
+
+    Example:
+        files = multi_glob(keep_globs=["**/*.py"])
+        files = multi_glob(drop_globs=["**/__pycache__/**/*"])
+        ```
+    """
+    keep_globs = keep_globs or ["**/*"]
+    drop_globs = drop_globs or [".git/**/*"]
+    directory_path = upath.UPath(directory) if directory else upath.UPath.cwd()
+
+    if not directory_path.is_dir():
+        msg = f"{directory!r} is not a directory."
+        raise ValueError(msg)
+
+    def files_from_globs(globs: list[str]) -> set[Path]:
+        return {
+            file
+            for pattern in globs
+            for file in directory_path.glob(pattern)
+            if file.is_file()
+        }
+
+    matching_files = files_from_globs(keep_globs) - files_from_globs(drop_globs)
+    return [file.relative_to(directory_path) for file in matching_files]

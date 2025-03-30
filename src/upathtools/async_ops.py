@@ -28,11 +28,11 @@ loaded = False
 if not loaded:
     import fsspec
 
-    from upathtools.distribution_fs import DistributionFS, DistributionPath
-    from upathtools.module_fs import ModuleFS, ModulePath
-    from upathtools.package_fs import PackageFS, PackagePath
-    from upathtools.python_ast_fs import AstPath, PythonAstFS
-    from upathtools.union_fs import UnionFileSystem, UnionPath
+    from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
+    from upathtools.filesystems.module_fs import ModuleFS, ModulePath
+    from upathtools.filesystems.package_fs import PackageFS, PackagePath
+    from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
+    from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 
     fsspec.register_implementation("pkg", PackageFS, clobber=True)
     fsspec.register_implementation("distribution", DistributionFS, clobber=True)

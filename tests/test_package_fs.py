@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.package_fs import PackageFS
-from upathtools.python_ast_fs import PythonAstFS
+from upathtools.filesystems.package_fs import PackageFS
+from upathtools.filesystems.python_ast_fs import PythonAstFS
 
 
 if TYPE_CHECKING:
