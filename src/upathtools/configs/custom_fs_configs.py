@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 
-from upathtools.configs.base import FileSystemConfig
+from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig
 
 
 class CliFilesystemConfig(FileSystemConfig):
@@ -14,6 +14,9 @@ class CliFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["cli"] = Field("cli", init=False)
     """CLI filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     shell: bool = False
     """Whether to use shell mode for command execution"""
@@ -28,12 +31,18 @@ class DistributionFilesystemConfig(FileSystemConfig):
     fs_type: Literal["distribution"] = Field("distribution", init=False)
     """Distribution filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
+
 
 class FlatUnionFilesystemConfig(FileSystemConfig):
     """Configuration for FlatUnion filesystem."""
 
     fs_type: Literal["flatunion"] = Field("flatunion", init=False)
     """FlatUnion filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "aggregation"
+    """Classification of the filesystem type"""
 
     filesystems: list[str] = Field(...)
     """List of filesystem identifiers to include in the union"""
@@ -44,6 +53,9 @@ class GistFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["gist"] = Field("gist", init=False)
     """Gist filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     gist_id: str | None = None
     """Specific gist ID to access"""
@@ -66,6 +78,9 @@ class HttpFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["http"] = Field("http", init=False)
     """HTTP filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     simple_links: bool = True
     """Whether to extract links using simpler regex patterns"""
@@ -92,6 +107,9 @@ class MarkdownFilesystemConfig(FileSystemConfig):
     fs_type: Literal["md"] = Field("md", init=False)
     """Markdown filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
+
     fo: str = ""
     """Path to markdown file"""
 
@@ -107,6 +125,9 @@ class ModuleFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["mod"] = Field("mod", init=False)
     """Module filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
 
     fo: str = ""
     """Path to Python file"""
@@ -124,6 +145,9 @@ class PackageFilesystemConfig(FileSystemConfig):
     fs_type: Literal["pkg"] = Field("pkg", init=False)
     """Package filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
+
     package: str = Field(...)
     """Name of the package to browse"""
 
@@ -133,6 +157,9 @@ class PythonAstFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["ast"] = Field("ast", init=False)
     """Python AST filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
 
     fo: str = ""
     """Path to Python file"""
@@ -150,21 +177,8 @@ class UnionFilesystemConfig(FileSystemConfig):
     fs_type: Literal["union"] = Field("union", init=False)
     """Union filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "aggregation"
+    """Classification of the filesystem type"""
+
     filesystems: dict[str, Any] = Field(...)
     """Dictionary mapping protocol names to filesystem configurations"""
-
-
-# Type discriminator using Annotated
-FilesystemConfigType = Annotated[
-    CliFilesystemConfig
-    | DistributionFilesystemConfig
-    | FlatUnionFilesystemConfig
-    | GistFilesystemConfig
-    | HttpFilesystemConfig
-    | MarkdownFilesystemConfig
-    | ModuleFilesystemConfig
-    | PackageFilesystemConfig
-    | PythonAstFilesystemConfig
-    | UnionFilesystemConfig,
-    Field(discriminator="fs_type"),
-]

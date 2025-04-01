@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 
-from upathtools.configs.base import FileSystemConfig
+from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig
 
 
 class ArrowFilesystemConfig(FileSystemConfig):
@@ -15,6 +15,9 @@ class ArrowFilesystemConfig(FileSystemConfig):
     fs_type: Literal["arrow"] = Field("arrow", init=False)
     """Arrow filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "wrapper"
+    """Classification of the filesystem type"""
+
 
 class DataFilesystemConfig(FileSystemConfig):
     """Configuration for Data URL filesystem."""
@@ -22,12 +25,18 @@ class DataFilesystemConfig(FileSystemConfig):
     fs_type: Literal["data"] = Field("data", init=False)
     """Data URL filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
 
 class DaskWorkerFilesystemConfig(FileSystemConfig):
     """Configuration for Dask worker filesystem."""
 
     fs_type: Literal["dask"] = Field("dask", init=False)
     """Dask worker filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "wrapper"
+    """Classification of the filesystem type"""
 
     target_protocol: str | None = None
     """Target protocol to use when running on workers"""
@@ -44,6 +53,9 @@ class FTPFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["ftp"] = Field("ftp", init=False)
     """FTP filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     host: str = Field(...)
     """FTP server hostname or IP"""
@@ -82,6 +94,9 @@ class GitFilesystemConfig(FileSystemConfig):
     fs_type: Literal["git"] = Field("git", init=False)
     """Git filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+    """Classification of the filesystem type"""
+
     path: str | None = None
     """Path to git repository"""
 
@@ -97,6 +112,9 @@ class GithubFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["github"] = Field("github", init=False)
     """GitHub filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     org: str = Field(...)
     """GitHub organization or user name"""
@@ -123,6 +141,9 @@ class HadoopFilesystemConfig(FileSystemConfig):
     fs_type: Literal["hdfs"] = Field("hdfs", init=False)
     """Hadoop filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
     host: str = "default"
     """Hostname, IP or 'default' to use Hadoop config"""
 
@@ -148,6 +169,9 @@ class JupyterFilesystemConfig(FileSystemConfig):
     fs_type: Literal["jupyter"] = Field("jupyter", init=False)
     """Jupyter filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
     url: str = Field(...)
     """Base URL of the Jupyter server"""
 
@@ -160,6 +184,9 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["libarchive"] = Field("libarchive", init=False)
     """LibArchive filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "archive"
+    """Classification of the filesystem type"""
 
     fo: str = ""
     """Path to archive file"""
@@ -180,6 +207,9 @@ class LocalFilesystemConfig(FileSystemConfig):
     fs_type: Literal["file"] = Field("file", init=False)
     """Local filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
     auto_mkdir: bool = False
     """Whether to automatically make directories"""
 
@@ -193,12 +223,18 @@ class MemoryFilesystemConfig(FileSystemConfig):
     fs_type: Literal["memory"] = Field("memory", init=False)
     """Memory filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
 
 class SFTPFilesystemConfig(FileSystemConfig):
     """Configuration for SFTP filesystem."""
 
     fs_type: Literal["sftp"] = Field("sftp", init=False)
     """SFTP filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     host: str = Field(...)
     """Hostname or IP to connect to"""
@@ -225,6 +261,9 @@ class SMBFilesystemConfig(FileSystemConfig):
     fs_type: Literal["smb"] = Field("smb", init=False)
     """SMB filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
     host: str = Field(...)
     """Hostname or IP of the SMB server"""
 
@@ -250,6 +289,9 @@ class TarFilesystemConfig(FileSystemConfig):
     fs_type: Literal["tar"] = Field("tar", init=False)
     """Tar filesystem type"""
 
+    _category: ClassVar[FilesystemCategoryType] = "archive"
+    """Classification of the filesystem type"""
+
     fo: str = ""
     """Path to tar file"""
 
@@ -271,6 +313,9 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["webhdfs"] = Field("webhdfs", init=False)
     """WebHDFS filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
 
     host: str = Field(...)
     """Hostname or IP of the HDFS namenode"""
@@ -299,6 +344,9 @@ class ZipFilesystemConfig(FileSystemConfig):
 
     fs_type: Literal["zip"] = Field("zip", init=False)
     """Zip filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "archive"
+    """Classification of the filesystem type"""
 
     fo: str = ""
     """Path to zip file"""
