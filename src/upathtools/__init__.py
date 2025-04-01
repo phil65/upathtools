@@ -1,4 +1,4 @@
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
