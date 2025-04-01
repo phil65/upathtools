@@ -29,10 +29,9 @@ def register_all_filesystems():
     from upathtools.filesystems.package_fs import PackageFS, PackagePath
     from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
     from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
+    from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 
-    # Register HTTP filesystems
     register_http_filesystems()
-    # Register other filesystems
     register_implementation("cli", CliFS, clobber=True)
     registry.register_implementation("cli", CliPath, clobber=True)
 
@@ -56,6 +55,9 @@ def register_all_filesystems():
 
     register_implementation("union", UnionFileSystem, clobber=True)
     registry.register_implementation("union", UnionPath, clobber=True)
+
+    register_implementation("gist", GistFileSystem, clobber=True)
+    registry.register_implementation("union", GistPath, clobber=True)
 
 
 __all__ = [
