@@ -109,6 +109,22 @@ class FileSystemConfig(BaseModel):
         return UPath(path, fs=fs)
 
 
+class PathConfig(BaseModel):
+    """Configuration that combines a filesystem with a specific path."""
+
+    model_config = ConfigDict(extra="forbid", use_attribute_docstrings=True)
+
+    filesystem: FileSystemConfig
+    """Configuration for the filesystem"""
+
+    path: str = "/"
+    """Path within the filesystem"""
+
+    def create_upath(self) -> UPath:
+        """Create a UPath object for this path on its filesystem."""
+        return self.filesystem.create_upath(self.path)
+
+
 if __name__ == "__main__":
     from upathtools.configs.fsspec_fs_configs import ZipFilesystemConfig
 

@@ -6,7 +6,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from upathtools.configs.base import FileSystemConfig
+from upathtools.configs.base import FileSystemConfig, PathConfig
 from upathtools.configs.custom_fs_configs import (
     CliFilesystemConfig,
     DistributionFilesystemConfig,
@@ -90,6 +90,7 @@ __all__ = [
     "MemoryFilesystemConfig",
     "ModuleFilesystemConfig",
     "PackageFilesystemConfig",
+    "PathConfig",
     "PythonAstFilesystemConfig",
     "SFTPFilesystemConfig",
     "SMBFilesystemConfig",
