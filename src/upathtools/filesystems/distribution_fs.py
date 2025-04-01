@@ -18,6 +18,16 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
+def _get_mtime(module: ModuleType) -> float | None:
+    """Get modification time of a module."""
+    try:
+        if hasattr(module, "__file__") and module.__file__:
+            return os.path.getmtime(module.__file__)  # noqa: PTH204
+    except (OSError, AttributeError):
+        pass
+    return None
+
+
 class DistributionPath(UPath):
     """UPath implementation for browsing Python distributions."""
 
@@ -106,7 +116,7 @@ class DistributionFS(AbstractFileSystem):
                             "name": item.name,
                             "type": "package" if item.ispkg else "module",
                             "size": 0 if item.ispkg else 1,
-                            "mtime": self._get_mtime(sub_module),
+                            "mtime": _get_mtime(sub_module),
                             "doc": sub_module.__doc__,
                         })
         except ImportError as exc:
@@ -149,21 +159,12 @@ class DistributionFS(AbstractFileSystem):
                 "name": module_name.split(".")[-1],
                 "type": type_,
                 "size": 0 if type_ == "package" else 1,
-                "mtime": self._get_mtime(module),
+                "mtime": _get_mtime(module),
                 "doc": module.__doc__,
             }
         except ImportError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
-
-    def _get_mtime(self, module: ModuleType) -> float | None:
-        """Get modification time of a module."""
-        try:
-            if hasattr(module, "__file__") and module.__file__:
-                return os.path.getmtime(module.__file__)  # noqa: PTH204
-        except (OSError, AttributeError):
-            pass
-        return None
 
     def cat(self, path: str) -> bytes:
         """Get module file content."""
