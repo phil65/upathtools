@@ -19,7 +19,7 @@ class FileSystemConfig(BaseModel):
 
     model_config = ConfigDict(extra="allow", use_attribute_docstrings=True)
 
-    fs_type: str
+    fs_type: str = Field(init=False)
     """Type of filesystem"""
 
     target_path: str | None = None
