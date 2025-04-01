@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import Field
 
 from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig
+from upathtools.pydantic_type import UPathField  # noqa: TC001
 
 
 class CliFilesystemConfig(FileSystemConfig):
@@ -110,7 +111,7 @@ class MarkdownFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to markdown file"""
 
     target_protocol: str | None = None
@@ -129,7 +130,7 @@ class ModuleFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to Python file"""
 
     target_protocol: str | None = None
@@ -161,7 +162,7 @@ class PythonAstFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to Python file"""
 
     target_protocol: str | None = None

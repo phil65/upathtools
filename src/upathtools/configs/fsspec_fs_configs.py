@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import Field
 
 from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig
+from upathtools.pydantic_type import UPathField  # noqa: TC001
 
 
 class ArrowFilesystemConfig(FileSystemConfig):
@@ -100,7 +101,7 @@ class GitFilesystemConfig(FileSystemConfig):
     path: str | None = None
     """Path to git repository"""
 
-    fo: str | None = None
+    fo: UPathField | None = None
     """Alternative to path, passed as part of URL"""
 
     ref: str | None = None
@@ -188,7 +189,7 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to archive file"""
 
     target_protocol: str | None = None
@@ -292,7 +293,7 @@ class TarFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to tar file"""
 
     index_store: Any | None = None
@@ -348,7 +349,7 @@ class ZipFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: str = ""
+    fo: UPathField = ""
     """Path to zip file"""
 
     mode: str = "r"

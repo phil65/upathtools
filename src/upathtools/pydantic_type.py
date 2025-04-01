@@ -24,7 +24,7 @@ Example:
 
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic import BeforeValidator, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
 import upath
@@ -144,6 +144,13 @@ class UPath:
         """Generate the JSON schema for UPath type."""
         return {"type": "string", "format": "path"}
 
+
+UPathField = Annotated[
+    str,
+    Field(
+        json_schema_extra={"field_type": "upath"},
+    ),
+]
 
 # Type aliases with validation
 UPathExists = Annotated[UPath, BeforeValidator(_validate_path_exists)]
