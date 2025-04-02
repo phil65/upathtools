@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import io
 import logging
+import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
@@ -16,6 +16,8 @@ from upath import UPath, registry
 
 
 if TYPE_CHECKING:
+    from collections.abc import Buffer
+
     import httpx
 
 
@@ -70,7 +72,7 @@ class GistFileSystem(AsyncFileSystem):
 
         self.gist_id = gist_id
         self.username = username
-        self.token = token
+        self.token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
         self.sha = sha
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
@@ -79,13 +81,13 @@ class GistFileSystem(AsyncFileSystem):
         # We can work in two modes:
         # 1. Single gist mode (gist_id is provided)
         # 2. User gists mode (username is provided, or token alone for authenticated user)
-        if not gist_id and not username and not token:
+        if not gist_id and not username and not self.token:
             msg = "Either gist_id, username, or token must be provided"
             raise ValueError(msg)
 
         # Setup authentication
-        if token:
-            self.headers = {"Authorization": f"token {token}"}
+        if self.token:
+            self.headers = {"Authorization": f"token {self.token}"}
         else:
             self.headers = {}
 
@@ -153,7 +155,17 @@ class GistFileSystem(AsyncFileSystem):
         return out
 
     async def _fetch_gist_metadata(self, gist_id: str) -> dict[str, Any]:
-        """Fetch metadata for a specific gist."""
+        """Fetch metadata for a specific gist.
+
+        Args:
+            gist_id: ID of the gist to fetch
+
+        Returns:
+            Dictionary containing gist metadata
+
+        Raises:
+            FileNotFoundError: If gist is not found
+        """
         session = await self.set_session()
 
         if self.sha:
@@ -161,6 +173,7 @@ class GistFileSystem(AsyncFileSystem):
         else:
             url = self.gist_url.format(gist_id=gist_id)
 
+        logger.debug("Fetching gist metadata: %s", url)
         response = await session.get(url)
         if response.status_code == 404:  # noqa: PLR2004
             msg = f"Gist not found: {gist_id}@{self.sha or 'latest'}"
@@ -172,7 +185,18 @@ class GistFileSystem(AsyncFileSystem):
     async def _fetch_user_gists(
         self, page: int = 1, per_page: int = 100
     ) -> list[dict[str, Any]]:
-        """Fetch gists for a user."""
+        """Fetch gists for a user.
+
+        Args:
+            page: Page number for pagination
+            per_page: Number of gists per page
+
+        Returns:
+            List of gist metadata dictionaries
+
+        Raises:
+            FileNotFoundError: If user is not found
+        """
         session = await self.set_session()
 
         params = {"page": page, "per_page": per_page}
@@ -180,6 +204,8 @@ class GistFileSystem(AsyncFileSystem):
             url = self.user_gists_url.format(username=self.username)
         else:
             url = self.auth_gists_url
+
+        logger.debug("Fetching user gists: %s", url)
         response = await session.get(url, params=params)
 
         if response.status_code == 404:  # noqa: PLR2004
@@ -190,10 +216,23 @@ class GistFileSystem(AsyncFileSystem):
         return response.json()
 
     async def _get_gist_file_list(self, gist_id: str) -> list[dict[str, Any]]:
-        """Get list of files in a specific gist."""
+        """Get list of files in a specific gist.
+
+        Args:
+            gist_id: ID of the gist
+
+        Returns:
+            List of file metadata dictionaries
+
+        Raises:
+            FileNotFoundError: If gist is not found
+        """
         if gist_id in self.dircache:
             return self.dircache[gist_id]
+
+        # Fetch the specific gist metadata
         meta = await self._fetch_gist_metadata(gist_id)
+
         files = meta.get("files", {})
         out = []
         for fname, finfo in files.items():
@@ -265,25 +304,52 @@ class GistFileSystem(AsyncFileSystem):
         detail: bool = True,
         **kwargs: Any,
     ) -> list[dict[str, Any]] | list[str]:
-        """List contents of path."""
-        path = self._strip_protocol(path or "")
+        """List contents of path.
 
-        # Handle different modes of operation
+        Args:
+            path: Path to list
+            detail: Whether to include detailed information
+            **kwargs: Additional arguments
+
+        Returns:
+            List of file/gist information or names
+
+        Raises:
+            FileNotFoundError: If path doesn't exist
+        """
+        path = self._strip_protocol(path or "")
+        logger.debug("Listing path: %s (with gist_id: %s)", path, self.gist_id)
+
+        # Different modes of operation
         if self.gist_id:
-            # Single gist mode
+            # Single gist mode - always list files in this gist
+            # Regardless of the path (root or specific file)
             results = await self._get_gist_file_list(self.gist_id)
+
+            # If path is specified, filter to just that file
+            if path:
+                results = [f for f in results if f["name"] == path]
+                if not results:
+                    msg = f"File not found: {path}"
+                    raise FileNotFoundError(msg)
         # User gists mode
-        elif path == "":
+        elif not path:
             # Root - list all gists
             results = await self._get_all_gists()
         else:
             # Specific gist - list its files
-            gist_id = path.split("/")[0]
-            results = await self._get_gist_file_list(gist_id)
+            parts = path.split("/", 1)
+            gist_id = parts[0]
+
+            try:
+                results = await self._get_gist_file_list(gist_id)
+            except FileNotFoundError:
+                msg = f"Gist not found: {gist_id}"
+                raise FileNotFoundError(msg)  # noqa: B904
 
             # If path includes a file, filter to just that file
-            if "/" in path:
-                file_name = path.split("/", 1)[1]
+            if len(parts) > 1 and parts[1]:
+                file_name = parts[1]
                 results = [f for f in results if f["name"] == file_name]
                 if not results:
                     msg = f"File not found: {path}"
@@ -345,6 +411,174 @@ class GistFileSystem(AsyncFileSystem):
         return content
 
     cat_file = sync_wrapper(_cat_file)  # type: ignore
+
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
+        """Write bytes to a file in a gist.
+
+        Args:
+            path: Path in format "gist_id/filename" or "filename" (for single gist mode)
+            value: Content to write
+            **kwargs: Additional keyword arguments
+                gist_description: Optional description for new gists
+                public: Whether the gist should be public (default: False)
+
+        Raises:
+            ValueError: If token is not provided for write operations
+        """
+        if not self.token:
+            msg = "GitHub token is required for write operations"
+            raise ValueError(msg)
+
+        session = await self.set_session()
+        path = self._strip_protocol(path)
+
+        logger.debug("Writing to path: %s", path)
+
+        # Parse the path into gist_id and filename
+        if self.gist_id and "/" not in path:
+            # Single gist mode with just a filename
+            gist_id = self.gist_id
+            filename = path
+        else:
+            # Path should include gist_id/filename
+            if "/" not in path:
+                msg = "Cannot create file without gist_id. Use 'gist_id/filename' format"
+                raise ValueError(msg)
+            gist_id, filename = path.split("/", 1)
+
+        logger.debug("Resolved gist_id=%s, filename=%s", gist_id, filename)
+
+        # Determine if we're updating an existing gist or creating a new one
+        is_update = True
+        try:
+            await self._fetch_gist_metadata(gist_id)
+        except FileNotFoundError:
+            # Gist doesn't exist, create new one
+            is_update = False
+            logger.debug("Gist %s not found, will create new gist", gist_id)
+
+        # Convert bytes to string content
+        try:
+            content = value.decode("utf-8")
+        except UnicodeDecodeError:
+            # If content is binary, base64 encode it
+            import base64
+
+            content = f"base64:{base64.b64encode(value).decode('ascii')}"
+
+        files_data = {filename: {"content": content}}
+
+        if is_update:
+            # Update existing gist
+            update_url = f"https://api.github.com/gists/{gist_id}"
+            logger.debug("Updating existing gist: %s", update_url)
+            data = {"files": files_data}
+            response = await session.patch(update_url, json=data)
+        else:
+            # Create new gist
+            create_url = "https://api.github.com/gists"
+            logger.debug("Creating new gist: %s", create_url)
+            description = kwargs.get(
+                "gist_description", "Gist created via GistFileSystem"
+            )
+            public = kwargs.get("public", False)
+            data = {"description": description, "public": public, "files": files_data}
+            response = await session.post(create_url, json=data)
+
+        if response.status_code >= 400:  # noqa: PLR2004
+            logger.error("API error: %s %s", response.status_code, response.text)
+            response.raise_for_status()
+
+        # Invalidate cache for this gist
+        self.dircache.pop(gist_id, None)
+
+    pipe_file = sync_wrapper(_pipe_file)
+
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
+        """Delete a file from a gist.
+
+        Args:
+            path: Path in format "gist_id/filename" or "filename" (for single gist mode)
+            **kwargs: Additional keyword arguments
+
+        Raises:
+            ValueError: If token is not provided for delete operations
+        """
+        if not self.token:
+            msg = "GitHub token is required for delete operations"
+            raise ValueError(msg)
+
+        session = await self.set_session()
+        path = self._strip_protocol(path)
+
+        # Parse the path
+        if self.gist_id and "/" not in path:
+            gist_id = self.gist_id
+            filename = path
+        else:
+            if "/" not in path:
+                msg = (
+                    "Cannot identify file without gist_id. Use 'gist_id/filename' format"
+                )
+                raise ValueError(msg)
+            gist_id, filename = path.split("/", 1)
+
+        # To delete a file, we need to set its content to null in the API
+        update_url = f"https://api.github.com/gists/{gist_id}"
+        data = {"files": {filename: None}}  # Setting to null/None deletes the file
+
+        response = await session.patch(update_url, json=data)
+        response.raise_for_status()
+
+        # Invalidate cache for this gist
+        self.dircache.pop(gist_id, None)
+
+    rm_file = sync_wrapper(_rm_file)
+
+    async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
+        """Remove a file or entire gist.
+
+        Args:
+            path: Path to file or gist
+            recursive: If True and path points to a gist, delete the entire gist
+            **kwargs: Additional keyword arguments
+
+        Raises:
+            ValueError: If token is not provided for delete operations
+        """
+        if not self.token:
+            msg = "GitHub token is required for delete operations"
+            raise ValueError(msg)
+
+        path = self._strip_protocol(path)
+
+        # Determine if we're deleting a file or an entire gist
+        if "/" in path or (self.gist_id and not path):
+            # Path contains a filename or we're in single gist mode - delete file
+            return await self._rm_file(path, **kwargs)
+
+        # We're dealing with a gist ID directly
+        gist_id = path if path else self.gist_id
+        if not gist_id:
+            msg = "No gist ID specified for deletion"
+            raise ValueError(msg)
+
+        if not recursive:
+            msg = "Cannot delete a gist without recursive=True"
+            raise ValueError(msg)
+
+        # Delete the entire gist
+        session = await self.set_session()
+        delete_url = f"https://api.github.com/gists/{gist_id}"
+        response = await session.delete(delete_url)
+        response.raise_for_status()
+
+        # Remove from cache
+        self.dircache.pop(gist_id, None)
+        self.dircache.pop("", None)  # Also invalidate root listing
+        return None
+
+    rm = sync_wrapper(_rm)
 
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get info about a path."""
@@ -447,28 +681,70 @@ class GistFileSystem(AsyncFileSystem):
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ) -> io.BytesIO:
-        """Open a file."""
-        if mode != "rb":
-            msg = "Write mode not supported"
-            raise NotImplementedError(msg)
+    ) -> io.BytesIO | GistBufferedWriter:
+        """Open a file.
 
-        content = self.cat_file(path)
-        return io.BytesIO(content)  # pyright: ignore
+        Args:
+            path: Path to the file
+            mode: File mode ('rb' for reading, 'wb' for writing)
+            **kwargs: Additional arguments for write operations
+                gist_description: Optional description for new gists
+                public: Whether the gist should be public (default: False)
+
+        Returns:
+            File-like object for reading or writing
+
+        Raises:
+            ValueError: If token is not provided for write operations
+            NotImplementedError: If mode is not supported
+        """
+        if "r" in mode:
+            content = self.cat_file(path)
+            assert isinstance(content, bytes)
+            return io.BytesIO(content)
+        if "w" in mode:
+            if not self.token:
+                msg = "GitHub token is required for write operations"
+                raise ValueError(msg)
+
+            buffer = io.BytesIO()
+            return GistBufferedWriter(buffer, self, path, **kwargs)
+        msg = f"Mode {mode} not supported"
+        raise NotImplementedError(msg)
 
     async def open_async(
         self,
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ) -> io.BytesIO:
-        """Open a file asynchronously."""
-        if mode != "rb":
-            msg = "Write mode not supported"
-            raise NotImplementedError(msg)
+    ) -> io.BytesIO | AsyncGistWriter:
+        """Open a file asynchronously.
 
-        content = await self._cat_file(path, **kwargs)
-        return io.BytesIO(content)
+        Args:
+            path: Path to the file
+            mode: File mode ('rb' for reading, 'wb' for writing)
+            **kwargs: Additional arguments for write operations
+                gist_description: Optional description for new gists
+                public: Whether the gist should be public (default: False)
+
+        Returns:
+            File-like object for reading or async writer for writing
+
+        Raises:
+            ValueError: If token is not provided for write operations
+            NotImplementedError: If mode is not supported
+        """
+        if "r" in mode:
+            content = await self._cat_file(path, **kwargs)
+            return io.BytesIO(content)
+        if "w" in mode:
+            if not self.token:
+                msg = "GitHub token is required for write operations"
+                raise ValueError(msg)
+
+            return AsyncGistWriter(self, path, **kwargs)
+        msg = f"Mode {mode} not supported"
+        raise NotImplementedError(msg)
 
     def invalidate_cache(self, path: str | None = None) -> None:
         """Clear the cache."""
@@ -486,29 +762,123 @@ class GistFileSystem(AsyncFileSystem):
                     self.dircache.pop(parts[0], None)
 
 
+class GistBufferedWriter(io.BufferedIOBase):
+    """Buffered writer for gist files that writes to the gist when closed."""
+
+    def __init__(self, buffer: io.BytesIO, fs: GistFileSystem, path: str, **kwargs: Any):
+        """Initialize the writer.
+
+        Args:
+            buffer: Buffer to store content
+            fs: GistFileSystem instance
+            path: Path to write to
+            **kwargs: Additional arguments to pass to pipe_file
+        """
+        super().__init__()
+        self.buffer = buffer
+        self.fs = fs
+        self.path = path
+        self.kwargs = kwargs
+
+    def write(self, data: Buffer) -> int:
+        """Write data to the buffer.
+
+        Args:
+            data: Data to write
+
+        Returns:
+            Number of bytes written
+        """
+        return self.buffer.write(data)
+
+    def close(self) -> None:
+        """Close the writer and write content to the gist."""
+        if not self.closed:
+            # Get the buffer contents and write to the gist
+            content = self.buffer.getvalue()
+            self.fs.pipe_file(self.path, content, **self.kwargs)
+            self.buffer.close()
+            super().close()
+
+    def readable(self) -> bool:
+        """Whether the writer is readable."""
+        return False
+
+    def writable(self) -> bool:
+        """Whether the writer is writable."""
+        return True
+
+
+class AsyncGistWriter:
+    """Asynchronous writer for gist files."""
+
+    def __init__(self, fs: GistFileSystem, path: str, **kwargs: Any):
+        """Initialize the writer.
+
+        Args:
+            fs: GistFileSystem instance
+            path: Path to write to
+            **kwargs: Additional arguments to pass to _pipe_file
+        """
+        self.fs = fs
+        self.path = path
+        self.buffer = io.BytesIO()
+        self.kwargs = kwargs
+        self.closed = False
+
+    async def write(self, data: bytes) -> int:
+        """Write data to the buffer.
+
+        Args:
+            data: Data to write
+
+        Returns:
+            Number of bytes written
+        """
+        return self.buffer.write(data)
+
+    async def close(self) -> None:
+        """Close the writer and write content to the gist."""
+        if not self.closed:
+            self.closed = True
+            content = self.buffer.getvalue()
+            await self.fs._pipe_file(self.path, content, **self.kwargs)
+            self.buffer.close()
+
+    def __aenter__(self) -> AsyncGistWriter:
+        """Enter the context manager."""
+        return self
+
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        """Exit the context manager and close the writer."""
+        await self.close()
+
+
 register_implementation("gist", GistFileSystem, clobber=True)
 registry.register_implementation("gist", GistPath, clobber=True)
 
 
 if __name__ == "__main__":
-    # Example usage
-    import asyncio
+    import os
 
-    async def main():
-        fs = GistFileSystem(gist_id="74192a94041f3d02ed910551670eb838")
-        files = await fs._ls()
-        print("Files in gist:")
-        for file in files:
-            print(f"- {file['name']} ({file['size']} bytes)")
-            content = await fs._cat_file(file["name"])
-            text = content.decode()
-            print(f"  First 100 chars: {text[:100]}")
-        user_fs = GistFileSystem(username="phil65")
-        gists = await user_fs._ls()
-        print("\nGists for user:")
-        for gist in gists:
-            print(f"- {gist['name']}: {gist.get('description', '')}")
-            gist_files = await user_fs._ls(gist["name"])
-            print(f"  Files: {', '.join(f['name'] for f in gist_files)}")
+    logging.basicConfig(level=logging.DEBUG)
+    print(f"Environment GITHUB_TOKEN set: {'GITHUB_TOKEN' in os.environ}")
+    gist_id = "74192a94041f3d02ed910551670eb838"
+    fs = GistFileSystem(gist_id=gist_id)
 
-    asyncio.run(main())
+    try:
+        print("\nListing files with filesystem.ls():")
+        files = fs.ls("")
+        print(f"Files: {files}")
+        test_filename = "test_file2.py"
+        print(f"\nWriting to {test_filename}")
+        fs.pipe_file(test_filename, b"test content")
+        print("Write successful")
+        print("\nReading file:")
+        content = fs.cat_file(test_filename)
+        print(f"Content: {content}")
+    except Exception as e:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
+        print(f"Error: {e}")
