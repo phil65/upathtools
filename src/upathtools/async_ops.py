@@ -112,7 +112,6 @@ async def read_path(
 
     path_obj = UPath(path)
     fs = await get_async_fs(path_obj)
-
     f = await fs.open_async(path_obj.path, mode=mode)
     async with f:
         return await f.read()
@@ -201,10 +200,7 @@ async def read_folder(
         # Process files in chunks
         for chunk in batched(matching_files, chunk_size):
             # Create tasks for this chunk
-            tasks = [
-                read_path(file_path, mode=mode, encoding=encoding) for file_path in chunk
-            ]
-
+            tasks = [read_path(p, mode=mode, encoding=encoding) for p in chunk]
             # Execute chunk in parallel
             try:
                 contents: Sequence[str | bytes] = await asyncio.gather(*tasks)
@@ -313,8 +309,6 @@ async def list_files(
         for file_path, file_info in paths.items():
             assert isinstance(file_path, str)
             rel_path = os.path.relpath(file_path, str(base_path))
-
-            # Skip excluded patterns
             if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
                 continue
 
@@ -324,11 +318,9 @@ async def list_files(
                 continue
 
             if not is_dir:
-                matching_files.append({
-                    **file_info,
-                    "name": os.path.basename(file_path),  # noqa: PTH119
-                    "path": file_path,
-                })
+                name = os.path.basename(file_path)  # noqa: PTH119
+                dct = {**file_info, "name": name, "path": file_path}
+                matching_files.append(dct)
     else:
         for file_path in paths:
             assert isinstance(file_path, str)
