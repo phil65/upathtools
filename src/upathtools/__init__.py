@@ -1,5 +1,8 @@
 __version__ = "0.6.3"
 
+from fsspec import register_implementation
+from upath import registry
+
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 from upathtools.filesystems.cli_fs import CliFS, CliPath
@@ -15,9 +18,6 @@ from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 
 def register_http_filesystems():
     """Register HTTP filesystems."""
-    from fsspec import register_implementation
-    from upath import registry
-
     register_implementation("http", HTTPFileSystem, clobber=True)
     registry.register_implementation("http", HttpPath, clobber=True)
     register_implementation("https", HTTPFileSystem, clobber=True)
@@ -26,9 +26,6 @@ def register_http_filesystems():
 
 def register_all_filesystems():
     """Register all filesystem implementations provided by upathtools."""
-    from fsspec import register_implementation
-    from upath import registry
-
     register_http_filesystems()
     register_implementation("cli", CliFS, clobber=True)
     registry.register_implementation("cli", CliPath, clobber=True)
