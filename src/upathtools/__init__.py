@@ -2,6 +2,15 @@ __version__ = "0.6.2"
 
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
+from upathtools.filesystems.cli_fs import CliFS, CliPath
+from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
+from upathtools.filesystems.flat_union_fs import FlatUnionFileSystem, FlatUnionPath
+from upathtools.filesystems.markdown_fs import MarkdownFS, MarkdownPath
+from upathtools.filesystems.module_fs import ModuleFS, ModulePath
+from upathtools.filesystems.package_fs import PackageFS, PackagePath
+from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
+from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
+from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 
 
 def register_http_filesystems():
@@ -19,17 +28,6 @@ def register_all_filesystems():
     """Register all filesystem implementations provided by upathtools."""
     from fsspec import register_implementation
     from upath import registry
-
-    # Import all filesystem implementations to ensure they're available
-    from upathtools.filesystems.cli_fs import CliFS, CliPath
-    from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
-    from upathtools.filesystems.flat_union_fs import FlatUnionFileSystem, FlatUnionPath
-    from upathtools.filesystems.markdown_fs import MarkdownFS, MarkdownPath
-    from upathtools.filesystems.module_fs import ModuleFS, ModulePath
-    from upathtools.filesystems.package_fs import PackageFS, PackagePath
-    from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
-    from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
-    from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 
     register_http_filesystems()
     register_implementation("cli", CliFS, clobber=True)
@@ -61,8 +59,26 @@ def register_all_filesystems():
 
 
 __all__ = [
+    "AstPath",
+    "CliFS",
+    "CliPath",
+    "DistributionFS",
+    "DistributionPath",
+    "FlatUnionFileSystem",
+    "FlatUnionPath",
+    "GistFileSystem",
+    "GistPath",
     "HTTPFileSystem",
     "HttpPath",
+    "MarkdownFS",
+    "MarkdownPath",
+    "ModuleFS",
+    "ModulePath",
+    "PackageFS",
+    "PackagePath",
+    "PythonAstFS",
+    "UnionFileSystem",
+    "UnionPath",
     "list_files",
     "read_folder",
     "read_folder_as_text",
