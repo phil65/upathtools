@@ -42,6 +42,7 @@ dependencies = [
 
 [project.optional-dependencies]
 httpx = ["httpx", "yarl"]
+notion-client = ["notion-client"]
 
 [tool.uv]
 default-groups = ["dev", "lint", "docs"]

@@ -43,6 +43,9 @@ jobs:
 
       - name: Run tests
         run: uv run --no-group docs pytest --cov-report=xml --cov=src/upathtools/ --cov-report=term-missing
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
 
       - name: Upload test results to Codecov
         uses: codecov/codecov-action@v5
