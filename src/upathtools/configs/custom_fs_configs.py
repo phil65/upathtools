@@ -183,3 +183,25 @@ class UnionFilesystemConfig(FileSystemConfig):
 
     filesystems: dict[str, Any] = Field(...)
     """Dictionary mapping protocol names to filesystem configurations"""
+
+
+class WikiFilesystemConfig(FileSystemConfig):
+    """Configuration for GitHub Wiki filesystem."""
+
+    fs_type: Literal["wiki"] = Field("wiki", init=False)
+    """Wiki filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+    """Classification of the filesystem type"""
+
+    owner: str = Field(...)
+    """GitHub repository owner/organization"""
+
+    repo: str = Field(...)
+    """GitHub repository name"""
+
+    token: str | None = None
+    """GitHub personal access token for authentication"""
+
+    timeout: int | None = None
+    """Connection timeout in seconds"""

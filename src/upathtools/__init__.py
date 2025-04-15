@@ -14,6 +14,7 @@ from upathtools.filesystems.package_fs import PackageFS, PackagePath
 from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
 from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
+from upathtools.filesystems.wiki_fs import WikiFileSystem, WikiPath
 
 
 def register_http_filesystems():
@@ -52,7 +53,10 @@ def register_all_filesystems():
     registry.register_implementation("union", UnionPath, clobber=True)
 
     register_implementation("gist", GistFileSystem, clobber=True)
-    registry.register_implementation("union", GistPath, clobber=True)
+    registry.register_implementation("gist", GistPath, clobber=True)
+
+    register_implementation("wiki", WikiFileSystem, clobber=True)
+    registry.register_implementation("wiki", WikiPath, clobber=True)
 
 
 __all__ = [
@@ -76,6 +80,8 @@ __all__ = [
     "PythonAstFS",
     "UnionFileSystem",
     "UnionPath",
+    "WikiFileSystem",
+    "WikiPath",
     "list_files",
     "read_folder",
     "read_folder_as_text",

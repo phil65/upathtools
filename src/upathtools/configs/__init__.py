@@ -18,6 +18,7 @@ from upathtools.configs.custom_fs_configs import (
     PackageFilesystemConfig,
     PythonAstFilesystemConfig,
     UnionFilesystemConfig,
+    WikiFilesystemConfig,
 )
 from upathtools.configs.fsspec_fs_configs import (
     ArrowFilesystemConfig,
@@ -49,6 +50,7 @@ FilesystemConfigType = Annotated[
     | PackageFilesystemConfig
     | PythonAstFilesystemConfig
     | UnionFilesystemConfig
+    | WikiFilesystemConfig
     | ArrowFilesystemConfig
     | DataFilesystemConfig
     | DaskWorkerFilesystemConfig
@@ -97,5 +99,6 @@ __all__ = [
     "TarFilesystemConfig",
     "UnionFilesystemConfig",
     "WebHDFSFilesystemConfig",
+    "WikiFilesystemConfig",
     "ZipFilesystemConfig",
 ]
