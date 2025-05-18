@@ -239,16 +239,23 @@ class GistFileSystem(AsyncFileSystem):
             if finfo is None:
                 continue
 
-            out.append({
+            # Enhanced file information
+            file_entry = {
                 "name": fname,
                 "type": "file",
                 "size": finfo.get("size", 0),
                 "raw_url": finfo.get("raw_url"),
+                "language": finfo.get("language"),
+                "mime_type": finfo.get("type", "text/plain"),
                 "gist_id": gist_id,
-                "description": meta.get("description", ""),
+                "gist_description": meta.get("description", ""),
+                "gist_html_url": meta.get("html_url"),
                 "created_at": meta.get("created_at"),
                 "updated_at": meta.get("updated_at"),
-            })
+                "public": meta.get("public", False),
+                "truncated": finfo.get("truncated", False),
+            }
+            out.append(file_entry)
 
         self.dircache[gist_id] = out
         return out
@@ -274,8 +281,18 @@ class GistFileSystem(AsyncFileSystem):
                 "description": gist.get("description", ""),
                 "created_at": gist.get("created_at"),
                 "updated_at": gist.get("updated_at"),
-                "files": len(gist.get("files", {})),
+                "html_url": gist.get("html_url"),
+                "git_pull_url": gist.get("git_pull_url"),
+                "git_push_url": gist.get("git_push_url"),
+                "comments": gist.get("comments", 0),
                 "public": gist.get("public", False),
+                "owner": gist.get("owner", {}).get("login")
+                if gist.get("owner")
+                else None,
+                "files_count": len(gist.get("files", {})),
+                # Include truncated file names as a preview
+                "files_preview": list(gist.get("files", {}).keys()),
+                "size": sum(f.get("size", 0) for f in gist.get("files", {}).values()),
             }
             out.append(gist_entry)
 
@@ -584,7 +601,13 @@ class GistFileSystem(AsyncFileSystem):
         """Get info about a path."""
         path = self._strip_protocol(path)
         if not path:
-            return {"name": "", "type": "directory", "size": 0}
+            return {
+                "name": "",
+                "type": "directory",
+                "size": 0,
+                "description": "Root directory listing gists",
+            }
+
         parts = path.split("/")
         if len(parts) == 1:
             if self.gist_id:
@@ -614,8 +637,20 @@ class GistFileSystem(AsyncFileSystem):
                                 "description": meta.get("description", ""),
                                 "created_at": meta.get("created_at"),
                                 "updated_at": meta.get("updated_at"),
-                                "files": len(meta.get("files", {})),
+                                "html_url": meta.get("html_url"),
+                                "git_pull_url": meta.get("git_pull_url"),
+                                "git_push_url": meta.get("git_push_url"),
+                                "comments": meta.get("comments", 0),
                                 "public": meta.get("public", False),
+                                "owner": meta.get("owner", {}).get("login")
+                                if meta.get("owner")
+                                else None,
+                                "files_count": len(meta.get("files", {})),
+                                "files_preview": list(meta.get("files", {}).keys()),
+                                "size": sum(
+                                    f.get("size", 0)
+                                    for f in meta.get("files", {}).values()
+                                ),
                             }
                         except FileNotFoundError:
                             msg = f"Gist not found: {parts[0]}"
