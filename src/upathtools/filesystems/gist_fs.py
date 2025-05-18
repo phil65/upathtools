@@ -222,10 +222,7 @@ class GistFileSystem(AsyncFileSystem):
             gist_id: ID of the gist
 
         Returns:
-            List of file metadata dictionaries
-
-        Raises:
-            FileNotFoundError: If gist is not found
+            List of detailed file metadata dictionaries
         """
         if gist_id in self.dircache:
             return self.dircache[gist_id]
@@ -896,24 +893,20 @@ registry.register_implementation("gist", GistPath, clobber=True)
 if __name__ == "__main__":
     import os
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     print(f"Environment GITHUB_TOKEN set: {'GITHUB_TOKEN' in os.environ}")
-    gist_id = "74192a94041f3d02ed910551670eb838"
-    fs = GistFileSystem(gist_id=gist_id)
-
-    try:
-        print("\nListing files with filesystem.ls():")
-        files = fs.ls("")
-        print(f"Files: {files}")
-        test_filename = "test_file2.py"
-        print(f"\nWriting to {test_filename}")
-        fs.pipe_file(test_filename, b"test content")
-        print("Write successful")
-        print("\nReading file:")
-        content = fs.cat_file(test_filename)
-        print(f"Content: {content}")
-    except Exception as e:  # noqa: BLE001
-        import traceback
-
-        traceback.print_exc()
-        print(f"Error: {e}")
+    fs = GistFileSystem(username="phil65")
+    print("\nListing files with filesystem.ls():")
+    files = fs.ls("")
+    print(f"Files: {files}")
+    # test_filename = "test_file2.py"
+    # print(f"\nWriting to {test_filename}")
+    # fs.pipe_file(test_filename, b"test content")
+    # print("Write successful")
+    # print("\nReading file:")
+    # content = fs.cat_file(test_filename)
+    # print(f"Content: {content}")
+    #
+    #
+    # fs = GistFileSystem(username="phil65")
+    # files = fs.ls("")

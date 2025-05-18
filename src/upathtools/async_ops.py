@@ -9,8 +9,6 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from upath import registry
-
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -23,30 +21,6 @@ if TYPE_CHECKING:
 StrPath = str | os.PathLike[str]
 
 logger = logging.getLogger(__name__)
-
-loaded = False
-if not loaded:
-    import fsspec
-
-    from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
-    from upathtools.filesystems.module_fs import ModuleFS, ModulePath
-    from upathtools.filesystems.package_fs import PackageFS, PackagePath
-    from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
-    from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
-
-    fsspec.register_implementation("pkg", PackageFS, clobber=True)
-    fsspec.register_implementation("distribution", DistributionFS, clobber=True)
-    fsspec.register_implementation("mod", ModuleFS, clobber=True)
-    fsspec.register_implementation("ast", PythonAstFS, clobber=True)
-    fsspec.register_implementation("union", UnionFileSystem, clobber=True)
-
-    registry.register_implementation("pkg", PackagePath, clobber=True)
-    registry.register_implementation("distribution", DistributionPath, clobber=True)
-    registry.register_implementation("mod", ModulePath, clobber=True)
-    registry.register_implementation("ast", AstPath, clobber=True)
-    registry.register_implementation("union", UnionPath, clobber=True)
-
-    loaded = True
 
 
 @lru_cache(maxsize=32)
