@@ -988,7 +988,9 @@ async def _file_size(
         cleanup = False
 
     try:
-        info = await _file_info(url, *args, session=session, **kwargs)
+        kw_args = kwargs.copy()
+        kw_args["session"] = session
+        info = await _file_info(url, *args, **kwargs)
         return info.get("size")
     finally:
         if cleanup:
