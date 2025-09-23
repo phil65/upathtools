@@ -42,6 +42,7 @@ dependencies = [
 
 [project.optional-dependencies]
 httpx = ["httpx", "yarl"]
+appwrite = ["appwrite"]
 notion-client = ["notion-client"]
 
 [tool.uv]
