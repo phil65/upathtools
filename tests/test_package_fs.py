@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import fsspec
@@ -51,8 +52,6 @@ class ExampleClass:
     sub_pkg = pkg_dir / "subpkg"
     sub_pkg.mkdir()
     (sub_pkg / "__init__.py").write_text('"""Subpackage."""')
-
-    import sys
 
     sys.path.insert(0, str(tmp_path))
 

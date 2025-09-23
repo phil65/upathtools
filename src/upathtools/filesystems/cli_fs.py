@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 import shutil
 import subprocess
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import Any, Literal, Self, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
 from upath import UPath, registry
-
-
-if TYPE_CHECKING:
-    import os
 
 
 logger = logging.getLogger(__name__)
@@ -29,11 +27,7 @@ class CliPath(UPath):
             raise NotADirectoryError(str(self))
         yield from super().iterdir()
 
-    def rename(
-        self,
-        target: str | os.PathLike[str] | UPath,
-        **kwargs: Any,
-    ) -> Self:
+    def rename(self, target: str | os.PathLike[str] | UPath, **kwargs: Any) -> Self:
         """Rename operation is not supported."""
         msg = "CliPath does not support rename operations"
         raise NotImplementedError(msg)
@@ -44,12 +38,7 @@ class CliFS(AbstractFileSystem):
 
     protocol = "cli"
 
-    def __init__(
-        self,
-        shell: bool = False,
-        encoding: str = "utf-8",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, shell: bool = False, encoding: str = "utf-8", **kwargs: Any):
         """Initialize the CLI filesystem.
 
         Args:
@@ -70,9 +59,6 @@ class CliFS(AbstractFileSystem):
         """Get mapping of available commands to their full paths."""
         if self._available_commands is not None:
             return self._available_commands
-
-        import os
-        from pathlib import Path
 
         commands: dict[str, str] = {}
         # Get all directories in PATH
@@ -155,12 +141,7 @@ class CliFS(AbstractFileSystem):
             return list(commands)
 
         return [
-            {
-                "name": name,
-                "type": "command",
-                "size": 0,
-                "executable": path,
-            }
+            {"name": name, "type": "command", "size": 0, "executable": path}
             for name, path in commands.items()
         ]
 

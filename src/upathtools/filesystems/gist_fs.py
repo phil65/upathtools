@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import io
 import logging
@@ -476,8 +477,6 @@ class GistFileSystem(AsyncFileSystem):
             content = value.decode("utf-8")
         except UnicodeDecodeError:
             # If content is binary, base64 encode it
-            import base64
-
             content = f"base64:{base64.b64encode(value).decode('ascii')}"
 
         files_data = {filename: {"content": content}}

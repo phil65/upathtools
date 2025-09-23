@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import inspect
 from io import BytesIO
 import os
+import sys
 from types import ModuleType
 from typing import Any, Literal, overload
 
@@ -94,7 +95,6 @@ class ModuleFS(AbstractFileSystem):
         module.__package__ = None
 
         # Register in sys.modules
-        import sys
 
         sys.modules[module_name] = module
 
@@ -140,33 +140,16 @@ class ModuleFS(AbstractFileSystem):
                 continue
 
             if inspect.isfunction(obj):
-                members.append(
-                    ModuleMember(
-                        name=name,
-                        type="function",
-                        doc=obj.__doc__,
-                    )
-                )
+                member = ModuleMember(name=name, type="function", doc=obj.__doc__)
+                members.append(member)
             elif inspect.isclass(obj):
-                members.append(
-                    ModuleMember(
-                        name=name,
-                        type="class",
-                        doc=obj.__doc__,
-                    )
-                )
+                member = ModuleMember(name=name, type="class", doc=obj.__doc__)
+                members.append(member)
 
         if not detail:
             return [m.name for m in members]
 
-        return [
-            {
-                "name": m.name,
-                "type": m.type,
-                "doc": m.doc,
-            }
-            for m in members
-        ]
+        return [{"name": m.name, "type": m.type, "doc": m.doc} for m in members]
 
     def cat(self, path: str = "") -> bytes:
         """Get source code of whole module or specific member."""

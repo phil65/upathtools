@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import pytest
 from upath import UPath
 
+from upathtools import async_ops
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -40,8 +42,6 @@ def fixture_test_dir() -> Iterator[Path]:
 @pytest.mark.asyncio
 async def test_read_path(test_dir: Path) -> None:
     """Test reading a single file."""
-    from upathtools import async_ops
-
     file_path = test_dir / "file1.txt"
     content = await async_ops.read_path(file_path)
     assert content == "content1"
@@ -54,8 +54,6 @@ async def test_read_path(test_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_path_nonexistent() -> None:
     """Test reading a non-existent file raises error."""
-    from upathtools import async_ops
-
     with pytest.raises(FileNotFoundError):
         await async_ops.read_path("nonexistent.txt")
 
@@ -63,8 +61,6 @@ async def test_read_path_nonexistent() -> None:
 @pytest.mark.asyncio
 async def test_list_files(test_dir: Path) -> None:
     """Test listing files with various patterns."""
-    from upathtools import async_ops
-
     # Test basic file listing
     files = await async_ops.list_files(test_dir)
     assert len(files) == 4  # All files  # noqa: PLR2004
@@ -96,8 +92,6 @@ async def test_list_files(test_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_folder(test_dir: Path) -> None:
     """Test reading entire folders."""
-    from upathtools import async_ops
-
     # Test reading all text files
     content_map = await async_ops.read_folder(
         test_dir,
@@ -136,8 +130,6 @@ async def test_read_folder(test_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_folder_empty(test_dir: Path) -> None:
     """Test reading an empty folder or with no matching files."""
-    from upathtools import async_ops
-
     # Create empty subdirectory
     empty_dir = test_dir / "empty"
     empty_dir.mkdir()
@@ -154,8 +146,6 @@ async def test_read_folder_empty(test_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_folder_nonexistent() -> None:
     """Test reading a non-existent folder raises error."""
-    from upathtools import async_ops
-
     with pytest.raises(FileNotFoundError):
         await async_ops.read_folder("nonexistent_folder")
 

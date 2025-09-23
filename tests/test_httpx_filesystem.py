@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import logging
 import os
+import pickle
 import threading
 import time
 from types import SimpleNamespace
@@ -408,8 +409,6 @@ def test_read(server):
 
 
 def test_file_pickle(server):
-    import pickle
-
     # via HTTPFile
     h = fsspec.filesystem("http", headers={"give_length": "true", "head_ok": "true"})
     out = server.realfile

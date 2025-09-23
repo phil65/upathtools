@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+import io
 import os
 from typing import Any, Literal, overload
 
@@ -186,8 +187,6 @@ class PythonAstFS(AbstractFileSystem):
             content = "\n".join(lines[member.start_line : member.end_line]).encode()
 
         # Return a file-like object
-        import io
-
         return io.BytesIO(content)
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
