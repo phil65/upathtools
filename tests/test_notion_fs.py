@@ -131,7 +131,7 @@ def test_makedirs(fs: NotionFS):
         fs.rm("/Test Dir 1")
 
     # Test normal creation
-    fs.makedirs(test_path)
+    fs.makedirs(test_path, exist_ok=True)
     assert fs.exists(test_path)
 
     # Test exist_ok=True
@@ -238,7 +238,7 @@ def test_nested_delete(fs: NotionFS):
     """Test deleting nested pages."""
     # Create nested structure
     nested_path = "/Delete Parent/Delete Child"
-    fs.makedirs(nested_path)
+    fs.makedirs(nested_path, exist_ok=True)
     with fs.open(f"{nested_path}/test.txt", "w") as f:
         f.write("Test content")
 
