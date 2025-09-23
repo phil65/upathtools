@@ -186,7 +186,7 @@ def test_file_closure(fs: NotionFS, test_page: str):
     f = fs.open(f"/{test_page}", "r")
     f.close()
     assert f.closed
-    with pytest.raises(ValueError, match="I/O operation on closed file."):
+    with pytest.raises(ValueError, match="operation on closed file"):
         f.read()
 
 

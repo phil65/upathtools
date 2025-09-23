@@ -426,7 +426,7 @@ class FlatUnionFileSystem(AsyncFileSystem):
         logger.debug("Copying %s to %s", path1, path2)
 
         # Find source filesystem
-        src_fs, src_idx = await self._get_matching_fs(path1, **kwargs)
+        src_fs, _src_idx = await self._get_matching_fs(path1, **kwargs)
 
         if src_fs is None:
             msg = f"Source file not found: {path1}"
@@ -441,7 +441,7 @@ class FlatUnionFileSystem(AsyncFileSystem):
         dst_path = path2.lstrip("/")
 
         # Check if destination exists
-        dst_fs, dst_idx = await self._get_matching_fs(path2, **kwargs)
+        dst_fs, _dst_idx = await self._get_matching_fs(path2, **kwargs)
 
         # If destination doesn't exist, use first filesystem
         if dst_fs is None:

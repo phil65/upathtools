@@ -110,7 +110,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
         if data:
             self.wfile.write(data)
 
-    def do_GET(self):  # noqa: N802, PLR0911
+    def do_GET(self):  # noqa: PLR0911
         assert isinstance(self.server, HTTPServer)
         baseurl = f"http://{self.server.server_name}:{self.server.server_port}"
         file_path = self.path
@@ -145,7 +145,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
         content_range = f"bytes 0-{len(file_data) - 1}/{len(file_data)}"
         if ("Range" in self.headers) and ("ignore_range" not in self.headers):
             ran = self.headers["Range"]
-            b, ran = ran.split("=")
+            _b, ran = ran.split("=")
             start, end = ran.split("-")
             if start:
                 content_range = f"bytes {start}-{end}/{len(file_data)}"
@@ -177,7 +177,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
         self._respond(status, data=file_data)
         return None
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):
         length = self.headers.get("Content-Length")
         file_path = self.path.rstrip("/")
         if length is None:
@@ -197,7 +197,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
             yield self.rfile.read(length)
             self.rfile.readline()
 
-    def do_HEAD(self):  # noqa: N802
+    def do_HEAD(self):
         r_headers: dict[str, Any] = {}
         if "head_not_auth" in self.headers:
             r_headers["Content-Length"] = 123
