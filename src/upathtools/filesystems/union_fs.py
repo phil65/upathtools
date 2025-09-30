@@ -34,9 +34,10 @@ class UnionPath(UPath):
 
     def __str__(self) -> str:
         """Return string representation."""
-        if self.path == "/":
-            return f"{self.protocol}://"  # Special case for root
-        return super().__str__()
+        # TODO: this is all fishy
+        # if self.path == "/":
+        #     return f"{self.protocol}://"  # Special case for root
+        return super().__str__().replace(":///", "://")
 
 
 class UnionFileSystem(AsyncFileSystem):
