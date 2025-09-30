@@ -11,6 +11,7 @@ from typing import Any, Literal, Self, overload
 
 from fsspec.spec import AbstractFileSystem
 from upath import UPath
+from upath.types import UNSET_DEFAULT, WritablePathLike
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,14 @@ class CliPath(UPath):
             raise NotADirectoryError(str(self))
         yield from super().iterdir()
 
-    def rename(self, target: str | os.PathLike[str] | UPath, **kwargs: Any) -> Self:
+    def rename(
+        self,
+        target: WritablePathLike,
+        *,  # note: non-standard compared to pathlib
+        recursive: bool = UNSET_DEFAULT,
+        maxdepth: int | None = UNSET_DEFAULT,
+        **kwargs: Any,
+    ) -> Self:
         """Rename operation is not supported."""
         msg = "CliPath does not support rename operations"
         raise NotImplementedError(msg)
