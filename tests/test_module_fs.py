@@ -9,14 +9,9 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.filesystems.module_fs import ModuleFS
-
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-fsspec.register_implementation("mod", ModuleFS)
 
 
 @pytest.fixture
