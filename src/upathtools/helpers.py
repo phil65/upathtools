@@ -2,27 +2,31 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 from typing import TYPE_CHECKING
 
 import upath
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from typing import Any
+
+    from upath.types import JoinablePathLike
 
 
 logger = logging.getLogger(__name__)
 
 
 def to_upath(path: JoinablePathLike | os.PathLike[str]) -> upath.UPath:
-    return upath.UPath(str(path)) if isinstance(path, os.PathLike) else upath.UPath(path)
+    return (
+        upath.UPath(os.fspath(path))
+        if isinstance(path, os.PathLike)
+        else upath.UPath(path)
+    )
 
 
 def fsspec_copy(
-    source_path: str | os.PathLike[str],
-    output_path: str | os.PathLike[str],
+    source_path: JoinablePathLike | os.PathLike[str],
+    output_path: JoinablePathLike | os.PathLike[str],
     exist_ok: bool = True,
 ):
     """Copy source_path to output_path, making sure any parent directories exist.
@@ -52,8 +56,8 @@ def fsspec_copy(
 
 
 def copy(
-    source_path: str | os.PathLike[str],
-    output_path: str | os.PathLike[str],
+    source_path: JoinablePathLike | os.PathLike[str],
+    output_path: JoinablePathLike | os.PathLike[str],
     exist_ok: bool = True,
 ):
     """Copy source_path to output_path, making sure any parent directories exist.
@@ -65,25 +69,26 @@ def copy(
         output_path: path where file should get copied to.
         exist_ok: Whether exception should be raised in case stuff would get overwritten
     """
-    output_p = upath.UPath(output_path)
-    source_p = upath.UPath(source_path)
+    output_p = to_upath(output_path)
+    source_p = to_upath(source_path)
     output_p.parent.mkdir(parents=True, exist_ok=exist_ok)
     if source_p.is_dir():
         if output_p.is_dir():
             msg = "Cannot copy folder to file!"
             raise RuntimeError(msg)
-        shutil.copytree(source_p, output_p, dirs_exist_ok=exist_ok)
+        source_p.copy(output_p, exist_ok=exist_ok)
     else:
         if output_p.is_dir():
             output_p /= source_p.name
-        shutil.copyfile(source_p, output_p)
+        source_p.copy(output_p)
 
 
 def clean_directory(
-    directory: str | os.PathLike[str], remove_hidden: bool = False
+    directory: JoinablePathLike | os.PathLike[str], remove_hidden: bool = False
 ) -> None:
     """Remove the content of a directory recursively but not the directory itself."""
-    folder_to_remove = upath.UPath(directory)
+    folder = to_upath(directory)
+    folder_to_remove = upath.UPath(folder)
     if not folder_to_remove.exists():
         return
     for entry in folder_to_remove.iterdir():
@@ -91,14 +96,14 @@ def clean_directory(
             continue
         path = folder_to_remove / entry
         if path.is_dir():
-            shutil.rmtree(path, True)
+            path.rmdir(True)
         else:
             path.unlink()
 
 
 def write_file(
     content: str | bytes,
-    output_path: str | os.PathLike[str],
+    output_path: JoinablePathLike | os.PathLike[str],
     errors: str | None = None,
     **kwargs: Any,
 ):
@@ -114,7 +119,7 @@ def write_file(
                 "xmlcharrefreplace", "backslashreplace", "namereplace"
         kwargs: Additional keyword arguments passed to open
     """
-    output_p = upath.UPath(output_path)
+    output_p = to_upath(output_path)
     output_p.parent.mkdir(parents=True, exist_ok=True)
     mode = "wb" if isinstance(content, bytes) else "w"
     kwargs["encoding"] = None if "b" in mode else "utf-8"
@@ -128,7 +133,7 @@ def multi_glob(
     directory: str | None = None,
     keep_globs: list[str] | None = None,
     drop_globs: list[str] | None = None,
-) -> list[Path]:
+) -> list[upath.UPath]:
     """Return a list of all files matching multiple globs.
 
     Return a list of all files in the given directory that match the
@@ -161,7 +166,7 @@ def multi_glob(
         msg = f"{directory!r} is not a directory."
         raise ValueError(msg)
 
-    def files_from_globs(globs: list[str]) -> set[Path]:
+    def files_from_globs(globs: list[str]) -> set[upath.UPath]:
         return {
             file
             for pattern in globs
@@ -170,4 +175,4 @@ def multi_glob(
         }
 
     matching_files = files_from_globs(keep_globs) - files_from_globs(drop_globs)
-    return [file.relative_to(directory_path) for file in matching_files]
+    return [file.relative_to(to_upath(directory_path)) for file in matching_files]

@@ -3,6 +3,7 @@ __version__ = "0.6.3"
 from fsspec import register_implementation
 from upath import registry
 
+from upathtools.helpers import to_upath
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 from upathtools.filesystems.cli_fs import CliFS, CliPath
@@ -88,4 +89,5 @@ __all__ = [
     "read_path",
     "register_all_filesystems",
     "register_http_filesystems",
+    "to_upath",
 ]

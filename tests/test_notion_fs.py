@@ -83,12 +83,12 @@ def test_binary_mode(fs: NotionFS, test_page: str):
 
     # Test binary write
     with fs.open(f"/{test_page}", "wb") as f:
-        f.write(binary_content)
+        f.write(binary_content)  # pyright: ignore[reportArgumentType]
 
     # Test binary read
     with fs.open(f"/{test_page}", "rb") as f:
         content = f.read()
-        assert content.decode("utf-8").strip() == TEST_CONTENT.strip()
+        assert content.decode("utf-8").strip() == TEST_CONTENT.strip()  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_invalid_mode(fs: NotionFS):

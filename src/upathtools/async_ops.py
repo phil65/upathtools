@@ -9,16 +9,16 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+from upath import UPath
+
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     import fsspec
     from fsspec.asyn import AsyncFileSystem
-    from upath import UPath
+    from upath.types import JoinablePathLike
 
-
-StrPath = str | os.PathLike[str]
 
 logger = logging.getLogger(__name__)
 
@@ -44,31 +44,36 @@ def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFile
 
 
 async def get_async_fs(
-    path_or_fs: StrPath | fsspec.AbstractFileSystem,
+    path_or_fs: JoinablePathLike | os.PathLike[str] | fsspec.AbstractFileSystem,
 ) -> AsyncFileSystem:
     """Get appropriate async filesystem for path."""
     import fsspec
-    from upath import UPath
+
+    from upathtools.helpers import to_upath
 
     if isinstance(path_or_fs, fsspec.AbstractFileSystem):
         return _get_cached_fs(path_or_fs)
 
-    path_obj = UPath(path_or_fs)
+    path_obj = to_upath(path_or_fs)
     return _get_cached_fs(path_obj.protocol)
 
 
 @overload
 async def read_path(
-    path: StrPath, mode: Literal["rt"] = "rt", encoding: str = ...
+    path: JoinablePathLike | os.PathLike[str],
+    mode: Literal["rt"] = "rt",
+    encoding: str = ...,
 ) -> str: ...
 
 
 @overload
-async def read_path(path: StrPath, mode: Literal["rb"], encoding: str = ...) -> bytes: ...
+async def read_path(
+    path: JoinablePathLike | os.PathLike[str], mode: Literal["rb"], encoding: str = ...
+) -> bytes: ...
 
 
 async def read_path(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     mode: Literal["rt", "rb"] = "rt",
     encoding: str = "utf-8",
 ) -> str | bytes:
@@ -82,9 +87,9 @@ async def read_path(
     Returns:
         File content as string or bytes depending on mode
     """
-    from upath import UPath
+    from upathtools.helpers import to_upath
 
-    path_obj = UPath(path)
+    path_obj = to_upath(path)
     fs = await get_async_fs(path_obj)
     f = await fs.open_async(path_obj.path, mode=mode)
     async with f:
@@ -93,7 +98,7 @@ async def read_path(
 
 @overload
 async def read_folder(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -109,7 +114,7 @@ async def read_folder(
 
 @overload
 async def read_folder(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -124,7 +129,7 @@ async def read_folder(
 
 
 async def read_folder(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -156,9 +161,9 @@ async def read_folder(
     Raises:
         FileNotFoundError: If base path doesn't exist
     """
-    from upath import UPath
+    from upathtools.helpers import to_upath
 
-    base_path = UPath(path)
+    base_path = to_upath(path)
     matching_files = await list_files(
         path,
         pattern=pattern,
@@ -180,23 +185,20 @@ async def read_folder(
                 contents: Sequence[str | bytes] = await asyncio.gather(*tasks)
                 # Map results back to relative paths
                 for file_path, content in zip(chunk, contents, strict=True):
-                    rel_path = os.path.relpath(file_path, base_path)
+                    rel_path = os.path.relpath(str(file_path), str(base_path))
                     result[rel_path] = content
             except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "Failed to read chunk starting at %s: %s",
-                    os.path.relpath(chunk[0], base_path),
-                    e,
-                )
+                msg = "Failed to read chunk starting at %s: %s"
+                logger.warning(msg, os.path.relpath(str(chunk[0]), str(base_path)), e)
     else:
         # Sequential reading
         for file_path in matching_files:
             try:
                 content = await read_path(file_path, mode=mode, encoding=encoding)
-                rel_path = os.path.relpath(file_path, base_path)
+                rel_path = os.path.relpath(str(file_path), str(base_path))
                 result[rel_path] = content
             except Exception as e:  # noqa: BLE001
-                rel_path = os.path.relpath(file_path, base_path)
+                rel_path = os.path.relpath(str(file_path), str(base_path))
                 logger.warning("Failed to read %s: %s", rel_path, e)
 
     return result
@@ -204,7 +206,7 @@ async def read_folder(
 
 @overload
 async def list_files(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -217,7 +219,7 @@ async def list_files(
 
 @overload
 async def list_files(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -229,7 +231,7 @@ async def list_files(
 
 
 async def list_files(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -257,9 +259,9 @@ async def list_files(
     """
     from fnmatch import fnmatch
 
-    from upath import UPath
+    from upathtools.helpers import to_upath
 
-    base_path = UPath(path)
+    base_path = to_upath(path)
     if not base_path.exists():
         msg = f"Path does not exist: {path}"
         raise FileNotFoundError(msg)
@@ -318,7 +320,7 @@ async def list_files(
 
 
 async def read_folder_as_text(
-    path: StrPath,
+    path: JoinablePathLike | os.PathLike[str],
     *,
     pattern: str = "**/*",
     recursive: bool = True,
