@@ -9,6 +9,9 @@ import pytest
 from upathtools.filesystems.notion_fs import NotionFS
 
 
+pytestmark = pytest.mark.integration
+
+
 # Constants
 TEST_PAGE_TITLE = "FSSpec Test Page"
 TEST_CONTENT = "Hello from NotionFS Test!"
