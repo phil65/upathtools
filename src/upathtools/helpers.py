@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from typing import TYPE_CHECKING
 
@@ -8,12 +9,15 @@ import upath
 
 
 if TYPE_CHECKING:
-    import os
     from pathlib import Path
     from typing import Any
 
 
 logger = logging.getLogger(__name__)
+
+
+def to_upath(path: JoinablePathLike | os.PathLike[str]) -> upath.UPath:
+    return upath.UPath(str(path)) if isinstance(path, os.PathLike) else upath.UPath(path)
 
 
 def fsspec_copy(
