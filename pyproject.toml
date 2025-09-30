@@ -55,6 +55,9 @@ package = "upathtools.filesystems.package_fs.PackagePath"
 module = "upathtools.filesystems.module_fs.ModulePath"
 ast = "upathtools.filesystems.python_ast_fs.PythonAstPath"
 notion = "upathtools.filesystems.notion_fs.NotionPath"
+appwrite = "upathtools.filesystems.appwrite_fs.AppwritePath"
+flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionPath"
+cli = "upathtools.filesystems.cli_fs.CliPath"
 
 [project.entry-points."fsspec.specs"]
 gist = "upathtools.filesystems.gist_fs.GistFS"
@@ -65,6 +68,9 @@ package = "upathtools.filesystems.package_fs.PackageFS"
 module = "upathtools.filesystems.module_fs.ModuleFS"
 ast = "upathtools.filesystems.python_ast_fs.PythonAstFS"
 notion = "upathtools.filesystems.notion_fs.NotionFS"
+appwrite = "upathtools.filesystems.appwrite_fs.AppwriteFS"
+flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionFS"
+cli = "upathtools.filesystems.cli_fs.CliFS"
 
 [tool.uv]
 default-groups = ["dev", "lint", "docs"]

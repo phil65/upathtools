@@ -7,14 +7,9 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
-from upathtools.filesystems.python_ast_fs import PythonAstFS
-
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-fsspec.register_implementation("ast", PythonAstFS)
 
 
 @pytest.fixture

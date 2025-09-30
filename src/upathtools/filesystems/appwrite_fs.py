@@ -9,10 +9,9 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec import register_implementation
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from fsspec.utils import tokenize
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -891,10 +890,6 @@ class AppwriteBufferedFile(io.BytesIO):
         """Check if file is seekable."""
         return True
 
-
-# Register filesystem implementation
-registry.register_implementation("appwrite", AppwritePath)
-register_implementation("appwrite", AppwriteFileSystem)
 
 if __name__ == "__main__":
     import os

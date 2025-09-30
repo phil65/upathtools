@@ -9,9 +9,8 @@ import shutil
 import subprocess
 from typing import Any, Literal, Self, overload
 
-import fsspec
 from fsspec.spec import AbstractFileSystem
-from upath import UPath, registry
+from upath import UPath
 
 
 logger = logging.getLogger(__name__)
@@ -218,11 +217,6 @@ class CliFS(AbstractFileSystem):
             "size": 0,
             "executable": commands[cmd_name],
         }
-
-
-# Register filesystem
-fsspec.register_implementation("cli", CliFS, clobber=True)
-registry.register_implementation("cli", CliPath, clobber=True)
 
 
 if __name__ == "__main__":

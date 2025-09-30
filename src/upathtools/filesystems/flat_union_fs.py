@@ -513,11 +513,7 @@ def create_flat_union_path(paths: Sequence[UPath | str | os.PathLike[str]]) -> U
 if __name__ == "__main__":
     import asyncio
 
-    import fsspec
-    from upath import UPath, registry
-
-    fsspec.register_implementation("flatunion", FlatUnionFileSystem, clobber=True)
-    registry.register_implementation("flatunion", FlatUnionPath, clobber=True)
+    from upath import UPath
 
     async def main():
         # Create test directories in memory
