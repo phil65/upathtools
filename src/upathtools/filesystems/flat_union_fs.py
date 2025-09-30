@@ -506,7 +506,7 @@ def create_flat_union_path(paths: Sequence[UPath | str | os.PathLike[str]]) -> U
     filesystems = [p.fs for p in upaths]
     flat_fs = FlatUnionFileSystem(filesystems)
     p = UPath("flatunion://")
-    p._fs_cached = flat_fs
+    p._fs_cached = flat_fs  # pyright: ignore[reportAttributeAccessIssue]
     return p
 
 
