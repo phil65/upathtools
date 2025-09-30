@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def to_upath(path: JoinablePathLike | os.PathLike[str]) -> upath.UPath:
+def to_upath(path: JoinablePathLike | os.PathLike[str] | str) -> upath.UPath:
     return (
         upath.UPath(os.fspath(path))
         if isinstance(path, os.PathLike)
