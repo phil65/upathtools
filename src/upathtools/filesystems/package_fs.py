@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -179,11 +179,6 @@ class PackageFS(AbstractFileSystem):
             raise FileNotFoundError(msg) from exc
 
 
-# Register the filesystem
-fsspec.register_implementation("pkg", PackageFS, clobber=True)
-registry.register_implementation("pkg", PackagePath, clobber=True)
-
-
 if __name__ == "__main__":
     # Create a filesystem instance
     fs = PackageFS("upathtools")
@@ -193,5 +188,5 @@ if __name__ == "__main__":
         print(path)
 
     # Read a file from the package
-    content = fs.cat("/package_fs")
+    content = fs.cat("/filesystems/package_fs")
     print(content.decode("utf-8"))

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -277,11 +277,6 @@ class MarkdownFS(AbstractFileSystem):
         node = self._get_node(path)
         content = node.content.encode()
         return io.BytesIO(content)
-
-
-# Register filesystem
-fsspec.register_implementation("md", MarkdownFS, clobber=True)
-registry.register_implementation("md", MarkdownPath, clobber=True)
 
 
 if __name__ == "__main__":

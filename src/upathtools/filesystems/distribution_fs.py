@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -186,10 +186,6 @@ class DistributionFS(AbstractFileSystem):
             msg = f"Cannot read source of {path}"
             raise FileNotFoundError(msg) from exc
 
-
-# Register the filesystem
-fsspec.register_implementation("distribution", DistributionFS, clobber=True)
-registry.register_implementation("distribution", DistributionPath)
 
 if __name__ == "__main__":
     fs = DistributionFS()

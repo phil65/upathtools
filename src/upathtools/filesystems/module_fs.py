@@ -12,7 +12,7 @@ from typing import Any, Literal, overload
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
-from upath import UPath, registry
+from upath import UPath
 
 
 NodeType = Literal["function", "class"]
@@ -220,10 +220,6 @@ class ModuleFS(AbstractFileSystem):
             "size": len(inspect.getsource(obj)),  # size of the member's source
             "doc": obj.__doc__,
         }
-
-
-fsspec.register_implementation("mod", ModuleFS, clobber=True)
-registry.register_implementation("mod", ModulePath, clobber=True)
 
 
 if __name__ == "__main__":

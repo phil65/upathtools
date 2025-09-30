@@ -11,10 +11,9 @@ import subprocess
 import tempfile
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec import register_implementation
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from fsspec.utils import infer_storage_options
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -750,10 +749,6 @@ class WikiBufferedWriter(io.BufferedIOBase):
     def writable(self) -> bool:
         """Whether the writer is writable."""
         return True
-
-
-register_implementation("wiki", WikiFileSystem, clobber=True)
-registry.register_implementation("wiki", WikiPath, clobber=True)
 
 
 if __name__ == "__main__":

@@ -5,10 +5,17 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from fsspec.spec import AbstractFileSystem
+from upath import UPath
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+class NotionPath(UPath):
+    """UPath implementation for Notion filesystem."""
+
+    __slots__ = ()
 
 
 class NotionFS(AbstractFileSystem):
@@ -34,6 +41,10 @@ class NotionFS(AbstractFileSystem):
             raise ValueError(msg) from e
         self.parent_page_id = parent_page_id
         self._path_cache: dict[str, str] = {}
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return NotionPath(path)
 
     def exists(self, path: str, **kwargs: Any) -> bool:
         """Check if a path exists."""

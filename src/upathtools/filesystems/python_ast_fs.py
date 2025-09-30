@@ -27,7 +27,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class AstPath(UPath):
+class PythonAstPath(UPath):
     """UPath implementation for browsing Python AST."""
 
     __slots__ = ()
@@ -63,7 +63,7 @@ class PythonAstFS(AbstractFileSystem):
 
     def _make_path(self, path: str) -> UPath:
         """Create a path object from string."""
-        return AstPath(path)
+        return PythonAstPath(path)
 
     def _load(self) -> None:
         """Load and parse the source file if not already loaded."""
@@ -217,9 +217,6 @@ class PythonAstFS(AbstractFileSystem):
             "size": member.end_line - member.start_line,
             "doc": member.doc,
         }
-
-
-fsspec.register_implementation("ast", PythonAstFS, clobber=True)
 
 
 if __name__ == "__main__":

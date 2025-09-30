@@ -11,7 +11,7 @@ from upathtools.filesystems.flat_union_fs import FlatUnionFileSystem, FlatUnionP
 from upathtools.filesystems.markdown_fs import MarkdownFS, MarkdownPath
 from upathtools.filesystems.module_fs import ModuleFS, ModulePath
 from upathtools.filesystems.package_fs import PackageFS, PackagePath
-from upathtools.filesystems.python_ast_fs import AstPath, PythonAstFS
+from upathtools.filesystems.python_ast_fs import PythonAstPath, PythonAstFS
 from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 from upathtools.filesystems.wiki_fs import WikiFileSystem, WikiPath
@@ -47,7 +47,7 @@ def register_all_filesystems():
     registry.register_implementation("pkg", PackagePath, clobber=True)
 
     register_implementation("ast", PythonAstFS, clobber=True)
-    registry.register_implementation("ast", AstPath, clobber=True)
+    registry.register_implementation("ast", PythonAstPath, clobber=True)
 
     register_implementation("union", UnionFileSystem, clobber=True)
     registry.register_implementation("union", UnionPath, clobber=True)
@@ -60,7 +60,6 @@ def register_all_filesystems():
 
 
 __all__ = [
-    "AstPath",
     "CliFS",
     "CliPath",
     "DistributionFS",
@@ -78,6 +77,7 @@ __all__ = [
     "PackageFS",
     "PackagePath",
     "PythonAstFS",
+    "PythonAstPath",
     "UnionFileSystem",
     "UnionPath",
     "WikiFileSystem",

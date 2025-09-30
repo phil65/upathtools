@@ -10,10 +10,9 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec import register_implementation
 from fsspec.asyn import AsyncFileSystem, sync, sync_wrapper
 from fsspec.utils import infer_storage_options
-from upath import UPath, registry
+from upath import UPath
 
 
 if TYPE_CHECKING:
@@ -883,10 +882,6 @@ class AsyncGistWriter:
     async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Exit the context manager and close the writer."""
         await self.close()
-
-
-register_implementation("gist", GistFileSystem, clobber=True)
-registry.register_implementation("gist", GistPath, clobber=True)
 
 
 if __name__ == "__main__":

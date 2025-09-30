@@ -46,6 +46,26 @@ httpx = ["httpx", "yarl"]
 appwrite = ["appwrite"]
 notion-client = ["notion-client"]
 
+[project.entry-points."universal_pathlib.implementations"]
+gist = "upathtools.filesystems.gist_fs.GistPath"
+wiki = "upathtools.filesystems.wiki_fs.WikiPath"
+markdown = "upathtools.filesystems.markdown_fs.MarkdownPath"
+distribution = "upathtools.filesystems.distribution_fs.DistributionPath"
+package = "upathtools.filesystems.package_fs.PackagePath"
+module = "upathtools.filesystems.module_fs.ModulePath"
+ast = "upathtools.filesystems.python_ast_fs.PythonAstPath"
+notion = "upathtools.filesystems.notion_fs.NotionPath"
+
+[project.entry-points."fsspec.specs"]
+gist = "upathtools.filesystems.gist_fs.GistFS"
+wiki = "upathtools.filesystems.wiki_fs.WikiFS"
+markdown = "upathtools.filesystems.markdown_fs.MarkdownFS"
+distribution = "upathtools.filesystems.distribution_fs.DistributionFS"
+package = "upathtools.filesystems.package_fs.PackageFS"
+module = "upathtools.filesystems.module_fs.ModuleFS"
+ast = "upathtools.filesystems.python_ast_fs.PythonAstFS"
+notion = "upathtools.filesystems.notion_fs.NotionFS"
+
 [tool.uv]
 default-groups = ["dev", "lint", "docs"]
 
