@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any, ClassVar, Literal
 
 from pydantic import Field
+from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import (
     FilesystemCategoryType,  # noqa: TC001
     FileSystemConfig,
 )
-from upathtools.pydantic_type import UPathField  # noqa: TC001
 
 
 class ArrowFilesystemConfig(FileSystemConfig):
@@ -61,7 +61,7 @@ class FTPFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    host: str = Field(...)
+    host: str
     """FTP server hostname or IP"""
 
     port: int = 21
@@ -104,7 +104,7 @@ class GitFilesystemConfig(FileSystemConfig):
     path: str | None = None
     """Path to git repository"""
 
-    fo: UPathField | None = None
+    fo: UPath | None = None
     """Alternative to path, passed as part of URL"""
 
     ref: str | None = None
@@ -120,10 +120,10 @@ class GithubFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    org: str = Field(...)
+    org: str
     """GitHub organization or user name"""
 
-    repo: str = Field(...)
+    repo: str
     """Repository name"""
 
     sha: str | None = None
@@ -176,7 +176,7 @@ class JupyterFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    url: str = Field(...)
+    url: str
     """Base URL of the Jupyter server"""
 
     tok: str | None = None
@@ -192,7 +192,7 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: UPathField = ""
+    fo: UPath
     """Path to archive file"""
 
     target_protocol: str | None = None
@@ -240,7 +240,7 @@ class SFTPFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    host: str = Field(...)
+    host: str
     """Hostname or IP to connect to"""
 
     port: int = 22
@@ -268,7 +268,7 @@ class SMBFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    host: str = Field(...)
+    host: str
     """Hostname or IP of the SMB server"""
 
     port: int | None = None
@@ -296,7 +296,7 @@ class TarFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: UPathField = ""
+    fo: UPath
     """Path to tar file"""
 
     index_store: Any | None = None
@@ -321,7 +321,7 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    host: str = Field(...)
+    host: str
     """Hostname or IP of the HDFS namenode"""
 
     port: int = 50070
@@ -352,7 +352,7 @@ class ZipFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "archive"
     """Classification of the filesystem type"""
 
-    fo: UPathField = ""
+    fo: UPath
     """Path to zip file"""
 
     mode: str = "r"

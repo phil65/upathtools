@@ -154,9 +154,7 @@ class UPath:
 
 UPathField = Annotated[
     str,
-    Field(
-        json_schema_extra={"field_type": "upath"},
-    ),
+    Field(json_schema_extra={"field_type": "upath"}),
 ]
 
 # Type aliases with validation
@@ -176,10 +174,7 @@ if __name__ == "__main__":
         output_dir: UPathDir
         temp_path: UPath
 
-        model_config = {
-            "frozen": True,
-            "extra": "forbid",
-        }
+        model_config = {"frozen": True, "extra": "forbid"}
 
     try:
         config = FileConfig(

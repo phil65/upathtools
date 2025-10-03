@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any, ClassVar, Literal
 
 from pydantic import Field
+from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import (
     FilesystemCategoryType,  # noqa: TC001
     FileSystemConfig,
 )
-from upathtools.pydantic_type import UPathField  # noqa: TC001
 
 
 class CliFilesystemConfig(FileSystemConfig):
@@ -48,7 +48,7 @@ class FlatUnionFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "aggregation"
     """Classification of the filesystem type"""
 
-    filesystems: list[str] = Field(...)
+    filesystems: list[str]
     """List of filesystem identifiers to include in the union"""
 
 
@@ -108,14 +108,14 @@ class HttpFilesystemConfig(FileSystemConfig):
 class MarkdownFilesystemConfig(FileSystemConfig):
     """Configuration for Markdown filesystem."""
 
+    fo: UPath
+    """Path to markdown file"""
+
     fs_type: Literal["md"] = Field("md", init=False)
     """Markdown filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
-
-    fo: UPathField = ""
-    """Path to markdown file"""
 
     target_protocol: str | None = None
     """Protocol for source file"""
@@ -133,7 +133,7 @@ class ModuleFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    fo: UPathField = ""
+    fo: UPath
     """Path to Python file"""
 
     target_protocol: str | None = None
@@ -152,7 +152,7 @@ class PackageFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    package: str = Field(...)
+    package: str
     """Name of the package to browse"""
 
 
@@ -165,7 +165,7 @@ class PythonAstFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "transform"
     """Classification of the filesystem type"""
 
-    fo: UPathField = ""
+    fo: UPath
     """Path to Python file"""
 
     target_protocol: str | None = None
@@ -184,7 +184,7 @@ class UnionFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "aggregation"
     """Classification of the filesystem type"""
 
-    filesystems: dict[str, Any] = Field(...)
+    filesystems: dict[str, Any]
     """Dictionary mapping protocol names to filesystem configurations"""
 
 
@@ -197,10 +197,10 @@ class WikiFilesystemConfig(FileSystemConfig):
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
 
-    owner: str = Field(...)
+    owner: str
     """GitHub repository owner/organization"""
 
-    repo: str = Field(...)
+    repo: str
     """GitHub repository name"""
 
     token: str | None = None
