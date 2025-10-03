@@ -6,7 +6,10 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 
-from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig
+from upathtools.configs.base import (
+    FilesystemCategoryType,  # noqa: TC001
+    FileSystemConfig,
+)
 from upathtools.pydantic_type import UPathField  # noqa: TC001
 
 

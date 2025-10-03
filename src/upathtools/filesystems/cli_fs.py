@@ -7,11 +7,15 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-from typing import Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.spec import AbstractFileSystem
 from upath import UPath
-from upath.types import UNSET_DEFAULT, WritablePathLike
+from upath.types import UNSET_DEFAULT
+
+
+if TYPE_CHECKING:
+    from upath.types import WritablePathLike
 
 
 logger = logging.getLogger(__name__)

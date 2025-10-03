@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import fsspec
-from fsspec import AbstractFileSystem
 from pydantic import BaseModel, ConfigDict
 from upath import UPath
+
+
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
 
 
 # Define filesystem categories as literals

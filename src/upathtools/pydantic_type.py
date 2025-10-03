@@ -22,12 +22,19 @@ Example:
     ```
 """
 
-from typing import Annotated, Any
+from __future__ import annotations
 
-from pydantic import BeforeValidator, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
-from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import CoreSchema, core_schema
+from typing import TYPE_CHECKING, Annotated, Any
+
+from pydantic import BeforeValidator, Field
+from pydantic_core import core_schema
 import upath
+
+
+if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
 
 
 def _convert_to_upath(value: Any) -> upath.UPath:
