@@ -2,8 +2,6 @@
 
 [![PyPI License](https://img.shields.io/pypi/l/upathtools.svg)](https://pypi.org/project/upathtools/)
 [![Package status](https://img.shields.io/pypi/status/upathtools.svg)](https://pypi.org/project/upathtools/)
-[![Daily downloads](https://img.shields.io/pypi/dd/upathtools.svg)](https://pypi.org/project/upathtools/)
-[![Weekly downloads](https://img.shields.io/pypi/dw/upathtools.svg)](https://pypi.org/project/upathtools/)
 [![Monthly downloads](https://img.shields.io/pypi/dm/upathtools.svg)](https://pypi.org/project/upathtools/)
 [![Distribution format](https://img.shields.io/pypi/format/upathtools.svg)](https://pypi.org/project/upathtools/)
 [![Wheel availability](https://img.shields.io/pypi/wheel/upathtools.svg)](https://pypi.org/project/upathtools/)
@@ -21,12 +19,8 @@
 [![Github last commit](https://img.shields.io/github/last-commit/phil65/upathtools)](https://github.com/phil65/upathtools/commits)
 [![Github release date](https://img.shields.io/github/release-date/phil65/upathtools)](https://github.com/phil65/upathtools/releases)
 [![Github language count](https://img.shields.io/github/languages/count/phil65/upathtools)](https://github.com/phil65/upathtools)
-[![Github commits this week](https://img.shields.io/github/commit-activity/w/phil65/upathtools)](https://github.com/phil65/upathtools)
 [![Github commits this month](https://img.shields.io/github/commit-activity/m/phil65/upathtools)](https://github.com/phil65/upathtools)
-[![Github commits this year](https://img.shields.io/github/commit-activity/y/phil65/upathtools)](https://github.com/phil65/upathtools)
 [![Package status](https://codecov.io/gh/phil65/upathtools/branch/main/graph/badge.svg)](https://codecov.io/gh/phil65/upathtools/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PyUp](https://pyup.io/repos/github/phil65/upathtools/shield.svg)](https://pyup.io/repos/github/phil65/upathtools/)
 
 [Read the documentation!](https://phil65.github.io/upathtools/)
-
