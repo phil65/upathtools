@@ -131,6 +131,6 @@ class PathConfig(BaseModel):
 if __name__ == "__main__":
     from upathtools.configs.fsspec_fs_configs import ZipFilesystemConfig
 
-    zip_config = ZipFilesystemConfig(fo="C:/Users/phili/Downloads/tags.zip")
+    zip_config = ZipFilesystemConfig(fo=UPath("C:/Users/phili/Downloads/tags.zip"))
     fs = zip_config.create_fs()
     print(fs.ls("tags/"))
