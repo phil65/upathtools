@@ -39,7 +39,6 @@ def fixture_test_dir() -> Iterator[Path]:
         # Cleanup happens automatically via context manager
 
 
-@pytest.mark.asyncio
 async def test_read_path(test_dir: Path) -> None:
     """Test reading a single file."""
     file_path = test_dir / "file1.txt"
@@ -51,14 +50,12 @@ async def test_read_path(test_dir: Path) -> None:
     assert content_bytes == b"content1"
 
 
-@pytest.mark.asyncio
 async def test_read_path_nonexistent() -> None:
     """Test reading a non-existent file raises error."""
     with pytest.raises(FileNotFoundError):
         await async_ops.read_path("nonexistent.txt")
 
 
-@pytest.mark.asyncio
 async def test_list_files(test_dir: Path) -> None:
     """Test listing files with various patterns."""
     # Test basic file listing
@@ -89,7 +86,6 @@ async def test_list_files(test_dir: Path) -> None:
     assert all(isinstance(f, UPath) for f in files)
 
 
-@pytest.mark.asyncio
 async def test_read_folder(test_dir: Path) -> None:
     """Test reading entire folders."""
     # Test reading all text files
@@ -127,7 +123,6 @@ async def test_read_folder(test_dir: Path) -> None:
     assert parallel_map["file1.txt"] == "content1"
 
 
-@pytest.mark.asyncio
 async def test_read_folder_empty(test_dir: Path) -> None:
     """Test reading an empty folder or with no matching files."""
     # Create empty subdirectory
@@ -143,7 +138,6 @@ async def test_read_folder_empty(test_dir: Path) -> None:
     assert len(content_map) == 0
 
 
-@pytest.mark.asyncio
 async def test_read_folder_nonexistent() -> None:
     """Test reading a non-existent folder raises error."""
     with pytest.raises(FileNotFoundError):

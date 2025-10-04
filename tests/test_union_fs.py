@@ -139,7 +139,6 @@ def test_root_path_representation():
     assert path.path == "/"
 
 
-@pytest.mark.asyncio
 async def test_filesystem_root_operations(union_fs: UnionFileSystem):
     """Test filesystem operations with root paths."""
     # Test listing with different root path formats
