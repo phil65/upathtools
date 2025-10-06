@@ -1,4 +1,8 @@
-__version__ = "0.6.5"
+from __future__ import annotations
+
+from importlib.metadata import version
+
+__version__ = version("upathtools")
 
 from fsspec import register_implementation
 from upath import registry
@@ -61,6 +65,7 @@ def register_all_filesystems():
 
 
 __all__ = [
+    "__version__",
     "CliFS",
     "CliPath",
     "DistributionFS",
