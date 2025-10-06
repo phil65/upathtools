@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 import inspect
 from io import BytesIO
@@ -173,8 +174,53 @@ class ModuleFS(AbstractFileSystem):
             msg = f"Member {path} not found"
             raise FileNotFoundError(msg)
 
-        source = inspect.getsource(obj)
+        try:
+            source = inspect.getsource(obj)
+        except OSError:
+            # Fallback for Python 3.13+ where inspect.getsource may fail
+            source = self._get_source_from_ast(path)
         return source.encode()
+
+    def _get_source_from_ast(self, name: str) -> str:
+        """Get source code for a member using AST parsing as fallback."""
+        # Read the source file
+        with fsspec.open(
+            self.source_path,
+            "r",
+            protocol=self.target_protocol,
+            **self.target_options,
+        ) as f:
+            source_code = f.read()
+
+        # Parse the AST
+        tree = ast.parse(source_code)
+
+        # Find the node with the given name
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef))
+                and node.name == name
+            ):
+                # Extract the source lines for this node
+                lines = source_code.splitlines()
+                start_line = node.lineno - 1
+
+                # Find the end line by looking at indentation
+                end_line = len(lines)
+                base_indent = len(lines[start_line]) - len(lines[start_line].lstrip())
+
+                for i in range(start_line + 1, len(lines)):
+                    line = lines[i]
+                    if line.strip():  # Skip empty lines
+                        current_indent = len(line) - len(line.lstrip())
+                        if current_indent <= base_indent:
+                            end_line = i
+                            break
+
+                return "\n".join(lines[start_line:end_line])
+
+        msg = f"Could not find source for {name}"
+        raise FileNotFoundError(msg)
 
     def _open(
         self,
@@ -217,9 +263,18 @@ class ModuleFS(AbstractFileSystem):
         return {
             "name": path,
             "type": "class" if inspect.isclass(obj) else "function",
-            "size": len(inspect.getsource(obj)),  # size of the member's source
+            "size": len(
+                self._get_member_source(obj, path)
+            ),  # size of the member's source
             "doc": obj.__doc__,
         }
+
+    def _get_member_source(self, obj: Any, name: str) -> str:
+        """Get source code for a member, with fallback for inspect failures."""
+        try:
+            return inspect.getsource(obj)
+        except OSError:
+            return self._get_source_from_ast(name)
 
 
 if __name__ == "__main__":
