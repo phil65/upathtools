@@ -65,7 +65,6 @@ def register_all_filesystems():
 
 
 __all__ = [
-    "__version__",
     "CliFS",
     "CliPath",
     "DistributionFS",
@@ -88,6 +87,7 @@ __all__ = [
     "UnionPath",
     "WikiFileSystem",
     "WikiPath",
+    "__version__",
     "list_files",
     "read_folder",
     "read_folder_as_text",
