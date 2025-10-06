@@ -1,4 +1,7 @@
-"""UPathTools: UPath utilities"""
+"""UPathTools: main package.
+
+UPath utilities.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +9,7 @@ from importlib.metadata import version
 
 __version__ = version("upathtools")
 __title__ = "UPathTools"
-__description__ = "UPath utilities"
+
 __author__ = "Philipp Temminghoff"
 __author_email__ = "philipptemminghoff@googlemail.com"
 __copyright__ = "Copyright (c) 2024 Philipp Temminghoff"
