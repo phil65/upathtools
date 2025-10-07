@@ -177,7 +177,7 @@ async def read_folder(
 
     if load_parallel:
         # Process files in chunks
-        for chunk in batched(matching_files, chunk_size):
+        for chunk in batched(matching_files, chunk_size, strict=False):
             # Create tasks for this chunk
             tasks = [read_path(p, mode=mode, encoding=encoding) for p in chunk]
             # Execute chunk in parallel
