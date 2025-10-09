@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def to_upath(path: JoinablePathLike | os.PathLike[str] | str) -> upath.UPath:
+def to_upath(path: JoinablePathLike | str) -> upath.UPath:
     return (
         upath.UPath(os.fspath(path))
         if isinstance(path, os.PathLike)
@@ -25,8 +25,8 @@ def to_upath(path: JoinablePathLike | os.PathLike[str] | str) -> upath.UPath:
 
 
 def fsspec_copy(
-    source_path: JoinablePathLike | os.PathLike[str],
-    output_path: JoinablePathLike | os.PathLike[str],
+    source_path: JoinablePathLike,
+    output_path: JoinablePathLike,
     exist_ok: bool = True,
 ):
     """Copy source_path to output_path, making sure any parent directories exist.
@@ -56,8 +56,8 @@ def fsspec_copy(
 
 
 def copy(
-    source_path: JoinablePathLike | os.PathLike[str],
-    output_path: JoinablePathLike | os.PathLike[str],
+    source_path: JoinablePathLike,
+    output_path: JoinablePathLike,
     exist_ok: bool = True,
 ):
     """Copy source_path to output_path, making sure any parent directories exist.
@@ -83,9 +83,7 @@ def copy(
         source_p.copy(output_p)
 
 
-def clean_directory(
-    directory: JoinablePathLike | os.PathLike[str], remove_hidden: bool = False
-) -> None:
+def clean_directory(directory: JoinablePathLike, remove_hidden: bool = False) -> None:
     """Remove the content of a directory recursively but not the directory itself."""
     folder = to_upath(directory)
     folder_to_remove = upath.UPath(folder)
@@ -103,7 +101,7 @@ def clean_directory(
 
 def write_file(
     content: str | bytes,
-    output_path: JoinablePathLike | os.PathLike[str],
+    output_path: JoinablePathLike,
     errors: str | None = None,
     **kwargs: Any,
 ):

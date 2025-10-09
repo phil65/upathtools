@@ -44,7 +44,7 @@ def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFile
 
 
 async def get_async_fs(
-    path_or_fs: JoinablePathLike | os.PathLike[str] | fsspec.AbstractFileSystem,
+    path_or_fs: JoinablePathLike | fsspec.AbstractFileSystem,
 ) -> AsyncFileSystem:
     """Get appropriate async filesystem for path."""
     import fsspec
@@ -60,7 +60,7 @@ async def get_async_fs(
 
 @overload
 async def read_path(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     mode: Literal["rt"] = "rt",
     encoding: str = ...,
 ) -> str: ...
@@ -68,12 +68,12 @@ async def read_path(
 
 @overload
 async def read_path(
-    path: JoinablePathLike | os.PathLike[str], mode: Literal["rb"], encoding: str = ...
+    path: JoinablePathLike, mode: Literal["rb"], encoding: str = ...
 ) -> bytes: ...
 
 
 async def read_path(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     mode: Literal["rt", "rb"] = "rt",
     encoding: str = "utf-8",
 ) -> str | bytes:
@@ -98,7 +98,7 @@ async def read_path(
 
 @overload
 async def read_folder(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -114,7 +114,7 @@ async def read_folder(
 
 @overload
 async def read_folder(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -129,7 +129,7 @@ async def read_folder(
 
 
 async def read_folder(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -206,7 +206,7 @@ async def read_folder(
 
 @overload
 async def list_files(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -219,7 +219,7 @@ async def list_files(
 
 @overload
 async def list_files(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -231,7 +231,7 @@ async def list_files(
 
 
 async def list_files(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,
@@ -320,7 +320,7 @@ async def list_files(
 
 
 async def read_folder_as_text(
-    path: JoinablePathLike | os.PathLike[str],
+    path: JoinablePathLike,
     *,
     pattern: str = "**/*",
     recursive: bool = True,

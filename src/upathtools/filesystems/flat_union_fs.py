@@ -13,7 +13,6 @@ from upathtools.helpers import to_upath
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    import os
 
     from fsspec.spec import AbstractFileSystem
     from upath.types import JoinablePathLike
@@ -473,7 +472,7 @@ class FlatUnionFileSystem(AsyncFileSystem):
                 dst_fs.pipe_file(dst_path, content)
 
 
-def create_flat_union_path(paths: Sequence[JoinablePathLike | os.PathLike[str]]) -> UPath:
+def create_flat_union_path(paths: Sequence[JoinablePathLike]) -> UPath:
     """Create a FlatUnionFileSystem from a list of paths.
 
     This function takes multiple paths, potentially from different filesystem types,
