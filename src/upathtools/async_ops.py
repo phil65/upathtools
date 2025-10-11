@@ -271,13 +271,10 @@ async def list_files(
 
     # Get all matching paths
     if recursive:
-        paths = await fs._glob(
-            str(base_path / pattern), maxdepth=max_depth, detail=detail
-        )
+        glob_path = str(base_path / pattern)
+        paths = await fs._glob(glob_path, maxdepth=max_depth, detail=detail)
     else:
         paths = await fs._glob(str(base_path / pattern), detail=detail)
-
-    # Filter and collect paths
 
     # Filter and collect paths
     if detail:
