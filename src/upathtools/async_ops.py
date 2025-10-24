@@ -388,7 +388,6 @@ async def read_folder_as_text(
 
 
 if __name__ == "__main__":
-    import asyncio
     from pprint import pprint
 
     async def main():
