@@ -70,6 +70,7 @@ appwrite = ["appwrite"]
 beam = ["beam-client>=0.2.187"]
 e2b = ["e2b-code-interpreter"]
 httpx = ["httpx", "yarl"]
+modal = ["modal"]
 notion-client = ["notion-client"]
 
 [dependency-groups]
