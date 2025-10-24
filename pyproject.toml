@@ -67,6 +67,7 @@ cli = "upathtools.filesystems.cli_fs.CliPath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
+e2b = ["e2b-code-interpreter"]
 httpx = ["httpx", "yarl"]
 notion-client = ["notion-client"]
 
