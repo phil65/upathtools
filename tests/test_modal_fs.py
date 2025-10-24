@@ -474,3 +474,7 @@ async def test_volume_integration_integration(modal_api_available):
     except Exception:  # noqa: BLE001
         # Skip if volumes can't be configured
         pytest.skip("Volume configuration not available")
+
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__, "-m", "integration"])

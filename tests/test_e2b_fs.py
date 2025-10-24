@@ -412,3 +412,7 @@ print(f"Processed {len(data)} rows")
     await e2b_fs._rm_file(input_file)
     await e2b_fs._rm_file(script_path)
     await e2b_fs._rm_file(output_file)
+
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__, "-m", "integration"])

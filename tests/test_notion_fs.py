@@ -249,3 +249,7 @@ def test_nested_delete(fs: NotionFS):
     fs.rm("/Delete Parent")
     assert not fs.exists("/Delete Parent")
     assert not fs.exists(nested_path)
+
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__, "-m", "integration"])
