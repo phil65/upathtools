@@ -82,6 +82,7 @@ class E2BFS(AsyncFileSystem):
                 template=self._template,
                 api_key=self._api_key,
             )
+            assert self._sandbox
             self._sandbox_id = self._sandbox.sandbox_id
 
         return self._sandbox

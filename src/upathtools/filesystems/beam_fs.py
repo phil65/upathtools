@@ -102,6 +102,7 @@ class BeamFS(AsyncFileSystem):
                 keep_warm_seconds=self._keep_warm_seconds,
             )
             self._sandbox_instance = sandbox.create()
+            assert self._sandbox_instance
             self._sandbox_id = self._sandbox_instance.sandbox_id()
 
         return self._sandbox_instance

@@ -72,10 +72,12 @@ class DaytonaFS(AsyncFileSystem):
         if self._sandbox_id:
             # Connect to existing sandbox (assuming Daytona has a connect method)
             # If not available, we might need to use a different approach
+            assert self._daytona
             self._sandbox = self._daytona.get_sandbox(self._sandbox_id)
         else:
             # Create new sandbox
             self._sandbox = self._daytona.create()
+            assert self._sandbox
             self._sandbox_id = self._sandbox.id
 
         return self._sandbox

@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from upath import UPath
+
+
+if TYPE_CHECKING:
+    import modal
 
 
 logger = logging.getLogger(__name__)
@@ -75,8 +79,8 @@ class ModalFS(AsyncFileSystem):
         self._workdir = workdir
         self._volumes = volumes or {}
         self._secrets = secrets or []
-        self._app = None
-        self._sandbox = None
+        self._app: modal.App | None = None
+        self._sandbox: modal.Sandbox | None = None
         self._session_started = False
 
     def _make_path(self, path: str) -> UPath:
@@ -447,7 +451,7 @@ class ModalFile(io.IOBase):
         self.fs = fs
         self.path = path
         self.mode = mode
-        self._modal_file = None
+        self._modal_file: Any = None
         self._closed = False
 
     async def _ensure_opened(self) -> None:
