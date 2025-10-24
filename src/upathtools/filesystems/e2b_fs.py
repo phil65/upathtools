@@ -366,7 +366,7 @@ with open({path!r}, 'wb') as f:
     modified = sync_wrapper(_modified)
 
 
-class E2BFile(io.IOBase):
+class E2BFile:
     """File-like object for E2B files."""
 
     def __init__(

@@ -430,7 +430,7 @@ class ModalFS(AsyncFileSystem):
     modified = sync_wrapper(_modified)
 
 
-class ModalFile(io.IOBase):
+class ModalFile:
     """File-like object for Modal files."""
 
     def __init__(

@@ -76,6 +76,7 @@ class DaytonaFS(AsyncFileSystem):
             self._sandbox = self._daytona.get_sandbox(self._sandbox_id)
         else:
             # Create new sandbox
+            assert self._daytona
             self._sandbox = self._daytona.create()
             assert self._sandbox
             self._sandbox_id = self._sandbox.id
@@ -402,7 +403,7 @@ class DaytonaFS(AsyncFileSystem):
     chmod = sync_wrapper(_chmod)
 
 
-class DaytonaFile(io.IOBase):
+class DaytonaFile:
     """File-like object for Daytona files."""
 
     def __init__(

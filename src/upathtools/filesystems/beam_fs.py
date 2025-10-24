@@ -395,7 +395,7 @@ class BeamFS(AsyncFileSystem):
     modified = sync_wrapper(_modified)
 
 
-class BeamFile(io.IOBase):
+class BeamFile:
     """File-like object for Beam files."""
 
     def __init__(
