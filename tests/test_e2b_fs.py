@@ -309,16 +309,14 @@ class TestE2BFS:
         await fs1.close_session()
 
 
-class TestE2BFSIntegration:
-    """Integration tests that test the filesystem with actual E2B operations."""
+@pytest.mark.integration
+async def test_python_script_execution_integration(e2b_fs):
+    """Test creating and executing Python scripts through the filesystem."""
+    script_path = "/tmp/test_script.py"
+    output_path = "/tmp/script_output.txt"
 
-    async def test_python_script_execution(self, e2b_fs):
-        """Test creating and executing Python scripts through the filesystem."""
-        script_path = "/tmp/test_script.py"
-        output_path = "/tmp/script_output.txt"
-
-        # Create a Python script
-        script_content = f"""
+    # Create a Python script
+    script_content = f"""
 import os
 with open("{output_path}", "w") as f:
     f.write("Script executed successfully!\\n")
@@ -326,42 +324,44 @@ with open("{output_path}", "w") as f:
 print("Script completed")
 """.encode()
 
-        await e2b_fs._pipe_file(script_path, script_content)
+    await e2b_fs._pipe_file(script_path, script_content)
 
-        # Execute the script using the sandbox
-        sandbox = await e2b_fs._get_sandbox()
-        execution = await sandbox.run_code(f"exec(open('{script_path}').read())")
+    # Execute the script using the sandbox
+    sandbox = await e2b_fs._get_sandbox()
+    execution = await sandbox.run_code(f"exec(open('{script_path}').read())")
 
-        # Check execution was successful
-        assert execution.error is None
+    # Check execution was successful
+    assert execution.error is None
 
-        # Check output file was created
-        assert await e2b_fs._exists(output_path)
+    # Check output file was created
+    assert await e2b_fs._exists(output_path)
 
-        output_content = await e2b_fs._cat_file(output_path)
-        output_text = output_content.decode()
+    output_content = await e2b_fs._cat_file(output_path)
+    output_text = output_content.decode()
 
-        assert "Script executed successfully!" in output_text
-        assert "Working directory:" in output_text
+    assert "Script executed successfully!" in output_text
+    assert "Working directory:" in output_text
 
-        # Clean up
-        await e2b_fs._rm_file(script_path)
-        await e2b_fs._rm_file(output_path)
+    # Clean up
+    await e2b_fs._rm_file(script_path)
+    await e2b_fs._rm_file(output_path)
 
-    async def test_data_processing_workflow(self, e2b_fs):
-        """Test a complete data processing workflow."""
-        # Create input data
-        input_file = "/tmp/input_data.csv"
-        csv_content = b"""name,age,city
+
+@pytest.mark.integration
+async def test_data_processing_workflow_integration(e2b_fs):
+    """Test a complete data processing workflow."""
+    # Create input data
+    input_file = "/tmp/input_data.csv"
+    csv_content = b"""name,age,city
 Alice,25,New York
 Bob,30,London
 Charlie,35,Tokyo"""
 
-        await e2b_fs._pipe_file(input_file, csv_content)
+    await e2b_fs._pipe_file(input_file, csv_content)
 
-        # Create processing script
-        script_path = "/tmp/process_data.py"
-        script_content = b"""
+    # Create processing script
+    script_path = "/tmp/process_data.py"
+    script_content = b"""
 import csv
 
 # Read input data
@@ -387,28 +387,28 @@ with open("/tmp/output_data.csv", "w") as f:
 print(f"Processed {len(data)} rows")
 """
 
-        await e2b_fs._pipe_file(script_path, script_content)
+    await e2b_fs._pipe_file(script_path, script_content)
 
-        # Execute processing script
-        sandbox = await e2b_fs._get_sandbox()
-        execution = await sandbox.run_code(f"exec(open('{script_path}').read())")
+    # Execute processing script
+    sandbox = await e2b_fs._get_sandbox()
+    execution = await sandbox.run_code(f"exec(open('{script_path}').read())")
 
-        assert execution.error is None
+    assert execution.error is None
 
-        # Check output file
-        output_file = "/tmp/output_data.csv"
-        assert await e2b_fs._exists(output_file)
+    # Check output file
+    output_file = "/tmp/output_data.csv"
+    assert await e2b_fs._exists(output_file)
 
-        output_content = await e2b_fs._cat_file(output_file)
-        output_text = output_content.decode()
+    output_content = await e2b_fs._cat_file(output_file)
+    output_text = output_content.decode()
 
-        # Verify processed data
-        assert "name,age,city,category" in output_text
-        assert "Alice,25,New York,young" in output_text
-        assert "Bob,30,London,mature" in output_text
-        assert "Charlie,35,Tokyo,mature" in output_text
+    # Verify processed data
+    assert "name,age,city,category" in output_text
+    assert "Alice,25,New York,young" in output_text
+    assert "Bob,30,London,mature" in output_text
+    assert "Charlie,35,Tokyo,mature" in output_text
 
-        # Clean up
-        await e2b_fs._rm_file(input_file)
-        await e2b_fs._rm_file(script_path)
-        await e2b_fs._rm_file(output_file)
+    # Clean up
+    await e2b_fs._rm_file(input_file)
+    await e2b_fs._rm_file(script_path)
+    await e2b_fs._rm_file(output_file)
