@@ -68,6 +68,7 @@ cli = "upathtools.filesystems.cli_fs.CliPath"
 [project.optional-dependencies]
 appwrite = ["appwrite"]
 beam = ["beam-client>=0.2.187"]
+daytona = ["daytona"]
 e2b = ["e2b-code-interpreter"]
 httpx = ["httpx", "yarl"]
 modal = ["modal"]
