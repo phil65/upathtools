@@ -1,5 +1,7 @@
 """Tests for Beam filesystem implementation."""
 
+import contextlib
+
 import pytest
 
 from upathtools.filesystems.beam_fs import BeamFS
@@ -199,10 +201,8 @@ async def test_beam_sync_interface(beam_api_available):
         fs.rm_file(test_file)
         assert not fs.exists(test_file)
     finally:
-        try:
+        with contextlib.suppress(AttributeError):
             fs.close_session()
-        except AttributeError:
-            pass
 
 
 @pytest.mark.integration
@@ -261,7 +261,6 @@ async def test_beam_data_processing_workflow(shared_beam_fs):
     """Test complete data processing workflow."""
     input_file = "/tmp/input.csv"
     script_path = "/tmp/process.py"
-    output_file = "/tmp/output.csv"
 
     csv_data = b"""name,age,city
 Alice,25,New York

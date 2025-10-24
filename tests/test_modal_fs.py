@@ -1,5 +1,7 @@
 """Tests for Modal filesystem implementation."""
 
+import contextlib
+
 import pytest
 
 from upathtools.filesystems.modal_fs import ModalFS
@@ -203,10 +205,8 @@ async def test_modal_sync_interface(modal_api_available):
         fs.rm_file(test_file)
         assert not fs.exists(test_file)
     finally:
-        try:
+        with contextlib.suppress(AttributeError):
             fs.close_session()
-        except AttributeError:
-            pass
 
 
 @pytest.mark.integration
@@ -258,7 +258,7 @@ print("Done")
     execution = sandbox.exec("python", script_path, timeout=30)
 
     # Wait for completion
-    for line in execution.stdout:
+    for _line in execution.stdout:
         pass  # Consume output
 
     assert await shared_modal_fs._exists(output_path)
@@ -307,7 +307,7 @@ print(f"Processed {len(data)} rows")
     sandbox = await shared_modal_fs._get_sandbox()
     execution = sandbox.exec("python", script_path, timeout=60)
 
-    for line in execution.stdout:
+    for _line in execution.stdout:
         pass  # Consume output
 
     assert await shared_modal_fs._exists(output_file)

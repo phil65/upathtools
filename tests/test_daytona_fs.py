@@ -1,5 +1,7 @@
 """Tests for Daytona filesystem implementation."""
 
+import contextlib
+
 import pytest
 
 from upathtools.filesystems.daytona_fs import DaytonaFS
@@ -175,10 +177,8 @@ async def test_daytona_sync_interface(daytona_api_available):
         fs.rm(test_file)
         assert not fs.exists(test_file)
     finally:
-        try:
+        with contextlib.suppress(AttributeError):
             fs.close_session()
-        except AttributeError:
-            pass
 
 
 @pytest.mark.integration
