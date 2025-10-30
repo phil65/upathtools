@@ -5,10 +5,14 @@ from __future__ import annotations
 import io
 import logging
 import tempfile
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from upath import UPath
+
+
+if TYPE_CHECKING:
+    from beta9.type import GpuTypeAlias
 
 
 logger = logging.getLogger(__name__)
@@ -35,11 +39,12 @@ class BeamFS(AsyncFileSystem):
         sandbox_id: str | None = None,
         cpu: float | str = 1.0,
         memory: int | str = 128,
-        gpu: str | None = None,
+        gpu: GpuTypeAlias | list[GpuTypeAlias] | None = None,
         gpu_count: int = 0,
         image: Any | None = None,
         keep_warm_seconds: int = 600,
         timeout: float = 300,
+        env_variables: dict[str, str] | None = None,
         **kwargs: Any,
     ):
         """Initialize Beam filesystem.
@@ -53,6 +58,7 @@ class BeamFS(AsyncFileSystem):
             image: Beam Image for new sandboxes
             keep_warm_seconds: How long to keep sandbox alive
             timeout: Default timeout for operations
+            env_variables: Environment variables for new sandboxes
             **kwargs: Additional filesystem options
         """
         super().__init__(**kwargs)
@@ -64,6 +70,7 @@ class BeamFS(AsyncFileSystem):
         self._image = image
         self._keep_warm_seconds = keep_warm_seconds
         self._timeout = timeout
+        self.env_variables = env_variables
         self._sandbox_instance = None
         self._session_started = False
 
@@ -96,10 +103,11 @@ class BeamFS(AsyncFileSystem):
             sandbox = Sandbox(
                 cpu=self._cpu,
                 memory=self._memory,
-                gpu=self._gpu or "NoGPU",
+                gpu=self._gpu or "NoGPU",  # pyright: ignore[reportArgumentType]
                 gpu_count=self._gpu_count,
                 image=self._image,
                 keep_warm_seconds=self._keep_warm_seconds,
+                env=self.env_variables,
             )
             self._sandbox_instance = sandbox.create()
             assert self._sandbox_instance
