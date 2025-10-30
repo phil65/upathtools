@@ -7,9 +7,6 @@ import pytest
 from upathtools.filesystems.daytona_fs import DaytonaFS
 
 
-pytestmark = pytest.mark.asyncio
-
-
 @pytest.fixture(scope="session")
 def daytona_api_available():
     """Check if Daytona API is available via environment."""
@@ -35,11 +32,9 @@ async def test_daytona_session_management(daytona_api_available):
     """Test session creation and cleanup."""
     fs = DaytonaFS()
     assert not fs._session_started
-
     await fs.set_session()
     assert fs._session_started
     assert fs._sandbox is not None
-
     await fs.close_session()
     assert not fs._session_started
 
@@ -49,30 +44,20 @@ async def test_daytona_file_crud_operations(shared_daytona_fs):
     """Test file create, read, update, delete operations."""
     test_file = "/tmp/test_file.txt"
     content = b"Hello, Daytona!"
-
     # Create and verify
     await shared_daytona_fs._pipe_file(test_file, content)
     assert await shared_daytona_fs._exists(test_file)
     assert await shared_daytona_fs._isfile(test_file)
     assert not await shared_daytona_fs._isdir(test_file)
-
     # Read and verify
-    read_content = await shared_daytona_fs._cat_file(test_file)
-    assert read_content == content
-
+    assert await shared_daytona_fs._cat_file(test_file) == content
     # Update content
     new_content = b"Updated content"
     await shared_daytona_fs._pipe_file(test_file, new_content)
-    updated_content = await shared_daytona_fs._cat_file(test_file)
-    assert updated_content == new_content
-
+    assert await shared_daytona_fs._cat_file(test_file) == new_content
     # File metadata
-    size = await shared_daytona_fs._size(test_file)
-    assert size == len(new_content)
-
-    mtime = await shared_daytona_fs._modified(test_file)
-    assert isinstance(mtime, float)
-
+    assert await shared_daytona_fs._size(test_file) == len(new_content)
+    assert isinstance(await shared_daytona_fs._modified(test_file), float)
     # Delete
     await shared_daytona_fs._rm(test_file)
     assert not await shared_daytona_fs._exists(test_file)

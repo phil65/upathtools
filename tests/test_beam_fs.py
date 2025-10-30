@@ -7,9 +7,6 @@ import pytest
 from upathtools.filesystems.beam_fs import BeamFS
 
 
-pytestmark = pytest.mark.asyncio
-
-
 @pytest.fixture(scope="session")
 def beam_api_available():
     """Check if Beam API is available."""

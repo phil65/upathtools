@@ -7,9 +7,6 @@ import pytest
 from upathtools.filesystems.e2b_fs import E2BFS
 
 
-pytestmark = pytest.mark.asyncio
-
-
 @pytest.fixture(scope="session")
 def api_key():
     """Get E2B API key from environment."""

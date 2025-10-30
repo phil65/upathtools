@@ -7,9 +7,6 @@ import pytest
 from upathtools.filesystems.modal_fs import ModalFS
 
 
-pytestmark = pytest.mark.asyncio
-
-
 @pytest.fixture(scope="session")
 def modal_api_available():
     """Check if Modal API is available."""
