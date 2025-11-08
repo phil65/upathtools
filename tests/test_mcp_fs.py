@@ -1,5 +1,7 @@
 """Example usage of MCP filesystem for exposing MCP resources through fsspec."""
 
+from pathlib import Path
+
 from fastmcp.client import StdioTransport
 import pytest
 
@@ -11,10 +13,10 @@ async def test_mcp_fs():
     from fastmcp import Client
 
     # Example MCP server config (this would come from your actual config)
-
+    path = Path(__file__).parent / "test_mcp_server.py"
     transport = StdioTransport(
         command="uv",
-        args=["run", "/home/phil65/dev/oss/upathtools/tests/test_mcp_server.py"],
+        args=["run", str(path)],
     )
     async with Client(transport=transport) as mcp_client:
         # Create MCP filesystem
