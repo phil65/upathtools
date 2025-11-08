@@ -52,6 +52,8 @@ appwrite = "upathtools.filesystems.appwrite_fs.AppwriteFS"
 flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionFS"
 cli = "upathtools.filesystems.cli_fs.CliFS"
 mcp = "upathtools.filesystems.mcp_fs.MCPFileSystem"
+openapi = "upathtools.filesystems.openapi_fs.OpenAPIFS"
+basemodel = "upathtools.filesystems.basemodel_fs.BaseModelFS"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems.gist_fs.GistPath"
@@ -66,6 +68,8 @@ appwrite = "upathtools.filesystems.appwrite_fs.AppwritePath"
 flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionPath"
 cli = "upathtools.filesystems.cli_fs.CliPath"
 mcp = "upathtools.filesystems.mcp_fs.MCPPath"
+basemodel = "upathtools.filesystems.basemodel_fs.BaseModelPath"
+openapi = "upathtools.filesystems.openapi_fs.OpenAPIPath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
@@ -76,6 +80,7 @@ httpx = ["httpx", "yarl"]
 mcp = ["fastmcp", "mcp"]
 modal = ["modal"]
 notion-client = ["notion-client"]
+openapi3 = ["openapi3"]
 
 [dependency-groups]
 dev = [

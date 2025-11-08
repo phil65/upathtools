@@ -1,0 +1,411 @@
+"""Filesystem implementation for browsing Pydantic BaseModel schemas."""
+
+from __future__ import annotations
+
+import importlib
+import json
+from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
+
+from fsspec.spec import AbstractFileSystem
+from upath import UPath
+
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+
+class BaseModelPath(UPath):
+    """UPath implementation for browsing Pydantic BaseModel schemas."""
+
+    __slots__ = ()
+
+    def iterdir(self):
+        if not self.is_dir():
+            raise NotADirectoryError(str(self))
+        yield from super().iterdir()
+
+    @property
+    def path(self) -> str:
+        path = super().path
+        return "/" if path == "." else path
+
+
+class BaseModelFS(AbstractFileSystem):
+    """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
+
+    protocol = "basemodel"
+
+    def __init__(
+        self,
+        model: type[BaseModel] | str,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the filesystem.
+
+        Args:
+            model: BaseModel class or import path (e.g., "mypackage.MyModel")
+            kwargs: Additional keyword arguments for the filesystem
+        """
+        super().__init__(**kwargs)
+
+        if isinstance(model, str):
+            self.model_class = self._import_model(model)
+            self.model_path = model
+        else:
+            self.model_class = model
+            self.model_path = f"{model.__module__}.{model.__name__}"
+
+    def _make_path(self, path: str) -> UPath:
+        """Create a path object from string."""
+        return BaseModelPath(path)
+
+    def _import_model(self, import_path: str) -> type[BaseModel]:
+        """Import a BaseModel class from a string path."""
+        try:
+            module_path, class_name = import_path.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            model_class = getattr(module, class_name)
+
+            # Basic check if it's a BaseModel subclass
+            if not hasattr(model_class, "model_fields"):
+                msg = f"{import_path} is not a Pydantic BaseModel"
+                raise ValueError(msg)  # noqa: TRY301
+
+        except (ImportError, AttributeError, ValueError) as exc:
+            msg = f"Could not import BaseModel from {import_path}"
+            raise FileNotFoundError(msg) from exc
+        else:
+            return model_class
+
+    def _get_nested_model_at_path(self, path: str) -> tuple[type[BaseModel], str]:
+        """Get the model class and field name at a given path."""
+        if not path:
+            return self.model_class, ""
+
+        parts = path.strip("/").split("/")
+        current_model: Any = self.model_class
+
+        for _i, part in enumerate(parts[:-1]):
+            if part.startswith("__") and part.endswith("__"):
+                # Skip special paths like __schema__, __examples__
+                continue
+            assert current_model
+            if part not in current_model.model_fields:
+                msg = f"Field {part} not found in {current_model.__name__}"
+                raise FileNotFoundError(msg)
+
+            field_info = current_model.model_fields[part]
+            field_type = field_info.annotation
+
+            # Handle Optional, List, etc.
+            origin = get_origin(field_type)
+            if origin is not None:
+                args = get_args(field_type)
+                if origin in (list, tuple, set) and args:
+                    field_type = args[0]
+                elif hasattr(field_type, "__args__") and len(field_type.__args__) >= 1:  # type: ignore
+                    # Handle Union/Optional types
+                    field_type = next(
+                        arg
+                        for arg in field_type.__args__  # type: ignore
+                        if arg is not type(None) and hasattr(arg, "model_fields")
+                    )
+
+            if not hasattr(field_type, "model_fields"):
+                msg = f"Field {part} is not a nested BaseModel"
+                raise FileNotFoundError(msg)
+
+            current_model = field_type
+
+        return current_model, parts[-1] if parts else ""
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    def ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    def ls(
+        self,
+        path: str = "",
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]] | list[str]:
+        """List model fields and special paths."""
+        path = self._strip_protocol(path).strip("/")  # type: ignore
+
+        try:
+            current_model, field_name = self._get_nested_model_at_path(path)
+        except FileNotFoundError:
+            return []
+
+        if field_name:
+            # Listing a specific field - show special paths
+            items = ["__schema__", "__type__", "__constraints__"]
+            if field_name in current_model.model_fields:
+                field_info = current_model.model_fields[field_name]
+                if field_info.default is not ...:  # Has a default value
+                    items.append("__default__")
+                if field_info.alias:
+                    items.append("__alias__")
+        else:
+            # Listing model root - show all fields plus special paths
+            items = list(current_model.model_fields.keys())
+            items.extend(["__schema__", "__fields_info__", "__model_config__"])
+
+        if not detail:
+            return items
+
+        result = []
+        for item in items:
+            if item.startswith("__"):
+                result.append({
+                    "name": item,
+                    "type": "special",
+                    "size": 0,
+                    "description": f"Special path for {item[2:-2]} information",
+                })
+            else:
+                # It's a field
+                field_info = current_model.model_fields[item]
+                field_type = field_info.annotation
+
+                # Determine if field is a nested model
+                is_nested = False
+                origin = get_origin(field_type)
+                if origin is not None:
+                    args = get_args(field_type)
+                    if origin in (list, tuple, set) and args:
+                        field_type = args[0]
+                    elif hasattr(field_type, "__args__"):
+                        # Check if any type in Union is a BaseModel
+                        for arg in field_type.__args__:  # type: ignore
+                            if arg != type(None) and hasattr(arg, "model_fields"):  # noqa: E721
+                                is_nested = True
+                                break
+                else:
+                    is_nested = hasattr(field_type, "model_fields")
+
+                result.append({
+                    "name": item,
+                    "type": "field",
+                    "field_type": str(field_type),
+                    "required": field_info.is_required(),
+                    "default": str(field_info.default)
+                    if field_info.default is not ...
+                    else None,
+                    "alias": field_info.alias,
+                    "nested_model": is_nested,
+                    "description": field_info.description,
+                })
+
+        return result
+
+    def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
+        """Get field definition, schema, or other information."""
+        path = self._strip_protocol(path).strip("/")  # type: ignore
+
+        if not path:
+            # Return model schema
+            schema = self.model_class.model_json_schema()
+            return json.dumps(schema, indent=2).encode()
+
+        parts = path.split("/")
+
+        # Handle special paths
+        if parts[-1].startswith("__") and parts[-1].endswith("__"):
+            special_path = parts[-1]
+            field_path = "/".join(parts[:-1])
+
+            try:
+                current_model, field_name = self._get_nested_model_at_path(field_path)
+            except FileNotFoundError:
+                msg = f"Path {field_path} not found"
+                raise FileNotFoundError(msg) from None
+
+            match special_path:
+                case "__schema__":
+                    if field_name:
+                        # Field schema
+                        field_info = current_model.model_fields[field_name]
+                        field_schema = {
+                            "type": str(field_info.annotation),
+                            "required": field_info.is_required(),
+                            "default": field_info.default
+                            if field_info.default is not ...
+                            else None,
+                            "alias": field_info.alias,
+                            "description": field_info.description,
+                            "constraints": [
+                                str(constraint) for constraint in field_info.metadata
+                            ]
+                            if field_info.metadata
+                            else [],
+                        }
+                        return json.dumps(field_schema, indent=2, default=str).encode()
+                    # Model schema
+                    schema = current_model.model_json_schema()
+                    return json.dumps(schema, indent=2).encode()
+
+                case "__fields_info__":
+                    fields_info = {
+                        name: {
+                            "type": str(field.annotation),
+                            "required": field.is_required(),
+                            "default": field.default
+                            if field.default is not ...
+                            else None,
+                            "alias": field.alias,
+                        }
+                        for name, field in current_model.model_fields.items()
+                    }
+                    return json.dumps(fields_info, indent=2, default=str).encode()
+
+                case "__model_config__":
+                    config = getattr(current_model, "model_config", {})
+                    return json.dumps(dict(config), indent=2, default=str).encode()
+
+                case "__type__":
+                    if not field_name:
+                        msg = "__type__ only available for fields"
+                        raise FileNotFoundError(msg)
+                    field_info = current_model.model_fields[field_name]
+                    return str(field_info.annotation).encode()
+
+                case "__constraints__":
+                    if not field_name:
+                        msg = "__constraints__ only available for fields"
+                        raise FileNotFoundError(msg)
+                    field_info = current_model.model_fields[field_name]
+                    constraints = field_info.metadata if field_info.metadata else []
+                    return json.dumps([str(c) for c in constraints], indent=2).encode()
+
+                case "__default__":
+                    if not field_name:
+                        msg = "__default__ only available for fields"
+                        raise FileNotFoundError(msg)
+                    field_info = current_model.model_fields[field_name]
+                    if field_info.default is ...:
+                        msg = f"Field {field_name} has no default value"
+                        raise FileNotFoundError(msg)
+                    return str(field_info.default).encode()
+
+                case "__alias__":
+                    if not field_name:
+                        msg = "__alias__ only available for fields"
+                        raise FileNotFoundError(msg)
+                    field_info = current_model.model_fields[field_name]
+                    if not field_info.alias:
+                        msg = f"Field {field_name} has no alias"
+                        raise FileNotFoundError(msg)
+                    return field_info.alias.encode()
+
+                case _:
+                    msg = f"Unknown special path: {special_path}"
+                    raise FileNotFoundError(msg)
+
+        # Regular field path
+        try:
+            current_model, field_name = self._get_nested_model_at_path(path)
+        except FileNotFoundError:
+            msg = f"Field {path} not found"
+            raise FileNotFoundError(msg) from None
+
+        if not field_name:
+            msg = f"Path {path} is not a field"
+            raise FileNotFoundError(msg)
+
+        if field_name not in current_model.model_fields:
+            msg = f"Field {field_name} not found"
+            raise FileNotFoundError(msg)
+
+        # Return field information
+        field_info = current_model.model_fields[field_name]
+        field_data = {
+            "name": field_name,
+            "type": str(field_info.annotation),
+            "required": field_info.is_required(),
+            "default": field_info.default if field_info.default is not ... else None,
+            "alias": field_info.alias,
+            "description": field_info.description,
+            "constraints": [str(c) for c in field_info.metadata]
+            if field_info.metadata
+            else [],
+        }
+
+        return json.dumps(field_data, indent=2, default=str).encode()
+
+    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+        """Get detailed info about a model or field."""
+        path = self._strip_protocol(path).strip("/")  # type: ignore
+
+        if not path:
+            # Root model info
+            return {
+                "name": self.model_class.__name__,
+                "type": "model",
+                "module": self.model_class.__module__,
+                "doc": self.model_class.__doc__,
+                "field_count": len(self.model_class.model_fields),
+                "schema": self.model_class.model_json_schema(),
+            }
+
+        try:
+            current_model, field_name = self._get_nested_model_at_path(path)
+        except FileNotFoundError as exc:
+            msg = f"Path {path} not found"
+            raise FileNotFoundError(msg) from exc
+
+        if not field_name:
+            # Nested model info
+            return {
+                "name": current_model.__name__,
+                "type": "nested_model",
+                "module": current_model.__module__,
+                "doc": current_model.__doc__,
+                "field_count": len(current_model.model_fields),
+            }
+
+        # Field info
+        if field_name not in current_model.model_fields:
+            msg = f"Field {field_name} not found"
+            raise FileNotFoundError(msg)
+
+        field_info = current_model.model_fields[field_name]
+        return {
+            "name": field_name,
+            "type": "field",
+            "annotation": str(field_info.annotation),
+            "required": field_info.is_required(),
+            "default": field_info.default if field_info.default is not ... else None,
+            "alias": field_info.alias,
+            "description": field_info.description,
+            "constraints": [str(c) for c in field_info.metadata]
+            if field_info.metadata
+            else [],
+        }
+
+
+if __name__ == "__main__":
+    # Example usage
+    from pydantic import BaseModel, Field
+
+    class User(BaseModel):
+        name: str = Field(min_length=1, max_length=50)
+        age: int = Field(ge=0, le=120)
+        email: str
+
+    fs = BaseModelFS(User)
+    print("Fields:", fs.ls("/", detail=False))
+    print("User info:", fs.info("/"))
+    print("Name field:", fs.info("/name"))
