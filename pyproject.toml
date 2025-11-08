@@ -51,6 +51,7 @@ notion = "upathtools.filesystems.notion_fs.NotionFS"
 appwrite = "upathtools.filesystems.appwrite_fs.AppwriteFS"
 flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionFS"
 cli = "upathtools.filesystems.cli_fs.CliFS"
+mcp = "upathtools.filesystems.mcp_fs.MCPFileSystem"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems.gist_fs.GistPath"
@@ -64,6 +65,7 @@ notion = "upathtools.filesystems.notion_fs.NotionPath"
 appwrite = "upathtools.filesystems.appwrite_fs.AppwritePath"
 flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionPath"
 cli = "upathtools.filesystems.cli_fs.CliPath"
+mcp = "upathtools.filesystems.mcp_fs.MCPPath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
@@ -71,6 +73,7 @@ beam = ["beam-client>=0.2.187"]
 daytona = ["daytona"]
 e2b = ["e2b-code-interpreter"]
 httpx = ["httpx", "yarl"]
+mcp = ["fastmcp", "mcp"]
 modal = ["modal"]
 notion-client = ["notion-client"]
 
