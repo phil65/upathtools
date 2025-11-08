@@ -21,6 +21,7 @@ from upath import registry
 
 from upathtools.helpers import to_upath
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
+from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 from upathtools.filesystems.cli_fs import CliFS, CliPath
 from upathtools.filesystems.distribution_fs import DistributionFS, DistributionPath
@@ -77,6 +78,7 @@ def register_all_filesystems():
 
 
 __all__ = [
+    "AsyncUPath",
     "CliFS",
     "CliPath",
     "DistributionFS",
