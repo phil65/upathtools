@@ -8,18 +8,7 @@ from upathtools.filesystems.beam_fs import BeamFS
 
 
 @pytest.fixture(scope="session")
-def beam_api_available():
-    """Check if Beam API is available."""
-    try:
-        import beam  # noqa: F401
-    except ImportError:
-        pytest.skip("beam package not available")
-    else:
-        return True
-
-
-@pytest.fixture(scope="session")
-async def shared_beam_fs(beam_api_available):
+async def shared_beam_fs():
     """Create shared Beam filesystem instance for all tests."""
     fs = BeamFS(cpu=1.0, memory=512, keep_warm_seconds=300)
     await fs.set_session()
@@ -28,7 +17,7 @@ async def shared_beam_fs(beam_api_available):
 
 
 @pytest.mark.integration
-async def test_beam_session_management(beam_api_available):
+async def test_beam_session_management():
     """Test session creation and cleanup."""
     fs = BeamFS()
     assert not fs._session_started
@@ -185,7 +174,7 @@ async def test_beam_large_file_handling(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_sync_interface(beam_api_available):
+async def test_beam_sync_interface():
     """Test synchronous wrapper methods."""
     fs = BeamFS()
     try:
@@ -199,11 +188,11 @@ async def test_beam_sync_interface(beam_api_available):
         assert not fs.exists(test_file)
     finally:
         with contextlib.suppress(AttributeError):
-            fs.close_session()
+            await fs.close_session()
 
 
 @pytest.mark.integration
-async def test_beam_path_creation(beam_api_available):
+async def test_beam_path_creation():
     """Test BeamPath object creation."""
     fs = BeamFS()
     path = fs._make_path("/test/path")
@@ -211,11 +200,12 @@ async def test_beam_path_creation(beam_api_available):
 
 
 @pytest.mark.integration
-async def test_beam_existing_sandbox_connection(beam_api_available):
+async def test_beam_existing_sandbox_connection():
     """Test connecting to existing sandbox."""
     fs1 = BeamFS()
     await fs1.set_session()
-    sandbox_id = fs1._sandbox_instance.id
+    assert fs1._sandbox_instance
+    sandbox_id = fs1._sandbox_instance.container_id
 
     test_file = "/tmp/shared_file.txt"
     content = b"Shared content"

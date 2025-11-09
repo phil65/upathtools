@@ -8,18 +8,7 @@ from upathtools.filesystems.daytona_fs import DaytonaFS
 
 
 @pytest.fixture(scope="session")
-def daytona_api_available():
-    """Check if Daytona API is available via environment."""
-    try:
-        import daytona  # noqa: F401
-    except ImportError:
-        pytest.skip("daytona package not available")
-    else:
-        return True
-
-
-@pytest.fixture(scope="session")
-async def shared_daytona_fs(daytona_api_available):
+async def shared_daytona_fs():
     """Create shared Daytona filesystem instance for all tests."""
     fs = DaytonaFS(timeout=600)
     await fs.set_session()
@@ -28,7 +17,7 @@ async def shared_daytona_fs(daytona_api_available):
 
 
 @pytest.mark.integration
-async def test_daytona_session_management(daytona_api_available):
+async def test_daytona_session_management():
     """Test session creation and cleanup."""
     fs = DaytonaFS()
     assert not fs._session_started
@@ -149,7 +138,7 @@ async def test_daytona_content_types(shared_daytona_fs):
 
 
 @pytest.mark.integration
-async def test_daytona_sync_interface(daytona_api_available):
+async def test_daytona_sync_interface():
     """Test synchronous wrapper methods."""
     fs = DaytonaFS(timeout=300)
     try:
@@ -163,11 +152,11 @@ async def test_daytona_sync_interface(daytona_api_available):
         assert not fs.exists(test_file)
     finally:
         with contextlib.suppress(AttributeError):
-            fs.close_session()
+            await fs.close_session()
 
 
 @pytest.mark.integration
-async def test_daytona_existing_sandbox_connection(daytona_api_available):
+async def test_daytona_existing_sandbox_connection():
     """Test connecting to existing sandbox."""
     fs1 = DaytonaFS(timeout=300)
     await fs1.set_session()

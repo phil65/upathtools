@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Any
+from typing import Any, overload
 
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from upath import UPath
@@ -140,6 +140,14 @@ class E2BFS(AsyncFileSystem):
                 })
 
         return result
+
+    @overload
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any

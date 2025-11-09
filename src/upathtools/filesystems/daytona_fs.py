@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Any
+from typing import Any, overload
 
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from upath import UPath
@@ -128,6 +128,14 @@ class DaytonaFS(AsyncFileSystem):
             }
             for info in file_infos
         ]
+
+    @overload
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any

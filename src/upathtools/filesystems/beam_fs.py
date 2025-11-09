@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import logging
 import tempfile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from fsspec.asyn import AsyncFileSystem, sync_wrapper
 from upath import UPath
@@ -159,6 +159,14 @@ class BeamFS(AsyncFileSystem):
             }
             for item in items
         ]
+
+    @overload
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any

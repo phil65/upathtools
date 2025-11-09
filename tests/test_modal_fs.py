@@ -203,7 +203,7 @@ async def test_modal_sync_interface(modal_api_available):
         assert not fs.exists(test_file)
     finally:
         with contextlib.suppress(AttributeError):
-            fs.close_session()
+            await fs.close_session()
 
 
 @pytest.mark.integration

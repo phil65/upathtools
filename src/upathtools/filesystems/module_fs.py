@@ -190,7 +190,7 @@ class ModuleFS(AbstractFileSystem):
             protocol=self.target_protocol,
             **self.target_options,
         ) as f:
-            source_code = f.read()
+            source_code = f.read()  # pyright: ignore[reportAttributeAccessIssue]
 
         # Parse the AST
         tree = ast.parse(source_code)
