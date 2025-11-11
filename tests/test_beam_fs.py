@@ -31,7 +31,7 @@ async def test_beam_session_management():
 
 
 @pytest.mark.integration
-async def test_beam_file_crud_operations(shared_beam_fs):
+async def test_beam_file_crud_operations(shared_beam_fs: BeamFS):
     """Test file create, read, update, delete operations."""
     test_file = "/tmp/test_file.txt"
     content = b"Hello, Beam!"
@@ -65,7 +65,7 @@ async def test_beam_file_crud_operations(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_directory_operations(shared_beam_fs):
+async def test_beam_directory_operations(shared_beam_fs: BeamFS):
     """Test directory create, list, delete operations."""
     test_dir = "/tmp/test_directory"
 
@@ -83,7 +83,7 @@ async def test_beam_directory_operations(shared_beam_fs):
     assert file_items[0]["type"] == "file"
 
     names = await shared_beam_fs._ls(test_dir, detail=False)
-    assert any(name.endswith("nested.txt") for name in names)
+    assert any(name.endswith("nested.txt") for name in names)  # pyright: ignore[reportAttributeAccessIssue]
 
     # Cleanup
     await shared_beam_fs._rm_file(test_file)
@@ -91,7 +91,7 @@ async def test_beam_directory_operations(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_partial_reads_and_nested_dirs(shared_beam_fs):
+async def test_beam_partial_reads_and_nested_dirs(shared_beam_fs: BeamFS):
     """Test partial file reads and nested directory creation."""
     # Test partial reads
     test_file = "/tmp/partial_test.txt"
@@ -121,7 +121,7 @@ async def test_beam_partial_reads_and_nested_dirs(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_error_conditions(shared_beam_fs):
+async def test_beam_error_conditions(shared_beam_fs: BeamFS):
     """Test error handling for nonexistent files/dirs."""
     with pytest.raises(FileNotFoundError):
         await shared_beam_fs._cat_file("/tmp/nonexistent.txt")
@@ -134,7 +134,7 @@ async def test_beam_error_conditions(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_content_types(shared_beam_fs):
+async def test_beam_content_types(shared_beam_fs: BeamFS):
     """Test binary and unicode content handling."""
     # Binary content
     binary_file = "/tmp/binary.bin"
@@ -155,7 +155,7 @@ async def test_beam_content_types(shared_beam_fs):
 
 
 @pytest.mark.integration
-async def test_beam_large_file_handling(shared_beam_fs):
+async def test_beam_large_file_handling(shared_beam_fs: BeamFS):
     """Test handling of larger files."""
     test_file = "/tmp/large_file.txt"
     large_content = b"A" * (50 * 1024)
@@ -223,7 +223,7 @@ async def test_beam_existing_sandbox_connection():
 
 
 @pytest.mark.integration
-async def test_beam_script_execution_workflow(shared_beam_fs):
+async def test_beam_script_execution_workflow(shared_beam_fs: BeamFS):
     """Test complete script execution workflow."""
     script_path = "/tmp/test_script.py"
     output_path = "/tmp/output.txt"
@@ -244,7 +244,7 @@ print("Done")
 
 
 @pytest.mark.integration
-async def test_beam_data_processing_workflow(shared_beam_fs):
+async def test_beam_data_processing_workflow(shared_beam_fs: BeamFS):
     """Test complete data processing workflow."""
     input_file = "/tmp/input.csv"
     script_path = "/tmp/process.py"
@@ -285,4 +285,4 @@ print(f"Processed {len(data)} rows")
 
 
 if __name__ == "__main__":
-    pytest.main(["-v", __file__])
+    pytest.main(["-v", __file__, "-m", "integration"])

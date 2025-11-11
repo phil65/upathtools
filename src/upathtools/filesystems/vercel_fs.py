@@ -107,9 +107,6 @@ class VercelFS(AsyncFileSystem):
         logger.info("Connected to Vercel sandbox: %s", self._sandbox.sandbox_id)
         return self._sandbox
 
-    async def set_session(self, session) -> None:
-        """Set session (no-op for Vercel)."""
-
     async def close_session(self) -> None:
         """Close sandbox session."""
         if self._sandbox is not None:

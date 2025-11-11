@@ -100,7 +100,12 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
         html.append("</body></html>")
         return "\n".join(html).encode()
 
-    def _respond(self, code=200, headers=None, data=b""):
+    def _respond(
+        self,
+        code: int = 200,
+        headers: dict[str, Any] | None = None,
+        data: bytes = b"",
+    ):
         headers = headers or {}
         headers.update({"User-Agent": "test"})
         self.send_response(code)

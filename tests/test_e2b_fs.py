@@ -17,7 +17,7 @@ def api_key():
 
 
 @pytest.fixture(scope="session")
-async def shared_e2b_fs(api_key):
+async def shared_e2b_fs(api_key: str):
     """Create shared E2B filesystem instance for all tests."""
     fs = E2BFS(api_key=api_key, template="code-interpreter-v1")
     await fs.set_session()
@@ -26,26 +26,22 @@ async def shared_e2b_fs(api_key):
 
 
 @pytest.mark.integration
-async def test_e2b_session_management(api_key):
+async def test_e2b_session_management(api_key: str):
     """Test session creation and cleanup."""
     fs = E2BFS(api_key=api_key)
     assert not fs._session_started
-
     await fs.set_session()
     assert fs._session_started
     assert fs._sandbox is not None
-
     await fs.close_session()
     assert not fs._session_started
 
 
 @pytest.mark.integration
-async def test_e2b_file_crud_operations(shared_e2b_fs):
+async def test_e2b_file_crud_operations(shared_e2b_fs: E2BFS):
     """Test file create, read, update, delete operations."""
     test_file = "/tmp/test_file.txt"
     content = b"Hello, E2B!"
-
-    # Create and verify
     await shared_e2b_fs._pipe_file(test_file, content)
     assert await shared_e2b_fs._exists(test_file)
     assert await shared_e2b_fs._isfile(test_file)
@@ -75,7 +71,7 @@ async def test_e2b_file_crud_operations(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_directory_operations(shared_e2b_fs):
+async def test_e2b_directory_operations(shared_e2b_fs: E2BFS):
     """Test directory create, list, delete operations."""
     test_dir = "/tmp/test_directory"
 
@@ -106,7 +102,7 @@ async def test_e2b_directory_operations(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_partial_reads_and_nested_dirs(shared_e2b_fs):
+async def test_e2b_partial_reads_and_nested_dirs(shared_e2b_fs: E2BFS):
     """Test partial file reads and nested directory creation."""
     # Test partial reads
     test_file = "/tmp/partial_test.txt"
@@ -136,7 +132,7 @@ async def test_e2b_partial_reads_and_nested_dirs(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_error_conditions(shared_e2b_fs):
+async def test_e2b_error_conditions(shared_e2b_fs: E2BFS):
     """Test error handling for nonexistent files/dirs."""
     with pytest.raises(FileNotFoundError):
         await shared_e2b_fs._cat_file("/tmp/nonexistent.txt")
@@ -155,7 +151,7 @@ async def test_e2b_error_conditions(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_content_types(shared_e2b_fs):
+async def test_e2b_content_types(shared_e2b_fs: E2BFS):
     """Test binary and unicode content handling."""
     # Binary content
     binary_file = "/tmp/binary.bin"
@@ -176,7 +172,7 @@ async def test_e2b_content_types(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_large_file_handling(shared_e2b_fs):
+async def test_e2b_large_file_handling(shared_e2b_fs: E2BFS):
     """Test handling of larger files."""
     test_file = "/tmp/large_file.txt"
     large_content = b"A" * (1024 * 1024)  # 1MB
@@ -195,7 +191,7 @@ async def test_e2b_large_file_handling(shared_e2b_fs):
 
 
 @pytest.mark.integration
-async def test_e2b_sync_interface(api_key):
+async def test_e2b_sync_interface(api_key: str):
     """Test synchronous wrapper methods."""
     fs = E2BFS(api_key=api_key)
     try:
@@ -213,7 +209,7 @@ async def test_e2b_sync_interface(api_key):
 
 
 @pytest.mark.integration
-async def test_e2b_path_creation(api_key):
+async def test_e2b_path_creation(api_key: str):
     """Test E2BPath object creation."""
     fs = E2BFS(api_key=api_key)
     path = fs._make_path("/test/path")
@@ -221,7 +217,7 @@ async def test_e2b_path_creation(api_key):
 
 
 @pytest.mark.integration
-async def test_e2b_existing_sandbox_connection(api_key):
+async def test_e2b_existing_sandbox_connection(api_key: str):
     """Test connecting to existing sandbox."""
     fs1 = E2BFS(api_key=api_key)
     await fs1.set_session()
@@ -243,7 +239,7 @@ async def test_e2b_existing_sandbox_connection(api_key):
 
 
 @pytest.mark.integration
-async def test_e2b_script_execution_workflow(shared_e2b_fs):
+async def test_e2b_script_execution_workflow(shared_e2b_fs: E2BFS):
     """Test complete script execution workflow."""
     script_path = "/tmp/test_script.py"
     output_path = "/tmp/output.txt"
@@ -272,7 +268,7 @@ print("Done")
 
 
 @pytest.mark.integration
-async def test_e2b_data_processing_workflow(shared_e2b_fs):
+async def test_e2b_data_processing_workflow(shared_e2b_fs: E2BFS):
     """Test complete data processing workflow."""
     input_file = "/tmp/input.csv"
     script_path = "/tmp/process.py"
@@ -325,4 +321,4 @@ print(f"Processed {len(data)} rows")
 
 
 if __name__ == "__main__":
-    pytest.main(["-v", __file__])
+    pytest.main(["-v", __file__, "-m", "integration"])
