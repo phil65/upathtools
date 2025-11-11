@@ -9,6 +9,7 @@ from .e2b_fs import E2BFS, E2BPath
 from .mcp_fs import MCPFileSystem, MCPPath
 from .modal_fs import ModalFS, ModalPath
 from .openapi_fs import OpenAPIFS, OpenAPIPath
+from .vercel_fs import VercelFS, VercelPath
 
 __all__ = [
     "E2BFS",
@@ -29,4 +30,6 @@ __all__ = [
     "ModalPath",
     "OpenAPIFS",
     "OpenAPIPath",
+    "VercelFS",
+    "VercelPath",
 ]

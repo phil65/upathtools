@@ -81,6 +81,7 @@ mcp = ["fastmcp", "mcp"]
 modal = ["modal"]
 notion-client = ["notion-client"]
 openapi3 = ["openapi3"]
+vercel = ["vercel"]
 
 [dependency-groups]
 dev = [
