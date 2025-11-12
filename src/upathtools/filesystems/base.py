@@ -17,5 +17,5 @@ class BaseAsyncFileSystem[TPath: UPath](AsyncFileSystem):
 
     def get_upath(self, path: str) -> TPath:
         path_obj = self.upath_cls(path or "")
-        path_obj._fs_cached = self.get_fs()  # pyright: ignore[reportAttributeAccessIssue]
+        path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
         return path_obj
