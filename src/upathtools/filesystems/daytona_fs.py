@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 from typing import Any, overload
@@ -56,26 +57,17 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         if self._sandbox is not None:
             return self._sandbox
 
-        try:
-            # Import here to avoid requiring daytona as a hard dependency
-            from daytona import Daytona, DaytonaConfig
-        except ImportError as exc:
-            msg = "daytona package is required for DaytonaFS"
-            raise ImportError(msg) from exc
+        from daytona import Daytona, DaytonaConfig
 
-        # Initialize Daytona client
         config = DaytonaConfig(api_key=self._api_key)
         self._daytona = Daytona(config)
-
+        assert self._daytona
         if self._sandbox_id:
-            # Connect to existing sandbox (assuming Daytona has a connect method)
-            # If not available, we might need to use a different approach
-            assert self._daytona
-            self._sandbox = self._daytona.get(self._sandbox_id)
+            self._sandbox = await asyncio.to_thread(
+                self._daytona.get, self._sandbox_id
+            )  # Connect to existing
         else:
-            # Create new sandbox
-            assert self._daytona
-            self._sandbox = self._daytona.create()
+            self._sandbox = await asyncio.to_thread(self._daytona.create)
             assert self._sandbox
             self._sandbox_id = self._sandbox.id
 
@@ -90,8 +82,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
     async def close_session(self) -> None:
         """Close the Daytona session."""
         if self._sandbox and self._session_started:
-            # Clean up the sandbox if needed
-            # self._sandbox.delete()  # Uncomment if you want to auto-delete
+            await asyncio.to_thread(self._sandbox.delete)
             self._sandbox = None
             self._session_started = False
 
@@ -103,7 +94,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            file_infos = sandbox.fs.list_files(path)
+            file_infos = await asyncio.to_thread(sandbox.fs.list_files, path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -149,7 +140,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            content = sandbox.fs.download_file(path)
+            content = await asyncio.to_thread(sandbox.fs.download_file, path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -182,7 +173,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.upload_file(lpath, rpath)
+            await asyncio.to_thread(sandbox.fs.upload_file, lpath, rpath)
         except Exception as exc:
             msg = f"Failed to upload file from {lpath} to {rpath}: {exc}"
             raise OSError(msg) from exc
@@ -195,7 +186,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.upload_file(value, path)
+            await asyncio.to_thread(sandbox.fs.upload_file, value, path)
         except Exception as exc:
             msg = f"Failed to write file {path}: {exc}"
             raise OSError(msg) from exc
@@ -207,7 +198,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
 
         try:
             # Daytona's create_folder uses octal permissions as string
-            sandbox.fs.create_folder(path, "755")
+            await asyncio.to_thread(sandbox.fs.create_folder, path, "755")
         except Exception as exc:
             if create_parents and "parent" in str(exc).lower():
                 # Try to create parent directories first
@@ -216,7 +207,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
                 parent = os.path.dirname(path)  # noqa: PTH120
                 if parent and parent not in (path, "/"):
                     await self._mkdir(parent, create_parents=True)
-                    sandbox.fs.create_folder(path, "755")
+                    await asyncio.to_thread(sandbox.fs.create_folder, path, "755")
             else:
                 msg = f"Failed to create directory {path}: {exc}"
                 raise OSError(msg) from exc
@@ -227,7 +218,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.delete_file(path)
+            await asyncio.to_thread(sandbox.fs.delete_file, path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -243,7 +234,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
 
         try:
             # doesnt have delete-dir, so workaround.
-            sandbox.fs.move_files(path, "tmp/upathools")
+            await asyncio.to_thread(sandbox.fs.move_files, path, "tmp/upathools")
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -261,7 +252,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.get_file_info(path)
+            await asyncio.to_thread(sandbox.fs.get_file_info, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -273,7 +264,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.get_file_info(path)
+            info = await asyncio.to_thread(sandbox.fs.get_file_info, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -285,7 +276,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.get_file_info(path)
+            info = await asyncio.to_thread(sandbox.fs.get_file_info, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -297,7 +288,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.get_file_info(path)
+            info = await asyncio.to_thread(sandbox.fs.get_file_info, path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -312,7 +303,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.get_file_info(path)
+            info = await asyncio.to_thread(sandbox.fs.get_file_info, path)
             return float(info.mod_time) if info.mod_time else 0.0
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
@@ -326,7 +317,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.move_files(path1, path2)
+            await asyncio.to_thread(sandbox.fs.move_files, path1, path2)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path1) from exc
@@ -347,7 +338,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         try:
             # Use Daytona's search functionality
             pattern = kwargs.get("pattern", "*")
-            result = sandbox.fs.search_files(path, pattern)
+            result = await asyncio.to_thread(sandbox.fs.search_files, path, pattern)
         except Exception as exc:
             msg = f"Failed to find files in {path}: {exc}"
             raise OSError(msg) from exc
@@ -360,7 +351,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            matches = sandbox.fs.find_files(path, pattern)
+            matches = await asyncio.to_thread(sandbox.fs.find_files, path, pattern)
             result = [
                 {
                     "file": match.file,
@@ -384,7 +375,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         try:
             # Convert integer mode to octal string
             mode_str = oct(mode)[2:]  # Remove '0o' prefix
-            sandbox.fs.set_file_permissions(path, mode=mode_str)
+            await asyncio.to_thread(sandbox.fs.set_file_permissions, path, mode=mode_str)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
