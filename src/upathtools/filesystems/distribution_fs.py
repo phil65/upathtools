@@ -45,7 +45,7 @@ class DistributionPath(BaseUPath):
 
 
 class DistributionFS(BaseAsyncFileSystem[DistributionPath]):
-    """Hierarchical filesystem for browsing Python packages."""
+    """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"
     upath_cls = DistributionPath
@@ -54,6 +54,10 @@ class DistributionFS(BaseAsyncFileSystem[DistributionPath]):
         """Initialize the filesystem."""
         super().__init__(*args, **storage_options)
         self._module_cache: dict[str, ModuleType] = {}
+
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        return {}
 
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""

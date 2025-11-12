@@ -2,6 +2,7 @@
 
 from .appwrite_fs import AppwriteFileSystem, AppwritePath
 from .basemodel_fs import BaseModelFS, BaseModelPath
+from .typeadapter_fs import TypeAdapterFS, TypeAdapterPath
 from .basemodel_instance_fs import BaseModelInstanceFS, BaseModelInstancePath
 from .beam_fs import BeamFS, BeamPath
 from .cli_fs import CliFS, CliPath
@@ -58,6 +59,8 @@ __all__ = [
     "PackagePath",
     "PythonAstFS",
     "PythonAstPath",
+    "TypeAdapterFS",
+    "TypeAdapterPath",
     "VercelFS",
     "VercelPath",
     "WikiFileSystem",

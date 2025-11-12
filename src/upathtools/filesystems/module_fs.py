@@ -52,21 +52,31 @@ class ModuleFS(BaseAsyncFileSystem[ModulePath]):
 
     def __init__(
         self,
-        fo: str = "",
+        module_path: str = "",
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
-        if not fo:
+        # Handle both direct usage and chaining - fo is used by fsspec for chaining
+        fo = kwargs.pop("fo", "")
+        path = module_path or fo
+
+        if not path:
             msg = "Path to Python file required"
             raise ValueError(msg)
 
-        self.source_path = fo if fo.endswith(".py") else f"{fo}.py"
+        self.source_path = path if path.endswith(".py") else f"{path}.py"
         self._module: ModuleType | None = None
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
+
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        """Parse mod URL and return constructor kwargs."""
+        path = path.removeprefix("mod://")
+        return {"module_path": path}
 
     def _load(self) -> None:
         """Load the module if not already loaded."""
@@ -275,6 +285,6 @@ class ModuleFS(BaseAsyncFileSystem[ModulePath]):
 
 
 if __name__ == "__main__":
-    fs = fsspec.filesystem("mod", fo="src/upathtools/helpers.py")
+    fs = fsspec.filesystem("mod", module_path="src/upathtools/helpers.py")
     print(fs.info("/"))
     # print(fs.cat("build"))

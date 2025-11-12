@@ -63,6 +63,10 @@ class CliFS(BaseAsyncFileSystem[CliPath]):
         self.encoding = encoding
         self._available_commands: dict[str, str] | None = None
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        return {}
+
     def _get_available_commands(self) -> dict[str, str]:
         """Get mapping of available commands to their full paths."""
         if self._available_commands is not None:

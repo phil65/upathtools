@@ -87,6 +87,11 @@ class MarkdownFS(BaseAsyncFileSystem[MarkdownPath]):
         self._content: str | None = None
         self._root: MarkdownNode | None = None
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("md://")
+        return {"fo": path}
+
     def _load(self) -> None:
         """Load and parse the markdown file if not already loaded."""
         if self._content is not None:

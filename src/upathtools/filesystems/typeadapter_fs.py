@@ -73,7 +73,7 @@ class TypeAdapterFS(BaseAsyncFileSystem[TypeAdapterPath]):
 
     @staticmethod
     def _get_kwargs_from_urls(path):
-        path = path.removeprefix("basemodel://")
+        path = path.removeprefix("typeadapter://")
         return {"model": path}
 
     @classmethod
@@ -81,7 +81,7 @@ class TypeAdapterFS(BaseAsyncFileSystem[TypeAdapterPath]):
         """Override to handle model name in URL by treating it as root path."""
         stripped = super()._strip_protocol(path)
         # If the stripped path equals the model identifier, treat it as root
-        # This handles URLs like basemodel://schemez.Schema where schemez.Schema
+        # This handles URLs like typeadapter://schemez.Schema where schemez.Schema
         # should be treated as the root path "/" for the model filesystem
         if stripped and "/" not in stripped and "." in stripped:
             # This looks like a model identifier (e.g., "schemez.Schema")
@@ -439,13 +439,13 @@ if __name__ == "__main__":
     # Test with UPath using explicit storage options
     import upath
 
-    path = upath.UPath("/", protocol="basemodel", model="schemez.Schema")
+    path = upath.UPath("/", protocol="typeadapter", model="schemez.Schema")
     print("UPath with explicit options:", path)
     print("Storage options:", path.storage_options)
     print("Fields:", list(path.iterdir())[:5])
 
     # Test the original failing URL syntax
-    path = upath.UPath("basemodel://schemez.Schema")
+    path = upath.UPath("typeadapter://schemez.Schema")
     print("Original URL syntax works:", path)
     print("Storage options:", path.storage_options)
     print("Fields:", list(path.iterdir())[:5])
@@ -453,6 +453,6 @@ if __name__ == "__main__":
     # Test fsspec directly
     import fsspec
 
-    fs, parsed_path = fsspec.core.url_to_fs("basemodel://schemez.Schema")
+    fs, parsed_path = fsspec.core.url_to_fs("typeadapter://schemez.Schema")
     print("fsspec works - parsed path:", parsed_path)
     print("Filesystem fields:", fs.ls("/", detail=False)[:5])

@@ -35,12 +35,12 @@ def example_py(tmp_path: Path) -> Path:
 def test_init_requires_path() -> None:
     """Test that path is required."""
     with pytest.raises(ValueError, match="Path to Python file required"):
-        fsspec.filesystem("mod", fo="")
+        fsspec.filesystem("mod", module_path="")
 
 
 def test_list_module_contents(example_py: Path) -> None:
     """Test listing module contents."""
-    fs = fsspec.filesystem("mod", fo=str(example_py))
+    fs = fsspec.filesystem("mod", module_path=str(example_py))
 
     # Test detailed listing
     members = fs.ls("/", detail=True)
@@ -64,7 +64,7 @@ def test_list_module_contents(example_py: Path) -> None:
 )
 def test_get_module_source(example_py: Path) -> None:
     """Test getting module source code."""
-    fs = fsspec.filesystem("mod", fo=str(example_py))
+    fs = fsspec.filesystem("mod", module_path=str(example_py))
 
     # Get whole module
     source = fs.cat().decode()
@@ -86,7 +86,7 @@ def test_get_module_source(example_py: Path) -> None:
 
 def test_member_not_found(example_py: Path) -> None:
     """Test error when requesting non-existent member."""
-    fs = fsspec.filesystem("mod", fo=str(example_py))
+    fs = fsspec.filesystem("mod", module_path=str(example_py))
 
     with pytest.raises(FileNotFoundError, match="Member non_existent not found"):
         fs.cat("non_existent")
@@ -94,7 +94,7 @@ def test_member_not_found(example_py: Path) -> None:
 
 def test_file_not_found() -> None:
     """Test error when file doesn't exist."""
-    fs = fsspec.filesystem("mod", fo="non_existent.py")
+    fs = fsspec.filesystem("mod", module_path="non_existent.py")
 
     with pytest.raises(FileNotFoundError):
         fs.ls("/")
@@ -113,8 +113,8 @@ def test_chained_access(example_py: Path) -> None:
 
 def test_path_with_without_py(example_py: Path) -> None:
     """Test that paths with and without .py work."""
-    fs1 = fsspec.filesystem("mod", fo=str(example_py))
-    fs2 = fsspec.filesystem("mod", fo=str(example_py.with_suffix("")))
+    fs1 = fsspec.filesystem("mod", module_path=str(example_py))
+    fs2 = fsspec.filesystem("mod", module_path=str(example_py.with_suffix("")))
 
     assert fs1.ls("/", detail=False) == fs2.ls("/", detail=False)
     assert fs1.cat().decode() == fs2.cat().decode()

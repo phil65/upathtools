@@ -71,6 +71,12 @@ def spec_file(tmp_path, minimal_spec):
     return str(spec_path)
 
 
+def test_openapi_fs_init_requires_url():
+    """Test that spec_url is required."""
+    with pytest.raises(ValueError, match="OpenAPI spec URL required"):
+        OpenAPIFS()
+
+
 def test_openapi_fs_init_local_file(spec_file):
     """Test initializing OpenAPIFS with local file."""
     fs = OpenAPIFS(spec_file)
@@ -275,3 +281,21 @@ def test_openapi_fs_with_headers(spec_file):
     # Should still work with local files
     root_info = fs.info("/")
     assert root_info["name"] == "Test API"
+
+
+def test_openapi_fs_chaining(spec_file):
+    """Test chaining with file protocol."""
+    url = f"openapi::file://{spec_file}"
+
+    import fsspec
+
+    # Test that we can access via chaining
+    with fsspec.open(url, mode="rb") as f:
+        content = f.read().decode()
+
+    # Should get the raw OpenAPI spec
+    import json
+
+    spec_data = json.loads(content)
+    assert spec_data["openapi"] == "3.0.1"
+    assert spec_data["info"]["title"] == "Test API"

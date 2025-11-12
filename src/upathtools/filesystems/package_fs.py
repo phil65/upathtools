@@ -61,7 +61,7 @@ class PackageFS(BaseAsyncFileSystem[PackagePath]):
 
     @staticmethod
     def _get_kwargs_from_urls(path):
-        path = path.removeprefix("package://")
+        path = path.removeprefix("pkg://")
         return {"package": path}
 
     def _get_module(self, module_name: str) -> ModuleType:

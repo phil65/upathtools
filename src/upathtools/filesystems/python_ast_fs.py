@@ -46,21 +46,34 @@ class PythonAstFS(BaseAsyncFileSystem[PythonAstPath]):
 
     def __init__(
         self,
-        fo: str = "",
+        python_file: str = "",
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
+        # Handle both direct usage and chaining - fo is used by fsspec for chaining
+        fo = kwargs.pop("fo", "")
+        path = python_file or fo
+
+        if not path:
+            msg = "Python file path required"
+            raise ValueError(msg)
+
         # Store parameters for lazy loading
-        self.path = fo if fo.endswith(".py") else fo + ".py"
+        self.path = path if path.endswith(".py") else path + ".py"
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
 
         # Initialize empty state
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
+
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("ast://")
+        return {"python_file": path}
 
     def _load(self) -> None:
         """Load and parse the source file if not already loaded."""
@@ -208,15 +221,11 @@ class PythonAstFS(BaseAsyncFileSystem[PythonAstPath]):
             raise FileNotFoundError(msg)
 
         member = self._members[path]
-        return {
-            "name": member.name,
-            "type": member.type,
-            "size": member.end_line - member.start_line,
-            "doc": member.doc,
-        }
+        size = member.end_line - member.start_line
+        return {"name": member.name, "type": member.type, "size": size, "doc": member.doc}
 
 
 if __name__ == "__main__":
-    fs = fsspec.filesystem("ast", fo="duties.py")
+    fs = fsspec.filesystem("ast", python_file="duties.py")
     print(fs.ls("/"))
     print(fs.cat("build"))

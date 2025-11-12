@@ -8,7 +8,7 @@ filesystem operations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote, unquote
 
 from fsspec.asyn import sync_wrapper
@@ -43,17 +43,97 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
     root_marker = "/"
     cachable = False
 
-    def __init__(self, client: FastMCPClient, **kwargs: Any):
+    @overload
+    def __init__(
+        self,
+        *,
+        client: FastMCPClient,
+        **kwargs: Any,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        url: str,
+        **kwargs: Any,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        server_cmd: list[str],
+        **kwargs: Any,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        *,
+        client: FastMCPClient | None = None,
+        url: str | None = None,
+        server_cmd: list[str] | None = None,
+        **kwargs: Any,
+    ):
         """Initialize MCP filesystem.
+
+        Only one of client, url or server_cmd may be provided.
 
         Args:
             client: FastMCP client instance for communicating with MCP server
+            url: URL of MCP server
+            server_cmd: Command to start MCP server
             **kwargs: Additional fsspec options
         """
+        # Validate that exactly one parameter is provided
+        from fastmcp.client import SSETransport, StdioTransport, StreamableHttpTransport
+
+        provided = sum(x is not None for x in [client, url, server_cmd])
+        if provided != 1:
+            msg = "Exactly one of client, url, or server_cmd must be provided"
+            raise ValueError(msg)
+
         super().__init__(**kwargs)
-        self.client = client
+        self.server_cmd = None
+        self.url = None
+        if client is not None:
+            self.client = client
+            match self.client.transport:
+                case SSETransport() | StreamableHttpTransport() as tp:
+                    self.url = tp.url
+                case StdioTransport() as tp:
+                    self.server_cmd = [tp.command, *tp.args]
+        elif url is not None:
+            # Import here to avoid circular imports
+            from fastmcp import Client as FastMCPClient
+
+            self.client = FastMCPClient(url)
+        elif server_cmd is not None:
+            # Import here to avoid circular imports
+            from fastmcp import Client as FastMCPClient
+
+            self.client = FastMCPClient(StdioTransport(server_cmd[0], server_cmd[1:]))
+
         self._resource_cache: dict[str, dict[str, Any]] = {}
         self._cache_valid = False
+
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        """Parse MCP URL and return constructor kwargs.
+
+        Args:
+            path: MCP URL path
+
+        Returns:
+            Dictionary with either 'url' or 'server_cmd' key
+        """
+        path = path.removeprefix("mcp://")
+
+        if path.startswith("http"):
+            return {"url": path}
+        # Assume it's a command for stdio
+        parts = path.split("/")
+        return {"server_cmd": parts}
 
     async def _ensure_connected(self):
         """Ensure the MCP client is connected."""
@@ -193,7 +273,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
             return b""
 
     # Sync wrapper
-    cat_file = sync_wrapper(_cat_file)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
 
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get file information asynchronously."""
@@ -218,7 +298,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
             return True
 
     # Sync wrapper
-    exists = sync_wrapper(_exists)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
 
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file asynchronously."""

@@ -54,6 +54,7 @@ cli = "upathtools.filesystems:CliFS"
 mcp = "upathtools.filesystems:MCPFileSystem"
 openapi = "upathtools.filesystems:OpenAPIFS"
 basemodel = "upathtools.filesystems:BaseModelFS"
+typeadapter = "upathtools.filesystems:TypeAdapterFS"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems:GistPath"
@@ -69,6 +70,7 @@ flatunion = "upathtools.filesystems:FlatUnionPath"
 cli = "upathtools.filesystems:CliPath"
 mcp = "upathtools.filesystems:MCPPath"
 basemodel = "upathtools.filesystems:BaseModelPath"
+typeadapter = "upathtools.filesystems:TypeAdapterPath"
 openapi = "upathtools.filesystems:OpenAPIPath"
 
 [project.optional-dependencies]

@@ -40,7 +40,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
     def __init__(
         self,
-        spec_url: str,
+        spec_url: str = "",
         headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -53,9 +53,22 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         """  # noqa: E501
         super().__init__(**kwargs)
 
-        self.spec_url = spec_url
+        # Handle both direct usage and chaining - fo is used by fsspec for chaining
+        fo = kwargs.pop("fo", "")
+        url = spec_url or fo
+
+        if not url:
+            msg = "OpenAPI spec URL required"
+            raise ValueError(msg)
+
+        self.spec_url = url
         self.headers = headers or {}
         self._spec: OpenAPI | None = None
+
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("openapi://")
+        return {"spec_url": path}
 
     def _load_spec(self) -> None:
         """Load and parse the OpenAPI specification."""
@@ -665,6 +678,15 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
+        """Async version of cat for fsspec compatibility."""
+        content = self.cat(path)
+        if start is not None or end is not None:
+            return content[start:end]
+        return content
+
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get detailed info about an OpenAPI element."""
         self._load_spec()
@@ -674,6 +696,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
         if not path:
             # Root spec info
+            spec_content = self.cat("").decode()
             return {
                 "name": self._spec.info.title,
                 "type": "openapi_spec",
@@ -685,6 +708,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                 if self._spec.components and self._spec.components.schemas
                 else 0,
                 "spec_url": self.spec_url,
+                "size": len(spec_content),
             }
 
         parts = path.split("/")
@@ -714,6 +738,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                             "type": "api_path",
                             "operations": operations,
                             "description": getattr(path_obj, "description", "") or "",
+                            "size": len(str(path_obj.raw_element)),
                         }
                 elif len(parts) >= 3:  # noqa: PLR2004
                     # Reconstruct path from parts excluding the method
@@ -734,6 +759,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                             return {
                                 "name": f"{method.upper()} {path_key}",
                                 "type": "operation",
+                                "size": len(str(operation.raw_element)),
                                 **self._get_operation_info(operation, method, path_key),
                             }
 
@@ -744,9 +770,11 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                     component_map = getattr(self._spec.components, component_type, None)
 
                     if component_map and component_name in component_map:
+                        component = component_map[component_name]
                         return {
                             "name": component_name,
                             "type": f"component_{component_type[:-1]}",
+                            "size": len(str(component.raw_element)),
                             "component_type": component_type,
                         }
 

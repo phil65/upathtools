@@ -20,7 +20,7 @@ async def test_mcp_fs():
     )
     async with Client(transport=transport) as mcp_client:
         # Create MCP filesystem
-        fs = MCPFileSystem(mcp_client)
+        fs = MCPFileSystem(client=mcp_client)
 
         # List all available resources
         print("=== Available MCP Resources ===")
