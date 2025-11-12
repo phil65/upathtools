@@ -73,7 +73,7 @@ class DaytonaFS(AsyncFileSystem):
             # Connect to existing sandbox (assuming Daytona has a connect method)
             # If not available, we might need to use a different approach
             assert self._daytona
-            self._sandbox = self._daytona.get_sandbox(self._sandbox_id)
+            self._sandbox = self._daytona.get(self._sandbox_id)
         else:
             # Create new sandbox
             assert self._daytona
@@ -120,7 +120,7 @@ class DaytonaFS(AsyncFileSystem):
                 "name": f"{path.rstrip('/')}/{info.name}",
                 "size": info.size,
                 "type": "directory" if info.is_dir else "file",
-                "mtime": info.mod_time.timestamp() if info.mod_time else 0,
+                "mtime": info.mod_time if info.mod_time else 0,
                 "mode": info.mode if hasattr(info, "mode") else 0,
                 "permissions": info.permissions if hasattr(info, "permissions") else "",
                 "owner": info.owner if hasattr(info, "owner") else "",
@@ -229,7 +229,7 @@ class DaytonaFS(AsyncFileSystem):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.delete_file(path, recursive=False)
+            sandbox.fs.delete_file(path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -244,7 +244,8 @@ class DaytonaFS(AsyncFileSystem):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.delete_file(path, recursive=True)
+            # doesnt have delete-dir, so workaround.
+            sandbox.fs.move_files(path, "tmp/upathools")
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -305,7 +306,7 @@ class DaytonaFS(AsyncFileSystem):
             msg = f"Failed to get file size for {path}: {exc}"
             raise OSError(msg) from exc
         else:
-            return info.size
+            return int(info.size)
 
     async def _modified(self, path: str, **kwargs: Any) -> float:
         """Get file modification time."""
@@ -314,7 +315,7 @@ class DaytonaFS(AsyncFileSystem):
 
         try:
             info = sandbox.fs.get_file_info(path)
-            return info.mod_time.timestamp() if info.mod_time else 0.0
+            return float(info.mod_time) if info.mod_time else 0.0
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -394,19 +395,19 @@ class DaytonaFS(AsyncFileSystem):
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
-    cat_file = sync_wrapper(_cat_file)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
     put_file = sync_wrapper(_put_file)
     pipe_file = sync_wrapper(_pipe_file)
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
-    exists = sync_wrapper(_exists)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isfile = sync_wrapper(_isfile)
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
     mv_file = sync_wrapper(_mv_file)
-    find = sync_wrapper(_find)
+    find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
     grep = sync_wrapper(_grep)
     chmod = sync_wrapper(_chmod)
 
