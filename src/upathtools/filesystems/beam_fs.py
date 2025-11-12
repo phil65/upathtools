@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import tempfile
@@ -134,7 +135,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            items = sandbox.fs.list_files(path)
+            items = await asyncio.to_thread(sandbox.fs.list_files, path)
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 
@@ -182,7 +183,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         try:
             # Create temporary file for download
             with tempfile.NamedTemporaryFile() as tmp_file:
-                sandbox.fs.download_file(path, tmp_file.name)
+                await asyncio.to_thread(sandbox.fs.download_file, path, tmp_file.name)
 
                 # Read the downloaded content
                 with open(tmp_file.name, "rb") as f:  # noqa: PTH123
@@ -219,7 +220,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.upload_file(lpath, rpath)
+            await asyncio.to_thread(sandbox.fs.upload_file, lpath, rpath)
         except Exception as exc:
             msg = f"Failed to upload file {lpath} to {rpath}: {exc}"
             raise OSError(msg) from exc
@@ -238,7 +239,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
                 tmp_file.flush()
 
                 # Upload the temporary file
-                sandbox.fs.upload_file(tmp_file.name, path)
+                await asyncio.to_thread(sandbox.fs.upload_file, tmp_file.name, path)
 
         except Exception as exc:
             msg = f"Failed to write file {path}: {exc}"
@@ -258,7 +259,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.create_directory(path)
+            await asyncio.to_thread(sandbox.fs.create_directory, path)
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 
@@ -273,7 +274,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
                 parent = os.path.dirname(path)  # noqa: PTH120
                 if parent and parent not in (path, "/"):
                     await self._mkdir(parent, create_parents=True)
-                    sandbox.fs.create_directory(path)
+                    await asyncio.to_thread(sandbox.fs.create_directory, path)
             else:
                 msg = f"Failed to create directory {path}: {exc}"
                 raise OSError(msg) from exc
@@ -284,7 +285,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.delete_file(path)
+            await asyncio.to_thread(sandbox.fs.delete_file, path)
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 
@@ -302,7 +303,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            sandbox.fs.delete_directory(path)
+            await asyncio.to_thread(sandbox.fs.delete_directory, path)
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 
@@ -324,7 +325,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
 
         try:
             # Try to stat the file/directory
-            sandbox.fs.stat_file(path)
+            await asyncio.to_thread(sandbox.fs.stat_file, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -336,7 +337,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.stat_file(path)
+            info = await asyncio.to_thread(sandbox.fs.stat_file, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -348,7 +349,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.stat_file(path)
+            info = await asyncio.to_thread(sandbox.fs.stat_file, path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -360,7 +361,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.stat_file(path)
+            info = await asyncio.to_thread(sandbox.fs.stat_file, path)
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 
@@ -379,7 +380,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         sandbox = await self._get_sandbox()
 
         try:
-            info = sandbox.fs.stat_file(path)
+            info = await asyncio.to_thread(sandbox.fs.stat_file, path)
             return (
                 float(info.mod_time)
                 if hasattr(info, "mod_time") and info.mod_time
