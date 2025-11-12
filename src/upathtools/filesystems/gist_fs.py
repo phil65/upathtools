@@ -883,14 +883,20 @@ class AsyncGistWriter:
 
 
 if __name__ == "__main__":
+    import asyncio
     import os
 
     logging.basicConfig(level=logging.INFO)
     print(f"Environment GITHUB_TOKEN set: {'GITHUB_TOKEN' in os.environ}")
     fs = GistFileSystem(username="phil65")
     print("\nListing files with filesystem.ls():")
-    files = fs.ls("")
-    print(f"Files: {files}")
+
+    async def main():
+        upath = fs.get_upath("")
+        async for p in upath.aiterdir():
+            print(p)
+
+    asyncio.run(main())
     # test_filename = "test_file2.py"
     # print(f"\nWriting to {test_filename}")
     # fs.pipe_file(test_filename, b"test content")

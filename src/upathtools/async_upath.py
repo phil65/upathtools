@@ -26,42 +26,16 @@ class AsyncUPath(ProxyUPath):
     while adding async capabilities.
     """
 
-    @property
     async def afs(self) -> AsyncFileSystem:
         """Get async filesystem instance when possible, otherwise wrapped sync fs."""
-        import fsspec
-        from fsspec.asyn import AsyncFileSystem
-        from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
+        from upathtools.async_ops import get_async_fs
 
-        # Try to get an async version of the filesystem
-        try:
-            if self.protocol in ("", "file"):
-                # Use morefs for local async operations if available
-                try:
-                    from morefs.asyn_local import AsyncLocalFileSystem
-
-                    return AsyncLocalFileSystem()
-                except ImportError:
-                    pass
-
-            # Try to create async version of the filesystem
-            async_fs = fsspec.filesystem(
-                self.protocol, asynchronous=True, **self.storage_options
-            )
-
-            if isinstance(async_fs, AsyncFileSystem):
-                return async_fs
-
-        except (ValueError, ImportError, TypeError):
-            pass
-
-        # Fallback: wrap sync filesystem
-        return AsyncFileSystemWrapper(self.fs)
+        return await get_async_fs(self.fs)
 
     async def aread_bytes(self) -> bytes:
         """Asynchronously read file content as bytes."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_cat_file"):
                 return await fs._cat_file(self.path)
             if hasattr(fs, "cat_file"):
@@ -96,7 +70,7 @@ class AsyncUPath(ProxyUPath):
     ) -> str:
         """Asynchronously read file content as text."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
 
             # Try async open if available
             if hasattr(fs, "_open") or hasattr(fs, "open_async"):
@@ -122,7 +96,7 @@ class AsyncUPath(ProxyUPath):
     async def awrite_bytes(self, data: bytes) -> int:
         """Asynchronously write bytes to file."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_pipe_file"):
                 await fs._pipe_file(self.path, data)
                 return len(data)
@@ -160,7 +134,7 @@ class AsyncUPath(ProxyUPath):
     ) -> int:
         """Asynchronously write text to file."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
 
             if hasattr(fs, "_open") or hasattr(fs, "open_async"):
                 open_method = getattr(fs, "open_async", None) or fs._open
@@ -187,7 +161,7 @@ class AsyncUPath(ProxyUPath):
     async def aexists(self) -> bool:
         """Asynchronously check if path exists."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_exists"):
                 return await fs._exists(self.path)
             return await asyncio.to_thread(fs.exists, self.path)
@@ -197,7 +171,7 @@ class AsyncUPath(ProxyUPath):
     async def ais_file(self) -> bool:
         """Asynchronously check if path is a file."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_isfile"):
                 return await fs._isfile(self.path)
             return await asyncio.to_thread(fs.isfile, self.path)
@@ -207,7 +181,7 @@ class AsyncUPath(ProxyUPath):
     async def ais_dir(self) -> bool:
         """Asynchronously check if path is a directory."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_isdir"):
                 return await fs._isdir(self.path)
             return await asyncio.to_thread(fs.isdir, self.path)
@@ -219,7 +193,7 @@ class AsyncUPath(ProxyUPath):
     ) -> None:
         """Asynchronously create directory."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_makedirs"):
                 await fs._makedirs(self.path, exist_ok=exist_ok)
             else:
@@ -230,7 +204,7 @@ class AsyncUPath(ProxyUPath):
     async def atouch(self, exist_ok: bool = True) -> None:
         """Asynchronously create empty file or update timestamp."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_touch"):
                 await fs._touch(self.path, exist_ok=exist_ok)  # type: ignore
             else:
@@ -241,7 +215,7 @@ class AsyncUPath(ProxyUPath):
     async def aunlink(self, missing_ok: bool = False) -> None:
         """Asynchronously remove file."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_rm_file"):
                 await fs._rm_file(self.path)
             elif hasattr(fs, "_rm"):
@@ -254,7 +228,7 @@ class AsyncUPath(ProxyUPath):
     async def armdir(self) -> None:
         """Asynchronously remove directory."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_rmdir"):
                 await fs._rmdir(self.path)
             else:
@@ -269,7 +243,7 @@ class AsyncUPath(ProxyUPath):
     async def _aiterdir_impl(self) -> AsyncIterator[Self]:
         """Implementation of async directory iteration."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_ls"):
                 entries = await fs._ls(self.path, detail=False)
             else:
@@ -307,7 +281,7 @@ class AsyncUPath(ProxyUPath):
         # TODO: deal with None
         case_sensitive = case_sensitive or False
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_glob"):
                 full_pattern = (
                     str(self / pattern) if not pattern.startswith("/") else pattern
@@ -348,7 +322,7 @@ class AsyncUPath(ProxyUPath):
     async def astat(self, *, follow_symlinks: bool = True):
         """Asynchronously get file stats."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
             if hasattr(fs, "_info"):
                 info = await fs._info(self.path)
                 from upath._stat import UPathStatResult
@@ -409,7 +383,7 @@ class AsyncUPath(ProxyUPath):
     ):
         """Asynchronously open file."""
         try:
-            fs = await self.afs
+            fs = await self.afs()
 
             if hasattr(fs, "_open") or hasattr(fs, "open_async"):
                 open_method = getattr(fs, "open_async", None) or fs._open

@@ -370,10 +370,6 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
         logger.debug("Invalidated MCP resource cache")
 
 
-# Register the filesystem with fsspec
-try:
-    import fsspec
-
-    fsspec.register_implementation("mcp", MCPFileSystem)
-except ImportError:
-    pass
+if __name__ == "__main__":
+    fs = MCPFileSystem(server_cmd=["uvx", "mcp-server-git"])
+    print(fs.ls(""))

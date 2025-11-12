@@ -521,3 +521,13 @@ class DaytonaFile:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        fs = DaytonaFS()
+        await fs._mkdir("test")
+
+    asyncio.run(main())
