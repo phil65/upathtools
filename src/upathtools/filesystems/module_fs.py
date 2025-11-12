@@ -13,7 +13,7 @@ from typing import Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class"]
@@ -44,7 +44,7 @@ class ModulePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class ModuleFS(BaseAsyncFileSystem[ModulePath]):
+class ModuleFS(BaseFileSystem[ModulePath]):
     """Runtime-based filesystem for browsing a single Python module."""
 
     protocol = "mod"

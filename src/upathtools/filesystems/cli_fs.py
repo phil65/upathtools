@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from upath.types import UNSET_DEFAULT
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class CliPath(BaseUPath):
         raise NotImplementedError(msg)
 
 
-class CliFS(BaseAsyncFileSystem[CliPath]):
+class CliFS(BaseFileSystem[CliPath]):
     """Filesystem for executing CLI commands and capturing their output."""
 
     protocol = "cli"

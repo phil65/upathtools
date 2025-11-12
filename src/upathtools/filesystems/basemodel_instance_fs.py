@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class BaseModelInstancePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class BaseModelInstanceFS(BaseAsyncFileSystem[BaseModelInstancePath]):
+class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
     """Filesystem for browsing Pydantic BaseModel instance data and values."""
 
     protocol = "basemodel-instance"

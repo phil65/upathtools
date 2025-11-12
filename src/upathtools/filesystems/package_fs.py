@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class PackagePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class PackageFS(BaseAsyncFileSystem[PackagePath]):
+class PackageFS(BaseFileSystem[PackagePath]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"

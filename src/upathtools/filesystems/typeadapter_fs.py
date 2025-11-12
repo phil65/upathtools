@@ -13,7 +13,7 @@ import importlib
 import json
 from typing import Any, Literal, overload
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 class TypeAdapterPath(BaseUPath):
@@ -32,7 +32,7 @@ class TypeAdapterPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class TypeAdapterFS(BaseAsyncFileSystem[TypeAdapterPath]):
+class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
     """Filesystem for browsing type schemas via Pydantic TypeAdapter.
 
     Supports browsing field definitions and schemas for any TypeAdapter-compatible type:

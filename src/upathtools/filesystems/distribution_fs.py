@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class DistributionPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class DistributionFS(BaseAsyncFileSystem[DistributionPath]):
+class DistributionFS(BaseFileSystem[DistributionPath]):
     """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"

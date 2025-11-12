@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ class MarkdownPath(BaseUPath):
         yield from super().iterdir()
 
 
-class MarkdownFS(BaseAsyncFileSystem[MarkdownPath]):
+class MarkdownFS(BaseFileSystem[MarkdownPath]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"

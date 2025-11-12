@@ -10,7 +10,7 @@ from typing import Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class", "import", "assign"]
@@ -38,7 +38,7 @@ class PythonAstPath(BaseUPath):
         yield from super().iterdir()
 
 
-class PythonAstFS(BaseAsyncFileSystem[PythonAstPath]):
+class PythonAstFS(BaseFileSystem[PythonAstPath]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"
@@ -229,3 +229,8 @@ if __name__ == "__main__":
     fs = fsspec.filesystem("ast", python_file="duties.py")
     print(fs.ls("/"))
     print(fs.cat("build"))
+    from prettyqt import widgets
+    from prettyqt.itemmodels.fsspecmodel import FSSpecTreeModel
+
+    app = widgets.app()
+    model = FSSpecTreeModel("basemodel", model="schemez.Schema")
