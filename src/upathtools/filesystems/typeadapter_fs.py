@@ -206,6 +206,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
                     "default": field_schema.get("default"),
                     "title": field_schema.get("title", item),
                     "nested_model": is_nested,
+                    "item": 0,
                     "description": field_schema.get("description"),
                 })
 

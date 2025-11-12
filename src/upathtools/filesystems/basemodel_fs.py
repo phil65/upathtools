@@ -385,6 +385,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
                 "doc": self.model_class.__doc__,
                 "field_count": len(self.model_class.model_fields),
                 "schema": self.model_class.model_json_schema(),
+                "size": len(self.model_class.model_fields),
             }
 
         try:
@@ -401,6 +402,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
                 "module": current_model.__module__,
                 "doc": current_model.__doc__,
                 "field_count": len(current_model.model_fields),
+                "size": len(current_model.model_fields),
             }
 
         # Field info
@@ -417,6 +419,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
             "default": field_info.default if field_info.default is not ... else None,
             "alias": field_info.alias,
             "description": field_info.description,
+            "size": 0,
             "constraints": [str(c) for c in field_info.metadata]
             if field_info.metadata
             else [],
