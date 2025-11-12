@@ -60,6 +60,18 @@ class BaseModelFS(BaseAsyncFileSystem[BaseModelPath]):
         path = path.removeprefix("basemodel://")
         return {"model": path}
 
+    @classmethod
+    def _strip_protocol(cls, path):
+        """Override to handle model name in URL by treating it as root path."""
+        stripped = super()._strip_protocol(path)
+        # If the stripped path equals the model identifier, treat it as root
+        # This handles URLs like basemodel://schemez.Schema where schemez.Schema
+        # should be treated as the root path "/" for the model filesystem
+        if stripped and "/" not in stripped and "." in stripped:
+            # This looks like a model identifier (e.g., "schemez.Schema")
+            return ""
+        return stripped
+
     def _import_model(self, import_path: str) -> type[BaseModel]:
         """Import a BaseModel class from a string path."""
         try:
@@ -346,6 +358,20 @@ class BaseModelFS(BaseAsyncFileSystem[BaseModelPath]):
 
         return json.dumps(field_data, indent=2, default=str).encode()
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (model or nested model)."""
+        path = self._strip_protocol(path).strip("/")  # type: ignore
+
+        if not path:
+            # Root is always a directory
+            return True
+
+        try:
+            _current_model, field_name = self._get_nested_model_at_path(path)
+            return bool(not field_name)
+        except FileNotFoundError:
+            return False
+
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get detailed info about a model or field."""
         path = self._strip_protocol(path).strip("/")  # type: ignore
@@ -406,11 +432,29 @@ if __name__ == "__main__":
         age: int = Field(ge=0, le=120)
         email: str
 
-    # fs = BaseModelFS(User)
-    # print("Fields:", fs.ls("/", detail=False))
-    # print("User info:", fs.info("/"))
-    # print("Name field:", fs.info("/name"))
+    # Test with direct filesystem creation
+    fs = BaseModelFS(User)
+    print("Fields:", fs.ls("/", detail=False))
+    print("User info:", fs.info("/"))
+    print("Name field:", fs.info("/name"))
+
+    # Test with UPath using explicit storage options
     import upath
 
+    path = upath.UPath("/", protocol="basemodel", model="schemez.Schema")
+    print("UPath with explicit options:", path)
+    print("Storage options:", path.storage_options)
+    print("Fields:", list(path.iterdir())[:5])
+
+    # Test the original failing URL syntax
     path = upath.UPath("basemodel://schemez.Schema")
-    print(path)
+    print("Original URL syntax works:", path)
+    print("Storage options:", path.storage_options)
+    print("Fields:", list(path.iterdir())[:5])
+
+    # Test fsspec directly
+    import fsspec
+
+    fs, parsed_path = fsspec.core.url_to_fs("basemodel://schemez.Schema")
+    print("fsspec works - parsed path:", parsed_path)
+    print("Filesystem fields:", fs.ls("/", detail=False)[:5])
