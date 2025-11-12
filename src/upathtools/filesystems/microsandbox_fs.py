@@ -101,9 +101,9 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
         # Use ls -la to get detailed directory listing
         result = await sandbox.command.run("ls", ["-la", path])
 
-        output = result.output_data.get("stdout", "")
-        stderr = result.output_data.get("stderr", "")
-        exit_code = result.output_data.get("exit_code", 0)
+        output = await result.output()
+        stderr = await result.error()
+        exit_code = result.exit_code
 
         if exit_code != 0:
             if "No such file or directory" in stderr:
@@ -156,9 +156,9 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("cat", [path])
 
-        stdout = result.output_data.get("stdout", "")
-        stderr = result.output_data.get("stderr", "")
-        exit_code = result.output_data.get("exit_code", 0)
+        stdout = await result.output()
+        stderr = await result.error()
+        exit_code = result.exit_code
 
         if exit_code != 0:
             if "No such file or directory" in stderr:
@@ -189,8 +189,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             "sh", ["-c", f"printf '%s' '{content_str}' > '{path}'"]
         )
 
-        exit_code = result.output_data.get("exit_code", 0)
-        stderr = result.output_data.get("stderr", "")
+        exit_code = result.exit_code
+        stderr = await result.error()
 
         if exit_code != 0:
             msg = f"Failed to write file {path}: {stderr}"
@@ -206,8 +206,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("mkdir", args)
 
-        exit_code = result.output_data.get("exit_code", 0)
-        stderr = result.output_data.get("stderr", "")
+        exit_code = result.exit_code
+        stderr = await result.error()
 
         if exit_code != 0:
             msg = f"Failed to create directory {path}: {stderr}"
@@ -219,8 +219,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("rm", ["-f", path])
 
-        exit_code = result.output_data.get("exit_code", 0)
-        stderr = result.output_data.get("stderr", "")
+        exit_code = result.exit_code
+        stderr = await result.error()
 
         if exit_code != 0:
             msg = f"Failed to remove file {path}: {stderr}"
@@ -232,8 +232,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("rmdir", [path])
 
-        exit_code = result.output_data.get("exit_code", 0)
-        stderr = result.output_data.get("stderr", "")
+        exit_code = result.exit_code
+        stderr = await result.error()
 
         if exit_code != 0:
             msg = f"Failed to remove directory {path}: {stderr}"
@@ -244,21 +244,21 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
         sandbox = await self._get_sandbox()
 
         result = await sandbox.command.run("test", ["-e", path])
-        return result.output_data.get("exit_code", 1) == 0
+        return result.exit_code == 0
 
     async def _isfile(self, path: str, **kwargs) -> bool:
         """Check if path is a file using test command."""
         sandbox = await self._get_sandbox()
 
         result = await sandbox.command.run("test", ["-f", path])
-        return result.output_data.get("exit_code", 1) == 0
+        return result.exit_code == 0
 
     async def _isdir(self, path: str, **kwargs) -> bool:
         """Check if path is a directory using test command."""
         sandbox = await self._get_sandbox()
 
         result = await sandbox.command.run("test", ["-d", path])
-        return result.output_data.get("exit_code", 1) == 0
+        return result.exit_code == 0
 
     async def _size(self, path: str, **kwargs) -> int:
         """Get file size using stat command."""
@@ -266,9 +266,9 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("stat", ["-c", "%s", path])
 
-        stdout = result.output_data.get("stdout", "0")
-        stderr = result.output_data.get("stderr", "")
-        exit_code = result.output_data.get("exit_code", 0)
+        stdout = await result.output()
+        stderr = await result.error()
+        exit_code = result.exit_code
 
         if exit_code != 0:
             if "No such file or directory" in stderr:
@@ -285,9 +285,9 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         result = await sandbox.command.run("stat", ["-c", "%Y", path])
 
-        stdout = result.output_data.get("stdout", "0")
-        stderr = result.output_data.get("stderr", "")
-        exit_code = result.output_data.get("exit_code", 0)
+        stdout = await result.output()
+        stderr = await result.error()
+        exit_code = result.exit_code
 
         if exit_code != 0:
             if "No such file or directory" in stderr:
