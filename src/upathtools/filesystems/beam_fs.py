@@ -7,8 +7,9 @@ import logging
 import tempfile
 from typing import TYPE_CHECKING, Any, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -18,11 +19,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BeamPath(UPath):
+class BeamPath(BaseUPath):
     """Beam-specific UPath implementation."""
 
 
-class BeamFS(AsyncFileSystem):
+class BeamFS(BaseAsyncFileSystem[BeamPath]):
     """Async filesystem for Beam sandbox environments.
 
     This filesystem provides access to files within a Beam sandbox environment,
@@ -30,6 +31,7 @@ class BeamFS(AsyncFileSystem):
     Beam native filesystem interface.
     """
 
+    upath_cls = BeamPath
     protocol = "beam"
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
@@ -73,10 +75,6 @@ class BeamFS(AsyncFileSystem):
         self.env_variables = env_variables
         self._sandbox_instance = None
         self._session_started = False
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return BeamPath(path)
 
     async def _get_sandbox(self):
         """Get or create Beam sandbox instance."""
@@ -399,12 +397,12 @@ class BeamFS(AsyncFileSystem):
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
-    cat_file = sync_wrapper(_cat_file)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
     pipe_file = sync_wrapper(_pipe_file)
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
-    exists = sync_wrapper(_exists)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isfile = sync_wrapper(_isfile)
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)

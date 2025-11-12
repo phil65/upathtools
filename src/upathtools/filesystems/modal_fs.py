@@ -6,8 +6,9 @@ import io
 import logging
 from typing import TYPE_CHECKING, Any
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -17,11 +18,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ModalPath(UPath):
+class ModalPath(BaseUPath):
     """Modal-specific UPath implementation."""
 
 
-class ModalFS(AsyncFileSystem):
+class ModalFS(BaseAsyncFileSystem[ModalPath]):
     """Async filesystem for Modal sandbox environments.
 
     This filesystem provides access to files within a Modal sandbox environment,
@@ -30,6 +31,7 @@ class ModalFS(AsyncFileSystem):
     """
 
     protocol = "modal"
+    upath_cls = ModalPath
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
 
@@ -82,10 +84,6 @@ class ModalFS(AsyncFileSystem):
         self._app: modal.App | None = None
         self._sandbox: modal.Sandbox | None = None
         self._session_started = False
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return ModalPath(path)
 
     async def _get_app(self):
         """Get or create Modal app."""

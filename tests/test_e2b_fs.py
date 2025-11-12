@@ -209,14 +209,6 @@ async def test_e2b_sync_interface(api_key: str):
 
 
 @pytest.mark.integration
-async def test_e2b_path_creation(api_key: str):
-    """Test E2BPath object creation."""
-    fs = E2BFS(api_key=api_key)
-    path = fs._make_path("/test/path")
-    assert str(path) == "/test/path"
-
-
-@pytest.mark.integration
 async def test_e2b_existing_sandbox_connection(api_key: str):
     """Test connecting to existing sandbox."""
     fs1 = E2BFS(api_key=api_key)

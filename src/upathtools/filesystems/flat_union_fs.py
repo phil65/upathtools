@@ -6,8 +6,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
-from upath import UPath
 
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 from upathtools.helpers import to_upath
 
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class FlatUnionPath(UPath):
+class FlatUnionPath(BaseUPath):
     """UPath implementation for browsing FlatUnionFS."""
 
     __slots__ = ()
@@ -40,7 +40,7 @@ class FlatUnionPath(UPath):
         return path.lstrip("/")  # Other paths strip leading slash
 
 
-class FlatUnionFileSystem(AsyncFileSystem):
+class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
     """Filesystem that merges multiple filesystems into a single flat view.
 
     Unlike UnionFileSystem which organizes by protocol, FlatUnionFileSystem
@@ -53,7 +53,8 @@ class FlatUnionFileSystem(AsyncFileSystem):
         will be the one accessed.
     """
 
-    protocol = "flatunion"
+    protocol = "flat-union"
+    upath_cls = FlatUnionPath
     root_marker = "/"
 
     def __init__(self, filesystems: list[AbstractFileSystem], **kwargs: Any):
@@ -66,10 +67,6 @@ class FlatUnionFileSystem(AsyncFileSystem):
         super().__init__(**kwargs)
         self.filesystems = filesystems
         logger.debug("Created FlatUnionFileSystem with %d filesystems", len(filesystems))
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return FlatUnionPath(path)
 
     async def _get_matching_fs(
         self,

@@ -192,14 +192,6 @@ async def test_beam_sync_interface():
 
 
 @pytest.mark.integration
-async def test_beam_path_creation():
-    """Test BeamPath object creation."""
-    fs = BeamFS()
-    path = fs._make_path("/test/path")
-    assert str(path) == "/test/path"
-
-
-@pytest.mark.integration
 async def test_beam_existing_sandbox_connection():
     """Test connecting to existing sandbox."""
     fs1 = BeamFS()

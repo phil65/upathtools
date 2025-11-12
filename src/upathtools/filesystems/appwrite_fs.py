@@ -9,9 +9,11 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
+from fsspec.asyn import sync_wrapper
 from fsspec.utils import tokenize
 from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem
 
 
 if TYPE_CHECKING:
@@ -32,7 +34,7 @@ class AppwritePath(UPath):
         yield from super().iterdir()
 
 
-class AppwriteFileSystem(AsyncFileSystem):
+class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
     """Filesystem for Appwrite storage service.
 
     This filesystem allows you to interact with Appwrite storage buckets
@@ -47,6 +49,7 @@ class AppwriteFileSystem(AsyncFileSystem):
     """
 
     protocol = "appwrite"
+    upath_cls = AppwritePath
 
     def __init__(
         self,
@@ -102,10 +105,6 @@ class AppwriteFileSystem(AsyncFileSystem):
         # Read bucket_id from environment if not provided
         self.bucket_id = bucket_id or os.environ.get("APPWRITE_BUCKET_ID")
         self._storage: Storage | None = None
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return AppwritePath(path)
 
     @property
     def storage(self) -> Storage:

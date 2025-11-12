@@ -9,9 +9,9 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
 from upath.types import UNSET_DEFAULT
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class CliPath(UPath):
+class CliPath(BaseUPath):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -44,10 +44,11 @@ class CliPath(UPath):
         raise NotImplementedError(msg)
 
 
-class CliFS(AbstractFileSystem):
+class CliFS(BaseAsyncFileSystem[CliPath]):
     """Filesystem for executing CLI commands and capturing their output."""
 
     protocol = "cli"
+    upath_cls = CliPath
 
     def __init__(self, shell: bool = False, encoding: str = "utf-8", **kwargs: Any):
         """Initialize the CLI filesystem.
@@ -61,10 +62,6 @@ class CliFS(AbstractFileSystem):
         self.shell = shell
         self.encoding = encoding
         self._available_commands: dict[str, str] | None = None
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return CliPath(path)
 
     def _get_available_commands(self) -> dict[str, str]:
         """Get mapping of available commands to their full paths."""

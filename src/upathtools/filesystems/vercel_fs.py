@@ -6,8 +6,9 @@ import io
 import logging
 from typing import TYPE_CHECKING, Any
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -17,11 +18,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class VercelPath(UPath):
+class VercelPath(BaseUPath):
     """Vercel-specific UPath implementation."""
 
 
-class VercelFS(AsyncFileSystem):
+class VercelFS(BaseAsyncFileSystem[VercelPath]):
     """Async filesystem for Vercel sandbox environments.
 
     This filesystem provides access to files within a Vercel sandbox environment,
@@ -29,6 +30,7 @@ class VercelFS(AsyncFileSystem):
     Vercel native filesystem interface.
     """
 
+    upath_cls = VercelPath
     protocol = "vercel"
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
@@ -71,9 +73,6 @@ class VercelFS(AsyncFileSystem):
         self.project_id = project_id
         self.team_id = team_id
         self._sandbox: AsyncSandbox | None = None
-
-    def _make_path(self, path: str) -> VercelPath:
-        return VercelPath(path, protocol="vercel")
 
     async def _get_sandbox(self) -> AsyncSandbox:
         """Get or create sandbox instance."""

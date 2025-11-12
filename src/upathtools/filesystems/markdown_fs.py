@@ -8,8 +8,8 @@ import sys
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ class MarkdownNode:
         return len(self.content.encode())
 
 
-class MarkdownPath(UPath):
+class MarkdownPath(BaseUPath):
     """UPath implementation for browsing markdown documents."""
 
     __slots__ = ()
@@ -59,10 +59,11 @@ class MarkdownPath(UPath):
         yield from super().iterdir()
 
 
-class MarkdownFS(AbstractFileSystem):
+class MarkdownFS(BaseAsyncFileSystem[MarkdownPath]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
+    upath_cls = MarkdownPath
 
     def __init__(
         self,
@@ -85,10 +86,6 @@ class MarkdownFS(AbstractFileSystem):
         self.target_options = target_options or {}
         self._content: str | None = None
         self._root: MarkdownNode | None = None
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return MarkdownPath(path)
 
     def _load(self) -> None:
         """Load and parse the markdown file if not already loaded."""

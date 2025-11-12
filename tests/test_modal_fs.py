@@ -207,14 +207,6 @@ async def test_modal_sync_interface(modal_api_available):
 
 
 @pytest.mark.integration
-async def test_modal_path_creation(modal_api_available):
-    """Test ModalPath object creation."""
-    fs = ModalFS()
-    path = fs._make_path("/test/path")
-    assert str(path) == "/test/path"
-
-
-@pytest.mark.integration
 async def test_modal_existing_sandbox_connection(modal_api_available):
     """Test connecting to existing sandbox."""
     fs1 = ModalFS(app_name="upathtools-existing-test", timeout=300)

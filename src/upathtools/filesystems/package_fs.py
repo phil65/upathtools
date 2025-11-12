@@ -8,8 +8,8 @@ import pkgutil
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-class PackagePath(UPath):
+class PackagePath(BaseUPath):
     """UPath implementation for browsing Python packages."""
 
     __slots__ = ()
@@ -34,7 +34,7 @@ class PackagePath(UPath):
         return "/" if path == "." else path
 
 
-class PackageFS(AbstractFileSystem):
+class PackageFS(BaseAsyncFileSystem[PackagePath]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"
@@ -57,10 +57,6 @@ class PackageFS(AbstractFileSystem):
 
         self.package = package if isinstance(package, str) else package.__name__
         self._module_cache: dict[str, ModuleType] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return PackagePath(path)
 
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""

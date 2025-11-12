@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import urlparse
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from openapi3.paths import Operation
 
 
-class OpenAPIPath(UPath):
+class OpenAPIPath(BaseUPath):
     """UPath implementation for browsing OpenAPI specifications."""
 
     __slots__ = ()
@@ -32,10 +32,11 @@ class OpenAPIPath(UPath):
         return "/" if path == "." else path
 
 
-class OpenAPIFS(AbstractFileSystem):
+class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
     """Filesystem for browsing OpenAPI specifications and API documentation."""
 
     protocol = "openapi"
+    upath_cls = OpenAPIPath
 
     def __init__(
         self,
@@ -55,10 +56,6 @@ class OpenAPIFS(AbstractFileSystem):
         self.spec_url = spec_url
         self.headers = headers or {}
         self._spec: OpenAPI | None = None
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return OpenAPIPath(path)
 
     def _load_spec(self) -> None:
         """Load and parse the OpenAPI specification."""

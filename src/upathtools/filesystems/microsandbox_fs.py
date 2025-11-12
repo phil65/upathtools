@@ -6,8 +6,9 @@ import io
 import logging
 from typing import TYPE_CHECKING, Any
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -17,11 +18,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MicrosandboxPath(UPath):
+class MicrosandboxPath(BaseUPath):
     """Microsandbox-specific UPath implementation."""
 
 
-class MicrosandboxFS(AsyncFileSystem):
+class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
     """Async filesystem for Microsandbox environments.
 
     This filesystem provides access to files within a Microsandbox environment,
@@ -30,6 +31,7 @@ class MicrosandboxFS(AsyncFileSystem):
     """
 
     protocol = "microsandbox"
+    upath_cls = MicrosandboxPath
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
 
@@ -67,9 +69,6 @@ class MicrosandboxFS(AsyncFileSystem):
         self.image = image
         self.memory = memory
         self.cpus = cpus
-
-    def _make_path(self, path: str) -> MicrosandboxPath:
-        return MicrosandboxPath(path, protocol="microsandbox")
 
     async def _get_sandbox(self) -> BaseSandbox:
         """Get sandbox instance."""

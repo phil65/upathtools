@@ -6,18 +6,19 @@ import io
 import logging
 from typing import Any, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 logger = logging.getLogger(__name__)
 
 
-class E2BPath(UPath):
+class E2BPath(BaseUPath):
     """E2B-specific UPath implementation."""
 
 
-class E2BFS(AsyncFileSystem):
+class E2BFS(BaseAsyncFileSystem[E2BPath]):
     """Async filesystem for E2B sandbox environments.
 
     This filesystem provides access to files within an E2B sandbox environment,
@@ -26,6 +27,7 @@ class E2BFS(AsyncFileSystem):
     """
 
     protocol = "e2b"
+    upath_cls = E2BPath
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
 
@@ -53,10 +55,6 @@ class E2BFS(AsyncFileSystem):
         self._timeout = timeout
         self._sandbox = None
         self._session_started = False
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return E2BPath(path)
 
     async def _get_sandbox(self):
         """Get or create E2B sandbox instance."""

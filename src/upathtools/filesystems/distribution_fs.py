@@ -9,8 +9,8 @@ import pkgutil
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ def _get_mtime(module: ModuleType) -> float | None:
     return None
 
 
-class DistributionPath(UPath):
+class DistributionPath(BaseUPath):
     """UPath implementation for browsing Python distributions."""
 
     __slots__ = ()
@@ -44,19 +44,16 @@ class DistributionPath(UPath):
         return "/" if path == "." else path
 
 
-class DistributionFS(AbstractFileSystem):
+class DistributionFS(BaseAsyncFileSystem[DistributionPath]):
     """Hierarchical filesystem for browsing Python packages."""
 
     protocol = "distribution"
+    upath_cls = DistributionPath
 
     def __init__(self, *args: Any, **storage_options: Any) -> None:
         """Initialize the filesystem."""
         super().__init__(*args, **storage_options)
         self._module_cache: dict[str, ModuleType] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return DistributionPath(path)
 
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""

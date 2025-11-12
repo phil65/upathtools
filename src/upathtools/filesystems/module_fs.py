@@ -12,8 +12,8 @@ from types import ModuleType
 from typing import Any, Literal, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class"]
@@ -28,7 +28,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class ModulePath(UPath):
+class ModulePath(BaseUPath):
     """UPath implementation for browsing Python modules."""
 
     __slots__ = ()
@@ -44,10 +44,11 @@ class ModulePath(UPath):
         return "/" if path == "." else path
 
 
-class ModuleFS(AbstractFileSystem):
+class ModuleFS(BaseAsyncFileSystem[ModulePath]):
     """Runtime-based filesystem for browsing a single Python module."""
 
     protocol = "mod"
+    upath_cls = ModulePath
 
     def __init__(
         self,
@@ -66,10 +67,6 @@ class ModuleFS(AbstractFileSystem):
         self._module: ModuleType | None = None
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return ModulePath(path)
 
     def _load(self) -> None:
         """Load the module if not already loaded."""

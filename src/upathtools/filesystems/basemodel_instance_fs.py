@@ -5,15 +5,14 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelInstancePath(UPath):
+class BaseModelInstancePath(BaseUPath):
     """UPath implementation for browsing Pydantic BaseModel instance data."""
 
     __slots__ = ()
@@ -29,10 +28,11 @@ class BaseModelInstancePath(UPath):
         return "/" if path == "." else path
 
 
-class BaseModelInstanceFS(AbstractFileSystem):
+class BaseModelInstanceFS(BaseAsyncFileSystem[BaseModelInstancePath]):
     """Filesystem for browsing Pydantic BaseModel instance data and values."""
 
     protocol = "basemodel-instance"
+    upath_cls = BaseModelInstancePath
 
     def __init__(
         self,
@@ -52,10 +52,6 @@ class BaseModelInstanceFS(AbstractFileSystem):
             raise ValueError(msg)
 
         self.instance = instance
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return BaseModelInstancePath(path)
 
     def _get_nested_value_at_path(self, path: str) -> tuple[Any, str]:
         """Get the object and field name at a given path."""

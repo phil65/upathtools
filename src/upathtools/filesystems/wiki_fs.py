@@ -11,9 +11,10 @@ import subprocess
 import tempfile
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
+from fsspec.asyn import sync_wrapper
 from fsspec.utils import infer_storage_options
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -26,13 +27,13 @@ logger = logging.getLogger(__name__)
 PREVIEW_LENGTH = 200
 
 
-class WikiPath(UPath):
+class WikiPath(BaseUPath):
     """UPath implementation for GitHub Wiki filesystem."""
 
     __slots__ = ()
 
 
-class WikiFileSystem(AsyncFileSystem):
+class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
     """Filesystem for accessing GitHub Wiki pages using git operations.
 
     This implementation uses git commands to interact with GitHub Wiki repositories.
@@ -41,6 +42,7 @@ class WikiFileSystem(AsyncFileSystem):
     """
 
     protocol = "wiki"
+    upath_cls = WikiPath
 
     def __init__(
         self,
@@ -87,10 +89,6 @@ class WikiFileSystem(AsyncFileSystem):
 
         # Initialize cache
         self.dircache: dict[str, Any] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return WikiPath(path)
 
     @property
     def fsid(self) -> str:

@@ -11,9 +11,9 @@ import base64
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, unquote
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
 
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 from upathtools.log import get_logger
 
 
@@ -24,13 +24,13 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class MCPPath(UPath):
+class MCPPath(BaseUPath):
     """MCP-specific UPath implementation."""
 
     __slots__ = ()
 
 
-class MCPFileSystem(AsyncFileSystem):
+class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
     """FSSpec filesystem that exposes MCP resources.
 
     This filesystem wraps a FastMCP client to expose MCP resources
@@ -39,6 +39,7 @@ class MCPFileSystem(AsyncFileSystem):
     """
 
     protocol = "mcp"
+    upath_cls = MCPPath
     root_marker = "/"
     cachable = False
 
@@ -53,10 +54,6 @@ class MCPFileSystem(AsyncFileSystem):
         self.client = client
         self._resource_cache: dict[str, dict[str, Any]] = {}
         self._cache_valid = False
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return MCPPath(path)
 
     async def _ensure_connected(self):
         """Ensure the MCP client is connected."""

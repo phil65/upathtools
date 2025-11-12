@@ -14,7 +14,6 @@ import weakref
 
 from fsspec.asyn import (
     AbstractAsyncStreamedFile,
-    AsyncFileSystem,
     sync,
     sync_wrapper,
 )
@@ -29,7 +28,8 @@ from fsspec.utils import (
     nullcontext,
     tokenize,
 )
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ URL_PATTERN = re.compile(r"""(?P<url>http[s]?://[-a-zA-Z0-9@:%_+.~#?&/=]+)""")
 logger = logging.getLogger("fsspec.http")
 
 
-class HttpPath(UPath):
+class HttpPath(BaseUPath):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -59,10 +59,12 @@ async def get_client(**kwargs: Any) -> httpx.AsyncClient:
     return httpx.AsyncClient(follow_redirects=True, **kwargs)
 
 
-class HTTPFileSystem(AsyncFileSystem):
+class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
     """Simple File-System for fetching data via HTTP(S)."""
 
     sep = "/"
+    # protocol = "http"
+    upath_cls = HttpPath
 
     def __init__(
         self,
@@ -98,10 +100,6 @@ class HTTPFileSystem(AsyncFileSystem):
         request_options.pop("max_paths", None)
         request_options.pop("skip_instance_cache", None)
         self.kwargs = request_options
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return HttpPath(path)
 
     @property
     def fsid(self) -> str:

@@ -9,8 +9,8 @@ import os
 from typing import Any, Literal, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class", "import", "assign"]
@@ -27,7 +27,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class PythonAstPath(UPath):
+class PythonAstPath(BaseUPath):
     """UPath implementation for browsing Python AST."""
 
     __slots__ = ()
@@ -38,10 +38,11 @@ class PythonAstPath(UPath):
         yield from super().iterdir()
 
 
-class PythonAstFS(AbstractFileSystem):
+class PythonAstFS(BaseAsyncFileSystem[PythonAstPath]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"
+    upath_cls = PythonAstPath
 
     def __init__(
         self,
@@ -60,10 +61,6 @@ class PythonAstFS(AbstractFileSystem):
         # Initialize empty state
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return PythonAstPath(path)
 
     def _load(self) -> None:
         """Load and parse the source file if not already loaded."""

@@ -10,9 +10,10 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec.asyn import AsyncFileSystem, sync, sync_wrapper
+from fsspec.asyn import sync, sync_wrapper
 from fsspec.utils import infer_storage_options
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -24,13 +25,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class GistPath(UPath):
+class GistPath(BaseUPath):
     """UPath implementation for GitHub Gist filesystem."""
 
     __slots__ = ()
 
 
-class GistFileSystem(AsyncFileSystem):
+class GistFileSystem(BaseAsyncFileSystem[GistPath]):
     """Filesystem for accessing GitHub Gists files.
 
     Supports both individual gists and listing all gists for a user.
@@ -38,6 +39,7 @@ class GistFileSystem(AsyncFileSystem):
     """
 
     protocol = "gist"
+    upath_cls = GistPath
     gist_url = "https://api.github.com/gists/{gist_id}"
     gist_rev_url = "https://api.github.com/gists/{gist_id}/{sha}"
     user_gists_url = "https://api.github.com/users/{username}/gists"
@@ -93,10 +95,6 @@ class GistFileSystem(AsyncFileSystem):
 
         # Initialize cache
         self.dircache: dict[str, Any] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return GistPath(path)
 
     @property
     def fsid(self) -> str:

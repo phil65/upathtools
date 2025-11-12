@@ -6,15 +6,14 @@ import importlib
 import json
 from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
 
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelPath(UPath):
+class BaseModelPath(BaseUPath):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
     __slots__ = ()
@@ -30,10 +29,11 @@ class BaseModelPath(UPath):
         return "/" if path == "." else path
 
 
-class BaseModelFS(AbstractFileSystem):
+class BaseModelFS(BaseAsyncFileSystem[BaseModelPath]):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     protocol = "basemodel"
+    upath_cls = BaseModelPath
 
     def __init__(
         self,
@@ -54,10 +54,6 @@ class BaseModelFS(AbstractFileSystem):
         else:
             self.model_class = model
             self.model_path = f"{model.__module__}.{model.__name__}"
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return BaseModelPath(path)
 
     def _import_model(self, import_path: str) -> type[BaseModel]:
         """Import a BaseModel class from a string path."""

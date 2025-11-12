@@ -6,18 +6,19 @@ import io
 import logging
 from typing import Any, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
-from upath import UPath
+from fsspec.asyn import sync_wrapper
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 logger = logging.getLogger(__name__)
 
 
-class DaytonaPath(UPath):
+class DaytonaPath(BaseUPath):
     """Daytona-specific UPath implementation."""
 
 
-class DaytonaFS(AsyncFileSystem):
+class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
     """Async filesystem for Daytona sandbox environments.
 
     This filesystem provides access to files within a Daytona sandbox environment,
@@ -26,6 +27,7 @@ class DaytonaFS(AsyncFileSystem):
     """
 
     protocol = "daytona"
+    upath_cls = DaytonaPath
     root_marker = "/"
     cachable = False  # Disable fsspec caching to prevent instance sharing
 
@@ -48,10 +50,6 @@ class DaytonaFS(AsyncFileSystem):
         self._sandbox = None
         self._daytona = None
         self._session_started = False
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return DaytonaPath(path)
 
     async def _get_sandbox(self):
         """Get or create Daytona sandbox instance."""
