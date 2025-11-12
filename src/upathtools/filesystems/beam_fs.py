@@ -77,6 +77,11 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
         self._sandbox_instance = None
         self._session_started = False
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("beam://")
+        return {"sandbox_id": path}
+
     async def _get_sandbox(self):
         """Get or create Beam sandbox instance."""
         if self._sandbox_instance is not None:

@@ -56,6 +56,11 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
         self._sandbox = None
         self._session_started = False
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("e2b://")
+        return {"sandbox_id": path}
+
     async def _get_sandbox(self):
         """Get or create E2B sandbox instance."""
         if self._sandbox is not None:
@@ -133,7 +138,7 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
                 result.append({
                     "name": item.path,
                     "size": 0,
-                    "type": "directory" if item.is_dir else "file",
+                    "type": "directory" if item.type == FileType.DIR else "file",
                     "mtime": 0,
                 })
 
@@ -360,12 +365,12 @@ with open({path!r}, 'wb') as f:
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
-    cat_file = sync_wrapper(_cat_file)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
     pipe_file = sync_wrapper(_pipe_file)
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
-    exists = sync_wrapper(_exists)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isfile = sync_wrapper(_isfile)
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)

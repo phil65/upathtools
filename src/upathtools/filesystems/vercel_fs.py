@@ -74,6 +74,11 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
         self.team_id = team_id
         self._sandbox: AsyncSandbox | None = None
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("vercel://")
+        return {"sandbox_id": path}
+
     async def _get_sandbox(self) -> AsyncSandbox:
         """Get or create sandbox instance."""
         if self._sandbox is not None:

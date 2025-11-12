@@ -85,6 +85,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         self._sandbox: modal.Sandbox | None = None
         self._session_started = False
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("modal://")
+        app_name, sandbox_id = path.split(":")
+        return {"sandbox_id": sandbox_id, "app_name": app_name}
+
     async def _get_app(self):
         """Get or create Modal app."""
         if self._app is not None:
@@ -105,11 +111,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         if self._sandbox is not None:
             return self._sandbox
 
-        try:
-            import modal
-        except ImportError as exc:
-            msg = "modal package is required for ModalFS"
-            raise ImportError(msg) from exc
+        import modal
 
         app = await self._get_app()
 

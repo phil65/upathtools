@@ -58,6 +58,11 @@ class PackageFS(BaseAsyncFileSystem[PackagePath]):
         self.package = package if isinstance(package, str) else package.__name__
         self._module_cache: dict[str, ModuleType] = {}
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("package://")
+        return {"package": path}
+
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
         if module_name in self._module_cache:
@@ -177,12 +182,7 @@ class PackageFS(BaseAsyncFileSystem[PackagePath]):
 
 if __name__ == "__main__":
     # Create a filesystem instance
-    fs = PackageFS("upathtools")
+    from upath import UPath
 
-    # List files in the package
-    for path in fs.ls("/"):
-        print(path)
-
-    # Read a file from the package
-    content = fs.cat("/filesystems/package_fs")
-    print(content.decode("utf-8"))
+    fs = UPath("pkg://pydantic")
+    print(list(fs.iterdir()))

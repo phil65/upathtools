@@ -55,6 +55,11 @@ class BaseModelFS(BaseAsyncFileSystem[BaseModelPath]):
             self.model_class = model
             self.model_path = f"{model.__module__}.{model.__name__}"
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("basemodel://")
+        return {"model": path}
+
     def _import_model(self, import_path: str) -> type[BaseModel]:
         """Import a BaseModel class from a string path."""
         try:
@@ -401,7 +406,11 @@ if __name__ == "__main__":
         age: int = Field(ge=0, le=120)
         email: str
 
-    fs = BaseModelFS(User)
-    print("Fields:", fs.ls("/", detail=False))
-    print("User info:", fs.info("/"))
-    print("Name field:", fs.info("/name"))
+    # fs = BaseModelFS(User)
+    # print("Fields:", fs.ls("/", detail=False))
+    # print("User info:", fs.info("/"))
+    # print("Name field:", fs.info("/name"))
+    import upath
+
+    path = upath.UPath("basemodel://schemez.Schema")
+    print(path)

@@ -78,22 +78,24 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
 
         if client:
             self.client = client
+            self._endpoint = self.client._endpoint
+            self._project = self.client._global_headers["x-appwrite-project"]
         else:
             from appwrite.client import Client
 
             # Check environment variables if parameters not provided
-            endpoint = endpoint or os.environ.get("APPWRITE_ENDPOINT")
-            project = project or os.environ.get("APPWRITE_PROJECT")
+            self._endpoint = endpoint or os.environ.get("APPWRITE_ENDPOINT")
+            self._project = project or os.environ.get("APPWRITE_PROJECT")
             key = key or os.environ.get("APPWRITE_API_KEY")
             self_signed = (
                 self_signed
                 or os.environ.get("APPWRITE_SELF_SIGNED", "false").lower() == "true"
             )
 
-            if endpoint and project and key:
+            if self._endpoint and self._project and key:
                 self.client = Client()
-                self.client.set_endpoint(endpoint)
-                self.client.set_project(project)
+                self.client.set_endpoint(self._endpoint)
+                self.client.set_project(self._project)
                 self.client.set_key(key)
 
                 if self_signed:
@@ -105,6 +107,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         # Read bucket_id from environment if not provided
         self.bucket_id = bucket_id or os.environ.get("APPWRITE_BUCKET_ID")
         self._storage: Storage | None = None
+
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("appwrite://")
+        return {"project": path}
 
     @property
     def storage(self) -> Storage:

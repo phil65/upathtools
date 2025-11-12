@@ -42,6 +42,12 @@ class NotionFS(BaseAsyncFileSystem[NotionPath]):
         self.parent_page_id = parent_page_id
         self._path_cache: dict[str, str] = {}
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("notion://")
+        token, parent_page_id = path.split(":")
+        return {"token": token, "parent_page_id": parent_page_id}
+
     def exists(self, path: str, **kwargs: Any) -> bool:
         """Check if a path exists."""
         from notion_client import APIResponseError

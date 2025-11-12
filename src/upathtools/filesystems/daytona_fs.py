@@ -52,6 +52,11 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         self._daytona = None
         self._session_started = False
 
+    @staticmethod
+    def _get_kwargs_from_urls(path):
+        path = path.removeprefix("daytona://")
+        return {"sandbox_id": path}
+
     async def _get_sandbox(self):
         """Get or create Daytona sandbox instance."""
         if self._sandbox is not None:
