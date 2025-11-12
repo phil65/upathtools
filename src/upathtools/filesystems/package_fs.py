@@ -38,6 +38,7 @@ class PackageFS(BaseAsyncFileSystem[PackagePath]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"
+    upath_cls = PackagePath
 
     def __init__(
         self,
