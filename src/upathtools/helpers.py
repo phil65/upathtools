@@ -221,7 +221,7 @@ def upath_to_fs(
             root_path = parsed_path
         # Only wrap if we have a meaningful root path
         if root_path and root_path != "/":
-            fs = DirFileSystem(path=root_path, fs=fs)
+            fs = DirFileSystem(path=root_path, fs=fs, asynchronous=asynchronous)
 
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
