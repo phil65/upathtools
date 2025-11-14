@@ -203,33 +203,28 @@ def upath_to_fs(
         async_fs = upath_to_fs(path, asynchronous=True)
         ```
     """
+    from fsspec.asyn import AsyncFileSystem
+    from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
     from fsspec.implementations.dirfs import DirFileSystem
 
     upath_obj = to_upath(path)
     # Use fsspec's url_to_fs to get filesystem and parsed path
     fs, parsed_path = fsspec.core.url_to_fs(str(upath_obj), **storage_options)
+    if asynchronous and not isinstance(fs, AsyncFileSystem):
+        fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     # If there's a meaningful path, wrap with DirFileSystem
     if parsed_path and parsed_path not in ("", "/", "."):
         # For files, use the parent directory as root
         if upath_obj.suffix or not str(upath_obj).endswith("/"):
-            # Get parent path from parsed_path
-            from pathlib import Path
-
-            root_path = str(Path(parsed_path).parent)
+            root_path = str(UPath(parsed_path).parent)
         else:
             root_path = parsed_path
-
         # Only wrap if we have a meaningful root path
         if root_path and root_path != "/":
             fs = DirFileSystem(path=root_path, fs=fs)
 
-    if asynchronous:
-        from fsspec.asyn import AsyncFileSystem
-        from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
-
-        if not isinstance(fs, AsyncFileSystem):
-            fs = AsyncFileSystemWrapper(fs, asynchronous=True)
-
+    if asynchronous and not isinstance(fs, AsyncFileSystem):
+        fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     return fs
 
 
