@@ -6,15 +6,15 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
-from upathtools.helpers import to_upath
+from upathtools.helpers import upath_to_fs
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from fsspec.spec import AbstractFileSystem
     from upath.types import JoinablePathLike
 
 
@@ -51,22 +51,101 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
         Name conflicts between filesystems will be resolved by priority -
         the first filesystem in the list that contains a file with a given path
         will be the one accessed.
+
+    Examples:
+        Create from filesystem instances:
+        ```python
+        from fsspec import filesystem
+        fs1 = filesystem("memory")
+        fs2 = filesystem("file")
+        union_fs = FlatUnionFileSystem(filesystems=[fs1, fs2])
+        ```
+
+        Create from paths:
+        ```python
+        union_fs = FlatUnionFileSystem(paths=["/tmp", "memory://", "s3://bucket/"])
+        ```
+
+        Create from URL:
+        ```python
+        kwargs = FlatUnionFileSystem._get_kwargs_from_urls("flatunion://memory://,/tmp")
+        union_fs = FlatUnionFileSystem(**kwargs)
+        ```
+
+        URL formats supported:
+        - `flatunion://path1,path2,path3` (comma-separated filesystems)
+        - `flatunion://?filesystems=path1,path2,path3` (query parameter)
     """
 
     protocol = "flat-union"
     upath_cls = FlatUnionPath
     root_marker = "/"
 
-    def __init__(self, filesystems: list[AbstractFileSystem], **kwargs: Any):
+    def __init__(
+        self,
+        filesystems: Sequence[AbstractFileSystem | JoinablePathLike],
+        **kwargs: Any,
+    ):
         """Initialize the filesystem.
 
         Args:
-            filesystems: List of filesystems to merge
+            filesystems: Sequence of filesystems or paths to merge
             kwargs: Additional keyword arguments for AsyncFileSystem
         """
         super().__init__(**kwargs)
-        self.filesystems = filesystems
-        logger.debug("Created FlatUnionFileSystem with %d filesystems", len(filesystems))
+
+        # Convert paths to filesystems
+        resolved_filesystems = []
+
+        for fs_or_path in filesystems:
+            if isinstance(fs_or_path, AbstractFileSystem):
+                # It's already a filesystem
+                resolved_filesystems.append(fs_or_path)
+            else:
+                # It's a path - convert to filesystem
+                resolved_filesystems.append(upath_to_fs(fs_or_path, asynchronous=True))
+
+        self.filesystems = resolved_filesystems
+        logger.debug(
+            "Created FlatUnionFileSystem with %d filesystems", len(resolved_filesystems)
+        )
+
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        """Parse flat-union URL and return constructor kwargs.
+
+        Supports URL formats:
+        - flatunion://path1,path2,path3  (comma-separated filesystems)
+        - flatunion://?filesystems=path1,path2,path3  (query parameter)
+
+        Args:
+            path: Flat-union URL path
+
+        Returns:
+            Dictionary with 'filesystems' key containing list of path strings
+        """
+        # Remove protocol prefix first
+        path_without_protocol = path.removeprefix("flatunion://").removeprefix(
+            "flat-union://"
+        )
+
+        # Check if using query parameter format
+        if "?" in path_without_protocol:
+            import urllib.parse
+
+            _path_part, query_part = path_without_protocol.split("?", 1)
+            query_params = urllib.parse.parse_qs(query_part)
+            if "filesystems" in query_params:
+                filesystems_str = query_params["filesystems"][0]
+                paths = [p.strip() for p in filesystems_str.split(",") if p.strip()]
+                return {"filesystems": paths}
+
+        # Default: comma-separated paths in the path itself
+        if path_without_protocol:
+            paths = [p.strip() for p in path_without_protocol.split(",") if p.strip()]
+            return {"filesystems": paths}
+
+        return {}
 
     async def _get_matching_fs(
         self,
@@ -501,9 +580,7 @@ def create_flat_union_path(paths: Sequence[JoinablePathLike]) -> UPath:
         - In case of filename conflicts, the first filesystem (in the order provided) wins
         - Write operations default to the first filesystem in the list
     """
-    upaths = [to_upath(p) for p in paths]
-    filesystems = [p.fs for p in upaths]
-    flat_fs = FlatUnionFileSystem(filesystems)
+    flat_fs = FlatUnionFileSystem(filesystems=paths)
     p = UPath("flatunion://")
     p._fs_cached = flat_fs  # pyright: ignore[reportAttributeAccessIssue]
     return p

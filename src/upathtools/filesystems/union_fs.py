@@ -4,12 +4,14 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.helpers import upath_to_fs
 
 
 if TYPE_CHECKING:
-    from fsspec.spec import AbstractFileSystem
+    from upath.types import JoinablePathLike
 
 
 logger = logging.getLogger(__name__)
@@ -48,10 +50,73 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
     root_marker = "/"
     upath_cls = UnionPath
 
-    def __init__(self, filesystems: dict[str, AbstractFileSystem]):
+    def __init__(
+        self,
+        filesystems: dict[str, AbstractFileSystem | JoinablePathLike] | None = None,
+    ):
         super().__init__()
-        self.filesystems = filesystems
-        logger.debug("Created UnionFileSystem with protocols: %s", list(filesystems))
+
+        # Convert paths to filesystems
+        resolved_filesystems = {}
+
+        # Handle filesystems dict
+        if filesystems:
+            for protocol, fs_or_path in filesystems.items():
+                if isinstance(fs_or_path, AbstractFileSystem):
+                    # It's already a filesystem
+                    resolved_filesystems[protocol] = fs_or_path
+                else:
+                    # It's a path - convert to filesystem
+                    resolved_filesystems[protocol] = upath_to_fs(
+                        fs_or_path, asynchronous=True
+                    )
+
+        if not resolved_filesystems:
+            msg = "Must provide filesystems dict"
+            raise ValueError(msg)
+
+        self.filesystems = resolved_filesystems
+        logger.debug(
+            "Created UnionFileSystem with protocols: %s", list(resolved_filesystems)
+        )
+
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        """Parse union URL and return constructor kwargs.
+
+        Supports URL formats:
+        - union://protocol1=path1,protocol2=path2  (protocol=path pairs)
+        - union://?s3=s3://bucket&file=/tmp/dir  (query parameters)
+
+        Args:
+            path: Union URL path
+
+        Returns:
+            Dictionary with filesystem_paths containing protocol=path mappings
+        """
+        # Remove protocol prefix first
+        path_without_protocol = path.removeprefix("union://")
+
+        filesystem_paths = {}
+
+        # Check if using query parameter format
+        if "?" in path_without_protocol:
+            import urllib.parse
+
+            _, query_part = path_without_protocol.split("?", 1)
+            query_params = urllib.parse.parse_qs(query_part)
+            for protocol, path_list in query_params.items():
+                if path_list:
+                    filesystem_paths[protocol] = path_list[0]
+        # Default: protocol=path pairs separated by commas
+        elif path_without_protocol:
+            pairs = [p.strip() for p in path_without_protocol.split(",") if p.strip()]
+            for pair in pairs:
+                if "=" in pair:
+                    protocol, path_value = pair.split("=", 1)
+                    filesystem_paths[protocol.strip()] = path_value.strip()
+
+        return filesystem_paths if filesystem_paths else {}
 
     def _get_fs_and_path(self, path: str) -> tuple[AbstractFileSystem, str]:
         """Get filesystem and normalized path."""

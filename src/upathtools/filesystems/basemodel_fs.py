@@ -427,37 +427,30 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
 
 
 if __name__ == "__main__":
-    # Example usage
+    import fsspec
     from pydantic import BaseModel, Field
+    import upath
 
     class User(BaseModel):
         name: str = Field(min_length=1, max_length=50)
         age: int = Field(ge=0, le=120)
         email: str
 
-    # Test with direct filesystem creation
     fs = BaseModelFS(User)
     print("Fields:", fs.ls("/", detail=False))
     print("User info:", fs.info("/"))
     print("Name field:", fs.info("/name"))
-
     # Test with UPath using explicit storage options
-    import upath
-
     path = upath.UPath("/", protocol="basemodel", model="schemez.Schema")
     print("UPath with explicit options:", path)
     print("Storage options:", path.storage_options)
     print("Fields:", list(path.iterdir())[:5])
-
     # Test the original failing URL syntax
     path = upath.UPath("basemodel://schemez.Schema")
     print("Original URL syntax works:", path)
     print("Storage options:", path.storage_options)
     print("Fields:", list(path.iterdir())[:5])
-
     # Test fsspec directly
-    import fsspec
-
     fs, parsed_path = fsspec.core.url_to_fs("basemodel://schemez.Schema")
     print("fsspec works - parsed path:", parsed_path)
     print("Filesystem fields:", fs.ls("/", detail=False)[:5])
