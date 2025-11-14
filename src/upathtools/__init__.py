@@ -19,7 +19,7 @@ __url__ = "https://github.com/phil65/upathtools"
 from fsspec import register_implementation
 from upath import registry
 
-from upathtools.helpers import to_upath
+from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
@@ -109,4 +109,5 @@ __all__ = [
     "register_all_filesystems",
     "register_http_filesystems",
     "to_upath",
+    "upath_to_fs",
 ]

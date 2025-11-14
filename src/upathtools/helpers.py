@@ -4,24 +4,22 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-import upath
+import fsspec
+from upath import UPath
 
 
 if TYPE_CHECKING:
     from typing import Any
 
+    from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
 
 
 logger = logging.getLogger(__name__)
 
 
-def to_upath(path: JoinablePathLike | str) -> upath.UPath:
-    return (
-        upath.UPath(os.fspath(path))
-        if isinstance(path, os.PathLike)
-        else upath.UPath(path)
-    )
+def to_upath(path: JoinablePathLike | str) -> UPath:
+    return UPath(os.fspath(path)) if isinstance(path, os.PathLike) else UPath(path)
 
 
 def fsspec_copy(
@@ -38,13 +36,11 @@ def fsspec_copy(
         output_path: path where file should get copied to.
         exist_ok: Whether exception should be raised in case stuff would get overwritten
     """
-    import fsspec
-
-    if isinstance(source_path, upath.UPath):
+    if isinstance(source_path, UPath):
         src = fsspec.FSMap(source_path.path, source_path.fs)
     else:
         src = fsspec.get_mapper(str(source_path))
-    if isinstance(output_path, upath.UPath):
+    if isinstance(output_path, UPath):
         target = fsspec.FSMap(output_path.path, output_path.fs)
     else:
         target = fsspec.get_mapper(str(output_path))
@@ -86,7 +82,7 @@ def copy(
 def clean_directory(directory: JoinablePathLike, remove_hidden: bool = False) -> None:
     """Remove the content of a directory recursively but not the directory itself."""
     folder = to_upath(directory)
-    folder_to_remove = upath.UPath(folder)
+    folder_to_remove = UPath(folder)
     if not folder_to_remove.exists():
         return
     for entry in folder_to_remove.iterdir():
@@ -131,7 +127,7 @@ def multi_glob(
     directory: str | None = None,
     keep_globs: list[str] | None = None,
     drop_globs: list[str] | None = None,
-) -> list[upath.UPath]:
+) -> list[UPath]:
     """Return a list of all files matching multiple globs.
 
     Return a list of all files in the given directory that match the
@@ -158,13 +154,13 @@ def multi_glob(
     """
     keep_globs = keep_globs or ["**/*"]
     drop_globs = drop_globs or [".git/**/*"]
-    directory_path = upath.UPath(directory) if directory else upath.UPath.cwd()
+    directory_path = UPath(directory) if directory else UPath.cwd()
 
     if not directory_path.is_dir():
         msg = f"{directory!r} is not a directory."
         raise ValueError(msg)
 
-    def files_from_globs(globs: list[str]) -> set[upath.UPath]:
+    def files_from_globs(globs: list[str]) -> set[UPath]:
         return {
             file
             for pattern in globs
@@ -174,3 +170,100 @@ def multi_glob(
 
     matching_files = files_from_globs(keep_globs) - files_from_globs(drop_globs)
     return [file.relative_to(to_upath(directory_path)) for file in matching_files]
+
+
+def upath_to_fs(
+    path: JoinablePathLike,
+    asynchronous: bool = True,
+    **storage_options: Any,
+) -> AsyncFileSystem:
+    """Convert a UPath to its underlying filesystem, using the path as root.
+
+    Uses DirFileSystem to wrap the filesystem with the path's directory as the root,
+    making the filesystem appear to be rooted at that specific directory.
+
+    Args:
+        path: UPath object to extract filesystem from
+        asynchronous: Whether to return an async filesystem wrapper if needed
+        storage_options: Additional storage options to pass to filesystem creation
+
+    Returns:
+        The filesystem instance, wrapped with DirFileSystem if path has a directory,
+        and optionally wrapped for async operations
+
+    Example:
+        ```python
+        from upath import UPath
+
+        # Get filesystem rooted at the path's directory
+        path = UPath("s3://bucket/folder/file.txt")
+        fs = upath_to_fs(path)  # Rooted at "bucket/folder/"
+
+        # Get async filesystem
+        async_fs = upath_to_fs(path, asynchronous=True)
+        ```
+    """
+    from fsspec.implementations.dirfs import DirFileSystem
+
+    upath_obj = to_upath(path)
+    # Use fsspec's url_to_fs to get filesystem and parsed path
+    fs, parsed_path = fsspec.core.url_to_fs(str(upath_obj), **storage_options)
+    # If there's a meaningful path, wrap with DirFileSystem
+    if parsed_path and parsed_path not in ("", "/", "."):
+        # For files, use the parent directory as root
+        if upath_obj.suffix or not str(upath_obj).endswith("/"):
+            # Get parent path from parsed_path
+            from pathlib import Path
+
+            root_path = str(Path(parsed_path).parent)
+        else:
+            root_path = parsed_path
+
+        # Only wrap if we have a meaningful root path
+        if root_path and root_path != "/":
+            fs = DirFileSystem(path=root_path, fs=fs)
+
+    if asynchronous:
+        from fsspec.asyn import AsyncFileSystem
+        from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
+
+        if not isinstance(fs, AsyncFileSystem):
+            fs = AsyncFileSystemWrapper(fs, asynchronous=True)
+
+    return fs
+
+
+if __name__ == "__main__":
+    # Test cases showing different path types and behaviors
+    test_paths = [
+        "file:///tmp",  # Directory - no wrapping
+        "file:///tmp/test.txt",  # File - wrapped at parent dir
+        "/tmp/test.txt",  # Local file - wrapped at parent dir
+        "memory://folder/test.txt",  # Memory file - wrapped at parent dir
+        "memory://",  # Memory root - no wrapping
+    ]
+
+    print("Testing upath_to_fs function:")
+    print("=" * 50)
+
+    for path in test_paths:
+        try:
+            print(f"\nTesting: {path}")
+            upath = to_upath(path)
+
+            # Show what fsspec parses
+            import fsspec
+
+            _, parsed_path = fsspec.core.url_to_fs(str(upath))
+            print(f"  Parsed path: {parsed_path}")
+
+            # Show our result
+            result_fs = upath_to_fs(upath)
+            print(f"  Result: {result_fs}")
+
+            # Test async version
+            async_fs = upath_to_fs(upath, asynchronous=True)
+            print(f"  Async: {type(async_fs).__name__}")
+
+        except (ImportError, AttributeError, ValueError, FileNotFoundError) as e:
+            print(f"  ERROR: {e}")
