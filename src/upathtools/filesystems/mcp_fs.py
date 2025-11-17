@@ -8,7 +8,7 @@ filesystem operations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import quote, unquote
 
 from fsspec.asyn import sync_wrapper
@@ -47,7 +47,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
     def __init__(
         self,
         *,
-        client: FastMCPClient,
+        client: FastMCPClient[Any],
         **kwargs: Any,
     ) -> None: ...
 
@@ -70,7 +70,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
     def __init__(
         self,
         *,
-        client: FastMCPClient | None = None,
+        client: FastMCPClient[Any] | None = None,
         url: str | None = None,
         server_cmd: list[str] | None = None,
         **kwargs: Any,
@@ -135,7 +135,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
         parts = path.split("/")
         return {"server_cmd": parts}
 
-    async def _ensure_connected(self):
+    async def _ensure_connected(self) -> None:
         """Ensure the MCP client is connected."""
         if not self.client.is_connected():
             await self.client.__aenter__()
@@ -166,7 +166,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
         path = path.lstrip("/")
         return unquote(path)
 
-    async def _refresh_resources(self):
+    async def _refresh_resources(self) -> None:
         """Refresh the resource cache from MCP server."""
         await self._ensure_connected()
 
@@ -194,7 +194,28 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
             logger.exception("Failed to refresh MCP resources")
             raise
 
-    async def _ls(self, path: str = "", detail: bool = True, **kwargs: Any):
+    @overload
+    async def _ls(
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    async def _ls(
+        self,
+        path: str = "",
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
         """List directory contents asynchronously."""
         if not self._cache_valid:
             await self._refresh_resources()
@@ -326,40 +347,40 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
         return path
 
     # Read-only filesystem - these methods raise NotImplementedError
-    async def _put_file(self, lpath: str, rpath: str, **kwargs: Any):
+    async def _put_file(self, lpath: str, rpath: str, **kwargs: Any) -> None:
         """Put file (not supported)."""
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
-    async def _mkdir(self, path: str, **kwargs: Any):
+    async def _mkdir(self, path: str, **kwargs: Any) -> None:
         """Create directory (not supported)."""
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
     mkdir = sync_wrapper(_mkdir)
 
-    async def _rmdir(self, path: str, **kwargs: Any):
+    async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory (not supported)."""
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
     rmdir = sync_wrapper(_rmdir)
 
-    async def _rm_file(self, path: str, **kwargs: Any):
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove file (not supported)."""
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
     rm_file = sync_wrapper(_rm_file)
 
-    async def _touch(self, path: str, **kwargs: Any):
+    async def _touch(self, path: str, **kwargs: Any) -> None:
         """Touch file (not supported)."""
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
     touch = sync_wrapper(_touch)
 
-    def invalidate_cache(self, path: str | None = None):
+    def invalidate_cache(self, path: str | None = None) -> None:
         """Invalidate the resource cache.
 
         Args:

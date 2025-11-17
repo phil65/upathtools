@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-from typing import Any, overload
+from typing import Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -37,7 +37,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         sandbox_id: str | None = None,
         api_key: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Daytona filesystem.
 
         Args:
@@ -53,7 +53,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         self._session_started = False
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("daytona://")
         return {"sandbox_id": path}
 
@@ -125,11 +125,13 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
 
     @overload
     async def _ls(
-        self, path: str, detail: bool = True, **kwargs: Any
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
+    async def _ls(
+        self, path: str, detail: Literal[False] = False, **kwargs: Any
+    ) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -415,7 +417,7 @@ class DaytonaFile:
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Daytona file object.
 
         Args:
@@ -514,11 +516,11 @@ class DaytonaFile:
             self._buffer.close()
             self._closed = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, *args: object) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -526,7 +528,7 @@ class DaytonaFile:
 if __name__ == "__main__":
     import asyncio
 
-    async def main():
+    async def main() -> None:
         fs = DaytonaFS()
         await fs._mkdir("test")
 

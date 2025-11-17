@@ -705,7 +705,7 @@ class WikiBufferedWriter(io.BufferedIOBase):
         fs: WikiFileSystem,
         path: str,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize the writer.
 
         Args:

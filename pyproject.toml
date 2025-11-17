@@ -105,6 +105,12 @@ lint = [
   "mypy; python_version >= '3.14'",
   "mypy[faster-cache]; python_version < '3.14'",
   "ruff",
+  "types-Authlib",
+  "types-PyYAML",
+  "types-Pygments",
+  "types-jsonschema",
+  "types-protobuf",
+  "types-requests",
   # Only add below (Copier)
 ]
 
@@ -135,7 +141,7 @@ docstring-style = "google"
 
 [tool.mypy]
 python_version = "3.13"
-disable_error_code = ["misc", "import"]
+disable_error_code = ["import"]
 pretty = true
 check_untyped_defs = true
 exclude = ["venv/", ".venv/", "tests/"]

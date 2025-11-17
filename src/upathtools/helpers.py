@@ -26,7 +26,7 @@ def fsspec_copy(
     source_path: JoinablePathLike,
     output_path: JoinablePathLike,
     exist_ok: bool = True,
-):
+) -> None:
     """Copy source_path to output_path, making sure any parent directories exist.
 
     The output_path may be a directory.
@@ -55,7 +55,7 @@ def copy(
     source_path: JoinablePathLike,
     output_path: JoinablePathLike,
     exist_ok: bool = True,
-):
+) -> None:
     """Copy source_path to output_path, making sure any parent directories exist.
 
     The output_path may be a directory.
@@ -100,7 +100,7 @@ def write_file(
     output_path: JoinablePathLike,
     errors: str | None = None,
     **kwargs: Any,
-):
+) -> None:
     """Write content to output_path, making sure any parent directories exist.
 
     Encoding will be chosen automatically based on type of content
@@ -120,7 +120,7 @@ def write_file(
     if errors:
         kwargs["errors"] = errors
     with output_p.open(mode=mode, **kwargs) as f:  # type: ignore[call-overload]
-        f.write(content)  # type: ignore
+        f.write(content)
 
 
 def multi_glob(

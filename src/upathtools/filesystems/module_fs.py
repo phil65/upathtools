@@ -164,7 +164,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         self._load()
         assert self._module is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not path:
             # Return whole module source
             with fsspec.open(
@@ -247,7 +247,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         self._load()  # Make sure module is loaded
         assert self._module is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root path - return info about the module itself

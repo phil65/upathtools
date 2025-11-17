@@ -22,7 +22,7 @@ class BaseUPath(UPath):
     @classmethod
     def _from_upath(cls, upath: UPath, /) -> Self:
         if isinstance(upath, cls):
-            return upath  # type: ignore[unreachable]
+            return upath
         return object.__new__(cls)
 
     @classmethod
@@ -355,7 +355,7 @@ class BaseUPath(UPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -365,7 +365,7 @@ class BaseUPath(UPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -375,7 +375,7 @@ class BaseUPath(UPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -385,7 +385,7 @@ class BaseUPath(UPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     async def aopen(
         self,

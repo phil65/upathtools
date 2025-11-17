@@ -36,7 +36,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         self,
         wrapped_fs: AbstractFileSystem | JoinablePathLike,
         **storage_options,
-    ):
+    ) -> None:
         """Initialize skills filesystem.
 
         Args:
@@ -145,20 +145,20 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
 
         return enhanced_info
 
-    async def _cat_file(self, path: str, start=None, end=None, **kwargs):
+    async def _cat_file(self, path: str, start=None, end=None, **kwargs: Any):
         """Read file contents."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             return await self.wrapped_fs._cat_file(path, start=start, end=end, **kwargs)
         return self.wrapped_fs.cat_file(path, start=start, end=end, **kwargs)
 
-    async def _pipe_file(self, path: str, value, **kwargs):
+    async def _pipe_file(self, path: str, value, **kwargs: Any) -> None:
         """Write file contents."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             await self.wrapped_fs._pipe_file(path, value, **kwargs)
         else:
             self.wrapped_fs.pipe_file(path, value, **kwargs)
 
-    async def _info(self, path: str, **kwargs):
+    async def _info(self, path: str, **kwargs: Any):
         """Get enhanced info about a path."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             info = await self.wrapped_fs._info(path, **kwargs)
@@ -183,7 +183,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         **kwargs: Any,
     ) -> list[str]: ...
 
-    async def _ls(self, path: str, detail=True, **kwargs):
+    async def _ls(self, path: str, detail=True, **kwargs: Any):
         """List directory contents with skill metadata enhancement."""
         # Get base listing from wrapped filesystem
         if isinstance(self.wrapped_fs, AsyncFileSystem):
@@ -213,7 +213,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
 
         return result
 
-    async def _exists(self, path: str, **kwargs):
+    async def _exists(self, path: str, **kwargs: Any):
         """Check if path exists."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             return await self.wrapped_fs._exists(path, **kwargs)
@@ -225,34 +225,34 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
             return await self.wrapped_fs._isdir(path)
         return self.wrapped_fs.isdir(path)
 
-    async def _isfile(self, path: str):
+    async def _isfile(self, path: str) -> bool:
         """Check if path is a file."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             return await self.wrapped_fs._isfile(path)
         return self.wrapped_fs.isfile(path)
 
-    async def _makedirs(self, path: str, exist_ok=False):
+    async def _makedirs(self, path: str, exist_ok=False) -> None:
         """Create directories."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             await self.wrapped_fs._makedirs(path, exist_ok=exist_ok)
         else:
             self.wrapped_fs.makedirs(path, exist_ok=exist_ok)
 
-    async def _rm_file(self, path: str):
+    async def _rm_file(self, path: str) -> None:
         """Remove a file."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             await self.wrapped_fs._rm_file(path)
         else:
             self.wrapped_fs.rm_file(path)
 
-    async def _rm(self, path: str, recursive=False, maxdepth=None):
+    async def _rm(self, path: str, recursive=False, maxdepth=None) -> None:
         """Remove file or directory."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             await self.wrapped_fs._rm(path, recursive=recursive, maxdepth=maxdepth)
         else:
             self.wrapped_fs.rm(path, recursive=recursive, maxdepth=maxdepth)
 
-    async def _cp_file(self, path1: str, path2: str, **kwargs):
+    async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             await self.wrapped_fs._cp_file(path1, path2, **kwargs)
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     # Example usage
     fs = SkillsFileSystem("file:///home/phil65/dev/oss/upathtools/.claude/skills/")
 
-    async def main():
+    async def main() -> None:
         skills = await fs.list_skills()
         print(skills)
 

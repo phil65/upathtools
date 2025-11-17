@@ -71,7 +71,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         self._members: dict[str, ModuleMember] = {}
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("ast://")
         return {"python_file": path}
 
@@ -159,7 +159,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not path:
             return self._source.encode()
 
@@ -182,7 +182,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         content: bytes
 
         if not path:
@@ -204,7 +204,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root path - return info about the module itself

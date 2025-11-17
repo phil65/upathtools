@@ -56,7 +56,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
             self.model_path = f"{model.__module__}.{model.__name__}"
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("basemodel://")
         return {"model": path}
 
@@ -155,7 +155,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
         **kwargs: Any,
     ) -> list[dict[str, Any]] | list[str]:
         """List model fields and special paths."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         try:
             current_model, field_name = self._get_nested_model_at_path(path)
@@ -226,7 +226,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
 
     def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
         """Get field definition, schema, or other information."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Return model schema
@@ -360,7 +360,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
 
     def isdir(self, path: str) -> bool:
         """Check if path is a directory (model or nested model)."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root is always a directory
@@ -374,7 +374,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get detailed info about a model or field."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root model info

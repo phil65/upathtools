@@ -9,14 +9,10 @@ import io
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec.asyn import (
-    AbstractAsyncStreamedFile,
-    sync,
-    sync_wrapper,
-)
+from fsspec.asyn import AbstractAsyncStreamedFile, sync, sync_wrapper
 from fsspec.caching import AllBytes
 from fsspec.callbacks import DEFAULT_CALLBACK
 from fsspec.exceptions import FSTimeoutError
@@ -36,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     import httpx
+    from httpx import Response
     from yarl import URL
 
 
@@ -73,13 +70,13 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         same_scheme: bool = True,
         size_policy: str | None = None,
         cache_type: str = "bytes",
-        cache_options: dict | None = None,
+        cache_options: dict[str, Any] | None = None,
         asynchronous: bool = False,
         loop: Any = None,
-        client_kwargs: dict | None = None,
+        client_kwargs: dict[str, Any] | None = None,
         get_client: Any = get_client,
         encoded: bool = False,
-        **storage_options,
+        **storage_options: Any,
     ) -> None:
         """Initialize the filesystem."""
         super().__init__(asynchronous=asynchronous, loop=loop, **storage_options)
@@ -164,7 +161,12 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
 
         return None
 
-    async def _ls_real(self, url: str, detail: bool = True, **kwargs: Any) -> list | dict:
+    async def _ls_real(
+        self,
+        url: str,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
         """List contents of a URL path."""
         from urllib.parse import urlparse
 
@@ -225,19 +227,31 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
             ]
         return sorted(out)
 
-    async def _ls(self, url: str, detail: bool = True, **kwargs: Any) -> list | dict:
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[False] = False, **kwargs: Any
+    ) -> list[str]: ...
+
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[dict[str, Any]] | list[str]:
         """List directory contents."""
-        if self.use_listings_cache and url in self.dircache:
-            out = self.dircache[url]
+        if self.use_listings_cache and path in self.dircache:
+            out = self.dircache[path]
         else:
             try:
-                out = await self._ls_real(url, detail=detail, **kwargs)
+                out = await self._ls_real(path, detail=detail, **kwargs)
                 if not out:
-                    raise FileNotFoundError(url)  # noqa: TRY301
+                    raise FileNotFoundError(path)  # noqa: TRY301
                 if self.use_listings_cache:
-                    self.dircache[url] = out
+                    self.dircache[path] = out
             except Exception as e:
-                raise FileNotFoundError(url) from e
+                raise FileNotFoundError(path) from e
 
         if detail:
             return out
@@ -252,7 +266,11 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         response.raise_for_status()
 
     async def _cat_file(
-        self, url: str, start: int | None = None, end: int | None = None, **kwargs
+        self,
+        url: str,
+        start: int | None = None,
+        end: int | None = None,
+        **kwargs: Any,
     ) -> bytes:
         kw = self.kwargs.copy()
         kw.update(kwargs)
@@ -431,7 +449,11 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         )
 
     async def open_async(
-        self, path: str, mode: str = "rb", size: int | None = None, **kwargs
+        self,
+        path: str,
+        mode: str = "rb",
+        size: int | None = None,
+        **kwargs: Any,
     ) -> AsyncStreamFile:
         session = await self.set_session()
         if size is None:
@@ -511,7 +533,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
 
         return {"name": path, "size": None, **info, "type": "file"}
 
-    async def _glob(self, path: str, maxdepth: int | None = None, **kwargs):
+    async def _glob(self, path: str, maxdepth: int | None = None, **kwargs: Any):
         """Find files by glob-matching."""
         if maxdepth is not None and maxdepth < 1:
             msg = "maxdepth must be at least 1"
@@ -736,7 +758,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.details = {"name": url, "size": None}
         super().__init__(fs=fs, path=url, mode=mode, cache_type="none", **kwargs)
 
-        async def _init():
+        async def _init() -> Response:
             assert self.session
             r = await self.session.get(str(self.fs.encode_url(url)), **kwargs)
             self.fs._raise_not_found_for_status(r, url)
@@ -840,7 +862,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.loc += num
         return data[:num]
 
-    read = sync_wrapper(_read)  # type: ignore
+    read = sync_wrapper(_read)  # pyright: ignore[reportAssignmentType]
 
     async def _close(self) -> None:
         assert self.r

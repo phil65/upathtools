@@ -66,7 +66,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         self._spec: OpenAPI | None = None
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("openapi://")
         return {"spec_url": path}
 
@@ -169,7 +169,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         self._load_spec()
         assert self._spec is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root - show main sections
@@ -451,7 +451,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         self._load_spec()
         assert self._spec is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Return full spec as JSON
@@ -692,7 +692,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         self._load_spec()
         assert self._spec is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root spec info

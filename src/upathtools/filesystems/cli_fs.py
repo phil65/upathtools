@@ -50,7 +50,12 @@ class CliFS(BaseFileSystem[CliPath]):
     protocol = "cli"
     upath_cls = CliPath
 
-    def __init__(self, shell: bool = False, encoding: str = "utf-8", **kwargs: Any):
+    def __init__(
+        self,
+        shell: bool = False,
+        encoding: str = "utf-8",
+        **kwargs: Any,
+    ) -> None:
         """Initialize the CLI filesystem.
 
         Args:
@@ -64,7 +69,7 @@ class CliFS(BaseFileSystem[CliPath]):
         self._available_commands: dict[str, str] | None = None
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         return {}
 
     def _get_available_commands(self) -> dict[str, str]:
@@ -142,7 +147,7 @@ class CliFS(BaseFileSystem[CliPath]):
         Raises:
             NotImplementedError: If path is not empty (subcommands not supported)
         """
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if path:
             msg = "Listing subcommands is not supported"
             raise NotImplementedError(msg)
@@ -170,7 +175,7 @@ class CliFS(BaseFileSystem[CliPath]):
             ValueError: If path/command is empty
             subprocess.CalledProcessError: If command execution fails
         """
-        command = self._strip_protocol(path).strip("/")  # type: ignore
+        command = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not command:
             msg = "No command specified"
             raise ValueError(msg)
@@ -212,7 +217,7 @@ class CliFS(BaseFileSystem[CliPath]):
         Raises:
             FileNotFoundError: If command doesn't exist
         """
-        command = self._strip_protocol(path).strip("/")  # type: ignore
+        command = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not command:
             return {"name": "", "type": "directory", "size": 0}
 

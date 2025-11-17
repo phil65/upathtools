@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -47,7 +47,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
         project_id: str | None = None,
         team_id: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Vercel filesystem.
 
         Args:
@@ -75,7 +75,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
         self._sandbox: AsyncSandbox | None = None
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("vercel://")
         return {"sandbox_id": path}
 
@@ -164,15 +164,38 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
 
         return files
 
+    @overload
     async def _ls(
-        self, path: str = "/", detail: bool = True, **kwargs
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    async def _ls(
+        self,
+        path: str = "/",
+        detail: bool = True,
+        **kwargs: Any,
     ) -> list[str] | list[dict[str, Any]]:
         """List directory contents."""
         files = await self._ls_real(path, detail=detail)
         return files if detail else [f["name"] for f in files]
 
     async def _cat_file(
-        self, path: str, start: int | None = None, end: int | None = None, **kwargs
+        self,
+        path: str,
+        start: int | None = None,
+        end: int | None = None,
+        **kwargs: Any,
     ) -> bytes:
         """Read file contents."""
         sandbox = await self._get_sandbox()
@@ -186,7 +209,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
             return content[start:end]
         return content
 
-    async def _pipe_file(self, path: str, value: bytes, **kwargs) -> None:
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write file contents."""
         sandbox = await self._get_sandbox()
 
@@ -202,12 +225,12 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
         files = [WriteFile(path=path, content=value)]
         await sandbox.write_files(files)
 
-    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs) -> None:
+    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create directory."""
         sandbox = await self._get_sandbox()
         await sandbox.mk_dir(path)
 
-    async def _rm_file(self, path: str, **kwargs) -> None:
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove file."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("rm", ["-f", path])
@@ -215,7 +238,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
             msg = f"Failed to remove file {path}: {result.stderr}"
             raise OSError(msg)
 
-    async def _rmdir(self, path: str, **kwargs) -> None:
+    async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("rmdir", [path])
@@ -223,25 +246,25 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
             msg = f"Failed to remove directory {path}: {result.stderr}"
             raise OSError(msg)
 
-    async def _exists(self, path: str, **kwargs) -> bool:
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("test", ["-e", path])
         return result.exit_code == 0
 
-    async def _isfile(self, path: str, **kwargs) -> bool:
+    async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("test", ["-f", path])
         return result.exit_code == 0
 
-    async def _isdir(self, path: str, **kwargs) -> bool:
+    async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("test", ["-d", path])
         return result.exit_code == 0
 
-    async def _size(self, path: str, **kwargs) -> int:
+    async def _size(self, path: str, **kwargs: Any) -> int:
         """Get file size."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("stat", ["-c", "%s", path])
@@ -251,7 +274,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
         stdout_str = await result.stdout() or "0"
         return int(stdout_str.strip())
 
-    async def _modified(self, path: str, **kwargs) -> float:
+    async def _modified(self, path: str, **kwargs: Any) -> float:
         """Get file modification time."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("stat", ["-c", "%Y", path])
@@ -274,14 +297,14 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
 
-    def cat(self, path: str, **kwargs) -> bytes:
+    def cat(self, path: str, **kwargs: Any) -> bytes:
         """Read file contents (sync wrapper)."""
         result = self.cat_file(path, **kwargs)
         if isinstance(result, str):
             return result.encode("utf-8")
         return result
 
-    def info(self, path: str, **kwargs) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get file info (sync wrapper)."""
         return {
             "name": path,
@@ -298,8 +321,8 @@ class VercelFile:
         fs: VercelFS,
         path: str,
         mode: str = "rb",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize Vercel file.
 
         Args:
@@ -386,10 +409,10 @@ class VercelFile:
             self._buffer.close()
             self._closed = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Enter async context."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, *args: object) -> None:
         """Exit async context."""
         await self.close()

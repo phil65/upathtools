@@ -56,12 +56,12 @@ class DistributionFS(BaseFileSystem[DistributionPath]):
         self._module_cache: dict[str, ModuleType] = {}
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         return {}
 
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""
-        clean_path = self._strip_protocol(path).strip("/")  # type: ignore
+        clean_path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not clean_path:
             return ""
         return clean_path.replace(".", "/")

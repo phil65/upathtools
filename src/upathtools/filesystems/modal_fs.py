@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -50,7 +50,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         volumes: dict[str, Any] | None = None,
         secrets: list[Any] | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Modal filesystem.
 
         Args:
@@ -86,12 +86,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         self._session_started = False
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("modal://")
         app_name, sandbox_id = path.split(":")
         return {"sandbox_id": sandbox_id, "app_name": app_name}
 
-    async def _get_app(self):
+    async def _get_app(self) -> modal.App:
         """Get or create Modal app."""
         if self._app is not None:
             return self._app
@@ -106,7 +106,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         self._app = modal.App.lookup(self._app_name, create_if_missing=True)
         return self._app
 
-    async def _get_sandbox(self):
+    async def _get_sandbox(self) -> modal.Sandbox:
         """Get or create Modal sandbox instance."""
         if self._sandbox is not None:
             return self._sandbox
@@ -123,7 +123,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             self._sandbox = modal.Sandbox.from_name(self._app_name, self._sandbox_name)
         else:
             # Create new sandbox
-            create_kwargs = {"app": app, "timeout": self._timeout}
+            create_kwargs: dict[str, Any] = {"app": app, "timeout": self._timeout}
 
             if self._image is not None:
                 create_kwargs["image"] = self._image
@@ -175,8 +175,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             # based on actual Modal API structure
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
-            items = await FileIO.ls(path, client, task_id)
+            assert client
+            assert task_id
+            items = FileIO.ls(path, client, task_id)
         except Exception as exc:
             # Map Modal exceptions to standard Python exceptions
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
@@ -197,7 +198,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             # This is a heuristic and could be improved with better Modal API support
             is_dir = False
             try:
-                await FileIO.ls(item, client, task_id)
+                FileIO.ls(item, client, task_id)
                 is_dir = True
             except Exception:  # noqa: BLE001
                 pass  # If ls fails, assume it's a file
@@ -210,6 +211,16 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             })
 
         return result
+
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[False] = False, **kwargs: Any
+    ) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -226,11 +237,11 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
         try:
             # Use Modal's file API to read the file
-            f = sandbox.open(path, "rb")
+            f = await sandbox.open.aio(path, "rb")
             try:
-                content = await f.read()
+                content = await f.read.aio()
             finally:
-                await f.close()
+                await f.close.aio()
 
         except Exception as exc:
             # Map Modal exceptions to standard Python exceptions
@@ -258,12 +269,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
         try:
             # Use Modal's file API to write the file
-            f = sandbox.open(path, "wb")
+            f = await sandbox.open.aio(path, "wb")
             try:
-                await f.write(value)
-                await f.flush()
+                await f.write.aio(value)
+                await f.flush.aio()
             finally:
-                await f.close()
+                await f.close.aio()
 
         except Exception as exc:
             msg = f"Failed to write file {path}: {exc}"
@@ -279,8 +290,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
-            await FileIO.mkdir(path, client, task_id, parents=create_parents)
+            assert client
+            assert task_id
+            FileIO.mkdir(path, client, task_id, parents=create_parents)
         except Exception as exc:
             msg = f"Failed to create directory {path}: {exc}"
             raise OSError(msg) from exc
@@ -295,8 +307,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
-            await FileIO.rm(path, client, task_id, recursive=False)
+            assert client
+            assert task_id
+            FileIO.rm(path, client, task_id, recursive=False)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -316,7 +329,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
 
-            await FileIO.rm(path, client, task_id, recursive=True)
+            assert client
+            assert task_id
+            FileIO.rm(path, client, task_id, recursive=True)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -334,8 +349,8 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             # Try to open the file/directory to check existence
             # TODO: This could be optimized with a dedicated exists() API
             # if Modal provides one
-            f = sandbox.open(path, "r")
-            await f.close()
+            f = await sandbox.open.aio(path, "r")
+            await f.close.aio()
         except Exception:  # noqa: BLE001
             # If open fails, try ls on parent to see if path exists as directory
             try:
@@ -343,8 +358,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
                 client = sandbox._client  # TODO: Verify correct way to get client
                 task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
-                await FileIO.ls(path, client, task_id)
+                assert client
+                assert task_id
+                FileIO.ls(path, client, task_id)
             except Exception:  # noqa: BLE001
                 return False
             else:
@@ -359,8 +375,8 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
         try:
             # Try to open as file
-            f = sandbox.open(path, "r")
-            await f.close()
+            f = await sandbox.open.aio(path, "r")
+            await f.close.aio()
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -376,9 +392,10 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
+            assert client
+            assert task_id
             # Try to list the path - if it works, it's a directory
-            await FileIO.ls(path, client, task_id)
+            FileIO.ls(path, client, task_id)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -392,12 +409,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
         try:
             # TODO: This is inefficient - reading entire file to get size
             # Modal should provide a stat() or size() method in the future
-            f = sandbox.open(path, "rb")
+            f = await sandbox.open.aio(path, "rb")
             try:
-                content = await f.read()
+                content = await f.read.aio()
                 return len(content)
             finally:
-                await f.close()
+                await f.close.aio()
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -418,12 +435,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
-    cat_file = sync_wrapper(_cat_file)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
     pipe_file = sync_wrapper(_pipe_file)
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
-    exists = sync_wrapper(_exists)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isfile = sync_wrapper(_isfile)
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
@@ -439,7 +456,7 @@ class ModalFile:
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Modal file object.
 
         Args:
@@ -459,7 +476,7 @@ class ModalFile:
         if self._modal_file is None:
             await self.fs.set_session()
             sandbox = await self.fs._get_sandbox()
-            self._modal_file = sandbox.open(self.path, self.mode)
+            self._modal_file = await sandbox.open.aio(self.path, self.mode)  # type: ignore[call-overload]
 
     def readable(self) -> bool:
         """Check if file is readable."""
@@ -529,10 +546,10 @@ class ModalFile:
                 await self._modal_file.close()
             self._closed = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, *args: object) -> None:
         """Async context manager exit."""
         await self.close()

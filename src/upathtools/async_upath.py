@@ -340,7 +340,7 @@ class AsyncUPath(ProxyUPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -350,7 +350,7 @@ class AsyncUPath(ProxyUPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -360,7 +360,7 @@ class AsyncUPath(ProxyUPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     @overload
     async def aopen(
@@ -370,7 +370,7 @@ class AsyncUPath(ProxyUPath):
         encoding: str | None = None,
         errors: str | None = None,
         newline: str | None = None,
-    ): ...
+    ) -> None: ...
 
     async def aopen(
         self,
@@ -443,7 +443,7 @@ class AsyncUPath(ProxyUPath):
 
 if __name__ == "__main__":
 
-    async def main():
+    async def main() -> None:
         path = AsyncUPath("https://www.google.de")
         result = await path.aread_bytes()
         print(result)

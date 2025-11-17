@@ -141,7 +141,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             return fs, path or fs.root_marker  # Use the target filesystem's root_marker
 
-    async def _cat_file(self, path: str, start=None, end=None, **kwargs):
+    async def _cat_file(self, path: str, start=None, end=None, **kwargs: Any):
         """Get file contents."""
         logger.debug("Reading from path: %s", path)
         fs, path = self._get_fs_and_path(path)
@@ -149,7 +149,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
             return await fs._cat_file(path, start=start, end=end, **kwargs)
         return fs.cat_file(path, start=start, end=end, **kwargs)
 
-    async def _pipe_file(self, path: str, value, **kwargs):
+    async def _pipe_file(self, path: str, value, **kwargs: Any) -> None:
         """Write file contents."""
         logger.debug("Writing to path: %s", path)
         fs, path = self._get_fs_and_path(path)
@@ -158,7 +158,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             fs.pipe_file(path, value, **kwargs)
 
-    async def _info(self, path: str, **kwargs):
+    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get info about a path."""
         logger.debug("Getting info for path: %s", path)
 
@@ -212,7 +212,12 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         **kwargs: Any,
     ) -> list[str]: ...
 
-    async def _ls(self, path: str, detail=True, **kwargs):
+    async def _ls(
+        self,
+        path: str,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
         """List contents of a path."""
         logger.debug("Listing path: %s", path)
 
@@ -220,7 +225,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
 
         if fs is self:
             # Root shows available protocols
-            out = [
+            out: list[dict[str, Any]] = [
                 {"name": f"{protocol}://", "type": "directory", "size": 0}
                 for protocol in self.filesystems
             ]
@@ -239,12 +244,12 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         protocol = next(p for p, f in self.filesystems.items() if f is fs)
         out = [o.copy() for o in out]
         for o in out:
-            o["name"] = self._normalize_path(protocol, o["name"])  # type: ignore
+            o["name"] = self._normalize_path(protocol, o["name"])
 
         logger.debug("Final listing: %s", out)
         return out if detail else [o["name"] for o in out]
 
-    async def _makedirs(self, path: str, exist_ok=False):
+    async def _makedirs(self, path: str, exist_ok=False) -> None:
         """Create a directory and parents."""
         logger.debug("Making directories: %s", path)
         fs, path = self._get_fs_and_path(path)
@@ -253,7 +258,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             fs.makedirs(path, exist_ok=exist_ok)
 
-    async def _rm_file(self, path: str, **kwargs):
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
         logger.debug("Removing file: %s", path)
         fs, path = self._get_fs_and_path(path)
@@ -262,7 +267,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             fs.rm_file(path, **kwargs)
 
-    async def _rm(self, path: str, recursive=False, **kwargs):
+    async def _rm(self, path: str, recursive=False, **kwargs: Any) -> None:
         """Remove a file or directory."""
         logger.debug("Removing path: %s (recursive=%s)", path, recursive)
         fs, path = self._get_fs_and_path(path)
@@ -271,7 +276,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             fs.rm(path, recursive=recursive, **kwargs)
 
-    async def _cp_file(self, path1: str, path2: str, **kwargs):
+    async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file, possibly between filesystems."""
         logger.debug("Copying %s to %s", path1, path2)
         fs1, path1 = self._get_fs_and_path(path1)

@@ -88,7 +88,7 @@ class MarkdownFS(BaseFileSystem[MarkdownPath]):
         self._root: MarkdownNode | None = None
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("md://")
         return {"fo": path}
 
@@ -184,7 +184,7 @@ class MarkdownFS(BaseFileSystem[MarkdownPath]):
             return self._root
 
         current = self._root
-        parts = self._strip_protocol(path).strip("/").split("/")  # type: ignore
+        parts = self._strip_protocol(path).strip("/").split("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         for part in parts:
             if part not in current.children:
@@ -254,9 +254,7 @@ class MarkdownFS(BaseFileSystem[MarkdownPath]):
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get info about a path."""
         node = self._get_node(path)
-        name = (
-            "root" if not path or path == "/" else path.split("/")[-1]  # type: ignore
-        )
+        name = "root" if not path or path == "/" else path.split("/")[-1]
 
         return {
             "name": name,

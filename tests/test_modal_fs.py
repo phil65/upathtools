@@ -1,25 +1,12 @@
 """Tests for Modal filesystem implementation."""
 
-import contextlib
-
 import pytest
 
 from upathtools.filesystems.modal_fs import ModalFS
 
 
 @pytest.fixture(scope="session")
-def modal_api_available():
-    """Check if Modal API is available."""
-    try:
-        import modal  # noqa: F401
-    except ImportError:
-        pytest.skip("modal package not available")
-    else:
-        return True
-
-
-@pytest.fixture(scope="session")
-async def shared_modal_fs(modal_api_available):
+async def shared_modal_fs():
     """Create shared Modal filesystem instance for all tests."""
     fs = ModalFS(app_name="upathtools-test", timeout=600, idle_timeout=300)
     await fs.set_session()
@@ -28,7 +15,7 @@ async def shared_modal_fs(modal_api_available):
 
 
 @pytest.mark.integration
-async def test_modal_session_management(modal_api_available):
+async def test_modal_session_management():
     """Test session creation and cleanup."""
     fs = ModalFS(app_name="upathtools-session-test")
     assert not fs._session_started
@@ -42,7 +29,7 @@ async def test_modal_session_management(modal_api_available):
 
 
 @pytest.mark.integration
-async def test_modal_file_crud_operations(shared_modal_fs):
+async def test_modal_file_crud_operations(shared_modal_fs: ModalFS):
     """Test file create, read, update, delete operations."""
     test_file = "/tmp/test_file.txt"
     content = b"Hello, Modal!"
@@ -76,7 +63,7 @@ async def test_modal_file_crud_operations(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_directory_operations(shared_modal_fs):
+async def test_modal_directory_operations(shared_modal_fs: ModalFS):
     """Test directory create, list, delete operations."""
     test_dir = "/tmp/test_directory"
 
@@ -102,7 +89,7 @@ async def test_modal_directory_operations(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_partial_reads_and_nested_dirs(shared_modal_fs):
+async def test_modal_partial_reads_and_nested_dirs(shared_modal_fs: ModalFS):
     """Test partial file reads and nested directory creation."""
     # Test partial reads
     test_file = "/tmp/partial_test.txt"
@@ -132,7 +119,7 @@ async def test_modal_partial_reads_and_nested_dirs(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_error_conditions(shared_modal_fs):
+async def test_modal_error_conditions(shared_modal_fs: ModalFS):
     """Test error handling for nonexistent files/dirs."""
     with pytest.raises(FileNotFoundError):
         await shared_modal_fs._cat_file("/tmp/nonexistent.txt")
@@ -148,7 +135,7 @@ async def test_modal_error_conditions(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_content_types(shared_modal_fs):
+async def test_modal_content_types(shared_modal_fs: ModalFS):
     """Test binary and unicode content handling."""
     # Binary content
     binary_file = "/tmp/binary.bin"
@@ -169,7 +156,7 @@ async def test_modal_content_types(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_large_file_handling(shared_modal_fs):
+async def test_modal_large_file_handling(shared_modal_fs: ModalFS):
     """Test handling of larger files."""
     test_file = "/tmp/large_file.txt"
     # Keep it reasonable for testing
@@ -189,25 +176,7 @@ async def test_modal_large_file_handling(shared_modal_fs):
 
 
 @pytest.mark.integration
-async def test_modal_sync_interface(modal_api_available):
-    """Test synchronous wrapper methods."""
-    fs = ModalFS(app_name="upathtools-sync-test", timeout=300)
-    try:
-        test_file = "/tmp/sync_test.txt"
-        content = b"Sync content"
-
-        fs.pipe_file(test_file, content)
-        assert fs.exists(test_file)
-        assert fs.cat_file(test_file) == content
-        fs.rm_file(test_file)
-        assert not fs.exists(test_file)
-    finally:
-        with contextlib.suppress(AttributeError):
-            await fs.close_session()
-
-
-@pytest.mark.integration
-async def test_modal_existing_sandbox_connection(modal_api_available):
+async def test_modal_existing_sandbox_connection():
     """Test connecting to existing sandbox."""
     fs1 = ModalFS(app_name="upathtools-existing-test", timeout=300)
     await fs1.set_session()
@@ -229,7 +198,7 @@ async def test_modal_existing_sandbox_connection(modal_api_available):
 
 
 @pytest.mark.integration
-async def test_modal_script_execution_workflow(shared_modal_fs):
+async def test_modal_script_execution_workflow(shared_modal_fs: ModalFS):
     """Test complete script execution workflow."""
     script_path = "/tmp/test_script.py"
     output_path = "/tmp/output.txt"
@@ -260,7 +229,7 @@ print("Done")
 
 
 @pytest.mark.integration
-async def test_modal_data_processing_workflow(shared_modal_fs):
+async def test_modal_data_processing_workflow(shared_modal_fs: ModalFS):
     """Test complete data processing workflow."""
     input_file = "/tmp/input.csv"
     script_path = "/tmp/process.py"

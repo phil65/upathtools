@@ -5,7 +5,6 @@ in a Beam sandbox environment through the upathtools interface.
 """
 
 import asyncio
-import contextlib
 from pathlib import Path
 
 from beta9 import SandboxProcessResponse
@@ -47,23 +46,6 @@ async def basic_file_operations():
     print("🧹 Cleaned up test files")
     await fs.close_session()
     print("🔒 Closed Beam session")
-
-
-async def sync_operations_example():
-    """Demonstrate synchronous operations using sync wrappers."""
-    print("\n🔄 Testing synchronous operations...")
-    fs = BeamFS(keep_warm_seconds=300)
-    test_file = "/workspace/sync_test.txt"
-    content = b"Synchronous file operation!"
-    print(f"📝 Writing file synchronously: {test_file}")
-    fs.pipe_file(test_file, content)
-    print("📖 Reading file synchronously...")
-    read_content = fs.cat_file(test_file)
-    print(f"Content: {read_content}")
-    fs.rm_file(test_file)
-    print("🧹 Cleaned up sync test file")
-    with contextlib.suppress(Exception):
-        await fs.close_session()
 
 
 async def python_execution_example():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -46,7 +46,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
         memory: int = 512,
         cpus: float = 1.0,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize Microsandbox filesystem.
 
         Args:
@@ -137,15 +137,38 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         return files
 
+    @overload
     async def _ls(
-        self, path: str = "/", detail: bool = True, **kwargs
+        self,
+        path: str = "",
+        detail: Literal[True] = True,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(
+        self,
+        path: str = "",
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    async def _ls(
+        self,
+        path: str = "/",
+        detail: bool = True,
+        **kwargs: Any,
     ) -> list[str] | list[dict[str, Any]]:
         """List directory contents."""
         files = await self._ls_real(path, detail=detail)
         return files if detail else [f["name"] for f in files]
 
     async def _cat_file(
-        self, path: str, start: int | None = None, end: int | None = None, **kwargs
+        self,
+        path: str,
+        start: int | None = None,
+        end: int | None = None,
+        **kwargs: Any,
     ) -> bytes:
         """Read file contents using cat command."""
         sandbox = await self._get_sandbox()
@@ -164,7 +187,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             return content[start:end]
         return content
 
-    async def _pipe_file(self, path: str, value: bytes, **kwargs) -> None:
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write file contents using shell redirection."""
         sandbox = await self._get_sandbox()
         parent = path.rsplit("/", 1)[0]
@@ -180,7 +203,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             msg = f"Failed to write file {path}: {stderr}"
             raise OSError(msg)
 
-    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs) -> None:
+    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create directory using mkdir command."""
         sandbox = await self._get_sandbox()
 
@@ -194,7 +217,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             msg = f"Failed to create directory {path}: {stderr}"
             raise OSError(msg)
 
-    async def _rm_file(self, path: str, **kwargs) -> None:
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove file using rm command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("rm", ["-f", path])
@@ -203,7 +226,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             msg = f"Failed to remove file {path}: {stderr}"
             raise OSError(msg)
 
-    async def _rmdir(self, path: str, **kwargs) -> None:
+    async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory using rmdir command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("rmdir", [path])
@@ -212,25 +235,25 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             msg = f"Failed to remove directory {path}: {stderr}"
             raise OSError(msg)
 
-    async def _exists(self, path: str, **kwargs) -> bool:
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists using test command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("test", ["-e", path])
         return result.exit_code == 0
 
-    async def _isfile(self, path: str, **kwargs) -> bool:
+    async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file using test command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("test", ["-f", path])
         return result.exit_code == 0
 
-    async def _isdir(self, path: str, **kwargs) -> bool:
+    async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory using test command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("test", ["-d", path])
         return result.exit_code == 0
 
-    async def _size(self, path: str, **kwargs) -> int:
+    async def _size(self, path: str, **kwargs: Any) -> int:
         """Get file size using stat command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("stat", ["-c", "%s", path])
@@ -245,7 +268,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
 
         return int(stdout.strip())
 
-    async def _modified(self, path: str, **kwargs) -> float:
+    async def _modified(self, path: str, **kwargs: Any) -> float:
         """Get file modification time using stat command."""
         sandbox = await self._get_sandbox()
         result = await sandbox.command.run("stat", ["-c", "%Y", path])
@@ -273,14 +296,14 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
 
-    def cat(self, path: str, **kwargs) -> bytes:
+    def cat(self, path: str, **kwargs: Any) -> bytes:
         """Read file contents (sync wrapper)."""
         result = self.cat_file(path, **kwargs)
         if isinstance(result, str):
             return result.encode("utf-8")
         return result
 
-    def info(self, path: str, **kwargs) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get file info (sync wrapper)."""
         return {
             "name": path,
@@ -297,8 +320,8 @@ class MicrosandboxFile:
         fs: MicrosandboxFS,
         path: str,
         mode: str = "rb",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize Microsandbox file.
 
         Args:
@@ -385,10 +408,10 @@ class MicrosandboxFile:
             self._buffer.close()
             self._closed = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Enter async context."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, *args: object) -> None:
         """Exit async context."""
         await self.close()

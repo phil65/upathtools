@@ -43,7 +43,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath]):
         self._path_cache: dict[str, str] = {}
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("notion://")
         token, parent_page_id = path.split(":")
         return {"token": token, "parent_page_id": parent_page_id}
@@ -59,7 +59,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath]):
         except APIResponseError:
             return False
 
-    def mkdir(self, path: str, **kwargs: Any):
+    def mkdir(self, path: str, **kwargs: Any) -> None:
         """Create a new page (folder) in Notion."""
         stripped = self._strip_protocol(path)
         assert isinstance(stripped, str)
@@ -379,7 +379,7 @@ class NotionFile:
         mode: str,
         write_callback: Callable[..., Any] | None = None,
         binary: bool = False,
-    ):
+    ) -> None:
         self.content = (
             content
             if isinstance(content, bytes)
@@ -476,7 +476,7 @@ class NotionFile:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
 

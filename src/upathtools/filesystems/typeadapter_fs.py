@@ -72,7 +72,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
         self.model_type = model_type
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("typeadapter://")
         return {"model": path}
 
@@ -155,7 +155,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
         **kwargs: Any,
     ) -> list[dict[str, Any]] | list[str]:
         """List model fields and special paths."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         try:
             current_fields, field_name = self._get_nested_field_info(path)
@@ -214,7 +214,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
 
     def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
         """Get field definition, schema, or other information."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Return full schema
@@ -361,7 +361,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
 
     def isdir(self, path: str) -> bool:
         """Check if path is a directory (model or nested model)."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root is always a directory
@@ -375,7 +375,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get detailed info about a model or field."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root model info

@@ -54,7 +54,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         timeout: int | None = None,
         asynchronous: bool = False,
         loop: Any = None,
-        client_kwargs: dict | None = None,
+        client_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -793,7 +793,13 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 class GistBufferedWriter(io.BufferedIOBase):
     """Buffered writer for gist files that writes to the gist when closed."""
 
-    def __init__(self, buffer: io.BytesIO, fs: GistFileSystem, path: str, **kwargs: Any):
+    def __init__(
+        self,
+        buffer: io.BytesIO,
+        fs: GistFileSystem,
+        path: str,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the writer.
 
         Args:
@@ -840,7 +846,7 @@ class GistBufferedWriter(io.BufferedIOBase):
 class AsyncGistWriter:
     """Asynchronous writer for gist files."""
 
-    def __init__(self, fs: GistFileSystem, path: str, **kwargs: Any):
+    def __init__(self, fs: GistFileSystem, path: str, **kwargs: Any) -> None:
         """Initialize the writer.
 
         Args:
@@ -891,7 +897,7 @@ if __name__ == "__main__":
     fs = GistFileSystem(username="phil65")
     print("\nListing files with filesystem.ls():")
 
-    async def main():
+    async def main() -> None:
         upath = fs.get_upath("")
         async for p in upath.aiterdir():
             print(p)

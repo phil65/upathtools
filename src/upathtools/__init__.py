@@ -35,7 +35,7 @@ from upathtools.filesystems.gist_fs import GistFileSystem, GistPath
 from upathtools.filesystems.wiki_fs import WikiFileSystem, WikiPath
 
 
-def register_http_filesystems():
+def register_http_filesystems() -> None:
     """Register HTTP filesystems."""
     register_implementation("http", HTTPFileSystem, clobber=True)
     registry.register_implementation("http", HttpPath, clobber=True)
@@ -43,7 +43,7 @@ def register_http_filesystems():
     registry.register_implementation("https", HttpPath, clobber=True)
 
 
-def register_all_filesystems():
+def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
     register_http_filesystems()
     register_implementation("cli", CliFS, clobber=True)

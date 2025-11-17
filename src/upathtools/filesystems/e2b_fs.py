@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Any, overload
+from typing import Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -38,7 +38,7 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
         template: str = "code-interpreter-v1",
         timeout: float = 300,
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize E2B filesystem.
 
         Args:
@@ -57,7 +57,7 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
         self._session_started = False
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("e2b://")
         return {"sandbox_id": path}
 
@@ -146,11 +146,13 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
 
     @overload
     async def _ls(
-        self, path: str, detail: bool = True, **kwargs: Any
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
+    async def _ls(
+        self, path: str, detail: Literal[False] = False, **kwargs: Any
+    ) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -386,7 +388,7 @@ class E2BFile:
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize E2B file object.
 
         Args:
@@ -485,10 +487,10 @@ class E2BFile:
             self._buffer.close()
             self._closed = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, *args: object) -> None:
         """Async context manager exit."""
         await self.close()

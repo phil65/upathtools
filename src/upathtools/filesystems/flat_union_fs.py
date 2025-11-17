@@ -85,7 +85,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
         self,
         filesystems: Sequence[AbstractFileSystem | JoinablePathLike],
         **kwargs: Any,
-    ):
+    ) -> None:
         """Initialize the filesystem.
 
         Args:
@@ -591,7 +591,7 @@ if __name__ == "__main__":
 
     from upath import UPath
 
-    async def main():
+    async def main() -> None:
         # Create test directories in memory
         from fsspec.implementations.memory import MemoryFileSystem
 

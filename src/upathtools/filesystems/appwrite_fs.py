@@ -109,7 +109,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         self._storage: Storage | None = None
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("appwrite://")
         return {"project": path}
 
@@ -508,7 +508,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         else:
             return content
 
-    cat_file = sync_wrapper(_cat_file)  # type: ignore
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
 
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write bytes to a file.

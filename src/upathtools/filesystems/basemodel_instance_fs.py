@@ -120,7 +120,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
         **kwargs: Any,
     ) -> list[dict[str, Any]] | list[str]:
         """List instance fields and values."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         try:
             current_obj, field_name = self._get_nested_value_at_path(path)
@@ -217,7 +217,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
 
     def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
         """Get field values, JSON representation, or other information."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Return instance JSON
@@ -347,7 +347,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get detailed info about an instance field or value."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root instance info

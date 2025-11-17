@@ -390,7 +390,7 @@ async def read_folder_as_text(
 if __name__ == "__main__":
     from pprint import pprint
 
-    async def main():
+    async def main() -> None:
         # Test with current directory
         files = await read_folder(
             ".",

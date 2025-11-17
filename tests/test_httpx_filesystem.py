@@ -77,7 +77,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
 
     files = ChainMap(dynamic_files, static_files)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
     def _make_index_response(self, baseurl: str, file_path: str) -> bytes:

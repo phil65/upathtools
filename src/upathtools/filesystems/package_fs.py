@@ -60,7 +60,7 @@ class PackageFS(BaseFileSystem[PackagePath]):
         self._module_cache: dict[str, ModuleType] = {}
 
     @staticmethod
-    def _get_kwargs_from_urls(path):
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("pkg://")
         return {"package": path}
 
@@ -93,7 +93,7 @@ class PackageFS(BaseFileSystem[PackagePath]):
     ) -> Sequence[str | dict[str, Any]]:
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
@@ -136,7 +136,7 @@ class PackageFS(BaseFileSystem[PackagePath]):
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get info about a path."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
@@ -161,7 +161,7 @@ class PackageFS(BaseFileSystem[PackagePath]):
     def cat(self, path: str) -> bytes:
         """Get module file content."""
         path = path.removesuffix(".py")
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
