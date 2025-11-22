@@ -21,6 +21,7 @@ from .sandbox_filesystems.daytona_fs import DaytonaFS, DaytonaPath
 from .sandbox_filesystems.e2b_fs import E2BFS, E2BPath
 from .sandbox_filesystems.modal_fs import ModalFS, ModalPath
 from .sandbox_filesystems.vercel_fs import VercelFS, VercelPath
+from .sandbox_filesystems.microsandbox_fs import MicrosandboxFS, MicrosandboxPath
 
 __all__ = [
     "E2BFS",
@@ -47,6 +48,8 @@ __all__ = [
     "MCPPath",
     "MarkdownFS",
     "MarkdownPath",
+    "MicrosandboxFS",
+    "MicrosandboxPath",
     "ModalFS",
     "ModalPath",
     "ModuleFS",
