@@ -692,24 +692,24 @@ class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """BaseModel instance import path"""
 
 
-class SkillsFilesystemConfig(FileSystemConfig):
-    """Configuration for Skills filesystem."""
+# class SkillsFilesystemConfig(FileSystemConfig):
+#     """Configuration for Skills filesystem."""
 
-    fs_type: Literal["skills"] = Field("skills", init=False)
-    """Skills filesystem type"""
+#     fs_type: Literal["skills"] = Field("skills", init=False)
+#     """Skills filesystem type"""
 
-    _category: ClassVar[FilesystemCategoryType] = "wrapper"
+#     _category: ClassVar[FilesystemCategoryType] = "wrapper"
 
-    wrapped_fs: str = Field(
-        title="Wrapped Filesystem",
-        examples=["file", "s3", "gcs"],
-        min_length=1,
-    )
-    """Type of filesystem to wrap"""
+#     wrapped_fs: str = Field(
+#         title="Wrapped Filesystem",
+#         examples=["file", "s3", "gcs"],
+#         min_length=1,
+#     )
+#     """Type of filesystem to wrap"""
 
-    skills_dir: UPath | None = Field(
-        default=None,
-        title="Skills Directory",
-        examples=["/path/to/skills", "~/my-skills"],
-    )
-    """Directory containing skill definitions"""
+#     skills_dir: UPath | None = Field(
+#         default=None,
+#         title="Skills Directory",
+#         examples=["/path/to/skills", "~/my-skills"],
+#     )
+#     """Directory containing skill definitions"""

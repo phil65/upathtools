@@ -93,8 +93,18 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration
         """
+        from pydantic import AnyUrl, SecretStr
+
         fs_kwargs = self.model_dump(exclude={"fs_type", "root_path"})
         fs_kwargs = {k: v for k, v in fs_kwargs.items() if v is not None}
+
+        # Convert Pydantic types to plain Python types
+        for key, value in fs_kwargs.items():
+            if isinstance(value, SecretStr):
+                fs_kwargs[key] = value.get_secret_value()
+            elif isinstance(value, AnyUrl):
+                fs_kwargs[key] = str(value)
+
         fs = fsspec.filesystem(self.fs_type, **fs_kwargs)
         if self.root_path:
             return fs.chdir(self.root_path)
