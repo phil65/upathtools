@@ -14,7 +14,9 @@ if TYPE_CHECKING:
 
 
 # Define filesystem categories as literals
-FilesystemCategoryType = Literal["base", "archive", "transform", "aggregation", "wrapper"]
+FilesystemCategoryType = Literal[
+    "base", "archive", "transform", "aggregation", "wrapper", "sandbox"
+]
 
 
 class FileSystemConfig(BaseModel):

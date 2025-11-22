@@ -8,16 +8,31 @@ from pydantic import Field
 
 from upathtools.configs.base import FileSystemConfig, PathConfig
 from upathtools.configs.custom_fs_configs import (
+    AppwriteFilesystemConfig,
+    BaseModelFilesystemConfig,
+    BaseModelInstanceFilesystemConfig,
+    BeamFilesystemConfig,
     CliFilesystemConfig,
+    DaytonaFilesystemConfig,
     DistributionFilesystemConfig,
+    E2BFilesystemConfig,
     FlatUnionFilesystemConfig,
     GistFilesystemConfig,
     HttpFilesystemConfig,
+    HttpxFilesystemConfig,
     MarkdownFilesystemConfig,
+    McpFilesystemConfig,
+    MicrosandboxFilesystemConfig,
+    ModalFilesystemConfig,
     ModuleFilesystemConfig,
+    NotionFilesystemConfig,
+    OpenApiFilesystemConfig,
     PackageFilesystemConfig,
     PythonAstFilesystemConfig,
+    SkillsFilesystemConfig,
+    TypeAdapterFilesystemConfig,
     UnionFilesystemConfig,
+    VercelFilesystemConfig,
     WikiFilesystemConfig,
 )
 from upathtools.configs.fsspec_fs_configs import (
@@ -40,16 +55,31 @@ from upathtools.configs.fsspec_fs_configs import (
 )
 
 FilesystemConfigType = Annotated[
-    CliFilesystemConfig
+    AppwriteFilesystemConfig
+    | BaseModelFilesystemConfig
+    | BaseModelInstanceFilesystemConfig
+    | BeamFilesystemConfig
+    | CliFilesystemConfig
+    | DaytonaFilesystemConfig
     | DistributionFilesystemConfig
+    | E2BFilesystemConfig
     | FlatUnionFilesystemConfig
     | GistFilesystemConfig
     | HttpFilesystemConfig
+    | HttpxFilesystemConfig
     | MarkdownFilesystemConfig
+    | McpFilesystemConfig
+    | MicrosandboxFilesystemConfig
+    | ModalFilesystemConfig
     | ModuleFilesystemConfig
+    | NotionFilesystemConfig
+    | OpenApiFilesystemConfig
     | PackageFilesystemConfig
     | PythonAstFilesystemConfig
+    | SkillsFilesystemConfig
+    | TypeAdapterFilesystemConfig
     | UnionFilesystemConfig
+    | VercelFilesystemConfig
     | WikiFilesystemConfig
     | ArrowFilesystemConfig
     | DataFilesystemConfig
@@ -71,11 +101,17 @@ FilesystemConfigType = Annotated[
 ]
 
 __all__ = [
+    "AppwriteFilesystemConfig",
     "ArrowFilesystemConfig",
+    "BaseModelFilesystemConfig",
+    "BaseModelInstanceFilesystemConfig",
+    "BeamFilesystemConfig",
     "CliFilesystemConfig",
     "DaskWorkerFilesystemConfig",
     "DataFilesystemConfig",
+    "DaytonaFilesystemConfig",
     "DistributionFilesystemConfig",
+    "E2BFilesystemConfig",
     "FTPFilesystemConfig",
     "FileSystemConfig",
     "FilesystemConfigType",
@@ -85,19 +121,28 @@ __all__ = [
     "GithubFilesystemConfig",
     "HadoopFilesystemConfig",
     "HttpFilesystemConfig",
+    "HttpxFilesystemConfig",
     "JupyterFilesystemConfig",
     "LibArchiveFilesystemConfig",
     "LocalFilesystemConfig",
     "MarkdownFilesystemConfig",
+    "McpFilesystemConfig",
     "MemoryFilesystemConfig",
+    "MicrosandboxFilesystemConfig",
+    "ModalFilesystemConfig",
     "ModuleFilesystemConfig",
+    "NotionFilesystemConfig",
+    "OpenApiFilesystemConfig",
     "PackageFilesystemConfig",
     "PathConfig",
     "PythonAstFilesystemConfig",
     "SFTPFilesystemConfig",
     "SMBFilesystemConfig",
+    "SkillsFilesystemConfig",
     "TarFilesystemConfig",
+    "TypeAdapterFilesystemConfig",
     "UnionFilesystemConfig",
+    "VercelFilesystemConfig",
     "WebHDFSFilesystemConfig",
     "WikiFilesystemConfig",
     "ZipFilesystemConfig",
