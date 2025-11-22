@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import fsspec
-from pydantic import BaseModel, ConfigDict
+from pydantic import AnyUrl, BaseModel, ConfigDict, SecretStr
 from upath import UPath
 
 
@@ -58,7 +58,7 @@ class FileSystemConfig(BaseModel):
         result = {}
         for subclass in cls.__subclasses__():
             result.update(subclass.get_available_configs())
-            if hasattr(subclass, "fs_type") and hasattr(subclass.fs_type, "__args__"):
+            if hasattr(subclass.fs_type, "__args__"):
                 fs_type = subclass.fs_type.__args__[0]  # pyright: ignore
                 result[fs_type] = subclass
 
@@ -93,8 +93,6 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration
         """
-        from pydantic import AnyUrl, SecretStr
-
         fs_kwargs = self.model_dump(exclude={"fs_type", "root_path"})
         fs_kwargs = {k: v for k, v in fs_kwargs.items() if v is not None}
 
