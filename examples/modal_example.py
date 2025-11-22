@@ -89,7 +89,7 @@ async def sync_operations_example():
 
         print("📖 Reading file synchronously...")
         read_content = fs.cat_file(test_file)
-        print(f"Content: {read_content.decode()}")
+        print(f"Content: {read_content.decode()}")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Clean up
         fs.rm_file(test_file)
@@ -227,8 +227,8 @@ async def advanced_modal_features():
         # Create file with Modal's native API for comparison
         print("🔧 Using Modal's native file API...")
         modal_file = sandbox.open("/workspace/native_test.txt", "w")
-        await modal_file.write("Content written with native Modal API")
-        await modal_file.close()
+        await modal_file.write.aio("Content written with native Modal API")
+        await modal_file.close.aio()
 
         # Read it back with our filesystem
         content = await fs._cat_file("/workspace/native_test.txt")
