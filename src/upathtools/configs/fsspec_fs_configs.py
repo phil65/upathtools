@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import Field
+from pydantic import AnyUrl, Field, SecretStr
 from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import (
     FilesystemCategoryType,  # noqa: TC001
     FileSystemConfig,
 )
+
+
+if TYPE_CHECKING:
+    from pydantic import AnyUrl, SecretStr
 
 
 class ArrowFilesystemConfig(FileSystemConfig):
@@ -20,7 +24,6 @@ class ArrowFilesystemConfig(FileSystemConfig):
     """Arrow filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "wrapper"
-    """Classification of the filesystem type"""
 
 
 class DataFilesystemConfig(FileSystemConfig):
@@ -30,7 +33,6 @@ class DataFilesystemConfig(FileSystemConfig):
     """Data URL filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
 
 class DaskWorkerFilesystemConfig(FileSystemConfig):
@@ -40,15 +42,22 @@ class DaskWorkerFilesystemConfig(FileSystemConfig):
     """Dask worker filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "wrapper"
-    """Classification of the filesystem type"""
 
-    target_protocol: str | None = None
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "gcs"]
+    )
     """Target protocol to use when running on workers"""
 
-    target_options: dict[str, Any] | None = None
+    target_options: dict[str, Any] | None = Field(
+        default=None, title="Target Protocol Options"
+    )
     """Options for target protocol"""
 
-    client: Any | str | None = None
+    client: Any | str | None = Field(
+        default=None,
+        title="Dask Client",
+        examples=["localhost:8786", "tcp://scheduler:8786"],
+    )
     """Dask client instance or connection string"""
 
 
@@ -59,33 +68,50 @@ class FTPFilesystemConfig(FileSystemConfig):
     """FTP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    host: str
+    host: str = Field(title="FTP Host", examples=["ftp.example.com", "192.168.1.100"])
     """FTP server hostname or IP"""
 
-    port: int = 21
+    port: int = Field(default=21, ge=1, le=65535, title="FTP port", examples=[21, 1234])
     """FTP server port"""
 
-    username: str | None = None
+    username: str | None = Field(
+        default=None,
+        title="Username",
+        examples=["user123", "admin"],
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        min_length=1,
+        max_length=32,
+    )
     """Username for authentication"""
 
-    password: str | None = None
+    password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
-    acct: str | None = None
+    acct: str | None = Field(
+        default=None, title="Account String", examples=["account123"]
+    )
     """Account string some servers need for auth"""
 
-    block_size: int | None = None
+    block_size: int | None = Field(
+        default=None, gt=0, title="Block Size", examples=[8192, 65536]
+    )
     """Block size for file operations"""
 
-    tempdir: str | None = None
+    tempdir: str | None = Field(
+        default=None, title="Temp Directory", examples=["/tmp", "/var/tmp"]
+    )
     """Directory for temporary files during transactions"""
 
-    timeout: int = 30
+    timeout: int = Field(default=30, ge=0, title="Timeout", examples=[30, 60, 120])
     """Connection timeout in seconds"""
 
-    encoding: str = "utf-8"
+    encoding: str = Field(
+        default="utf-8",
+        title="Encoding",
+        examples=["utf-8", "latin-1"],
+        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-_])*$",
+    )
     """Encoding for filenames and directories"""
 
     tls: bool = False
@@ -99,15 +125,24 @@ class GitFilesystemConfig(FileSystemConfig):
     """Git filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
-    """Classification of the filesystem type"""
 
-    path: str | None = None
+    path: str | None = Field(
+        default=None,
+        title="Repository Path",
+        examples=["/path/to/repo", "~/projects/myrepo"],
+    )
     """Path to git repository"""
 
-    fo: UPath | None = None
+    fo: UPath | None = Field(default=None, title="File Object Path")
     """Alternative to path, passed as part of URL"""
 
-    ref: str | None = None
+    ref: str | None = Field(
+        default=None,
+        title="Git Reference",
+        examples=["main", "v1.0.0", "abc1234567890"],
+        min_length=1,
+        max_length=255,
+    )
     """Reference to work with (hash, branch, tag)"""
 
 
@@ -118,24 +153,50 @@ class GithubFilesystemConfig(FileSystemConfig):
     """GitHub filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    org: str
+    org: str = Field(
+        title="Organization",
+        examples=["microsoft", "facebook", "phil65"],
+        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-])*[a-zA-Z0-9]$|^[a-zA-Z0-9]$",
+        min_length=1,
+        max_length=39,
+    )
     """GitHub organization or user name"""
 
-    repo: str
+    repo: str = Field(
+        title="Repository",
+        examples=["vscode", "react", "upathtools"],
+        pattern=r"^[a-zA-Z0-9\._\-]+$",
+        min_length=1,
+        max_length=100,
+    )
     """Repository name"""
 
-    sha: str | None = None
+    sha: str | None = Field(
+        default=None,
+        title="Commit/Branch/Tag",
+        examples=["main", "v2.1.0", "abc1234567890"],
+        min_length=1,
+        max_length=255,
+    )
     """Commit hash, branch or tag name to use"""
 
-    username: str | None = None
+    username: str | None = Field(
+        default=None,
+        title="GitHub Username",
+        examples=["octocat", "phil65"],
+        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-])*[a-zA-Z0-9]$|^[a-zA-Z0-9]$",
+        min_length=1,
+        max_length=39,
+    )
     """GitHub username for authentication"""
 
-    token: str | None = None
+    token: SecretStr | None = Field(default=None, title="GitHub Token")
     """GitHub token for authentication"""
 
-    timeout: tuple[int, int] | int | None = None
+    timeout: tuple[int, int] | int | None = Field(
+        default=None, title="Connection Timeout", examples=[30, 60, (10, 60)]
+    )
     """Connection timeout in seconds (connect, read)"""
 
 
@@ -146,24 +207,40 @@ class HadoopFilesystemConfig(FileSystemConfig):
     """Hadoop filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    host: str = "default"
+    host: str = Field(
+        default="default",
+        title="HDFS Host",
+        examples=["default", "namenode.example.com", "192.168.1.100"],
+    )
     """Hostname, IP or 'default' to use Hadoop config"""
 
-    port: int = 0
+    port: int = Field(
+        default=0, ge=0, le=65535, title="HDFS Port", examples=[0, 8020, 9000]
+    )
     """Port number or 0 to use default from Hadoop config"""
 
-    user: str | None = None
+    user: str | None = Field(
+        default=None,
+        title="HDFS User",
+        examples=["hdfs", "hadoop", "admin"],
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        min_length=1,
+        max_length=64,
+    )
     """Username to connect as"""
 
-    kerb_ticket: str | None = None
+    kerb_ticket: str | None = Field(
+        default=None, title="Kerberos Ticket", examples=["/tmp/krb5cc_1000"]
+    )
     """Kerberos ticket for authentication"""
 
-    replication: int = 3
+    replication: int = Field(
+        default=3, ge=1, title="Replication Factor", examples=[1, 3, 5]
+    )
     """Replication factor for write operations"""
 
-    extra_conf: dict[str, Any] | None = None
+    extra_conf: dict[str, Any] | None = Field(default=None, title="Extra Configuration")
     """Additional configuration parameters"""
 
 
@@ -174,12 +251,14 @@ class JupyterFilesystemConfig(FileSystemConfig):
     """Jupyter filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    url: str
+    url: AnyUrl = Field(
+        title="Jupyter URL",
+        examples=["http://localhost:8888", "https://jupyter.example.com"],
+    )
     """Base URL of the Jupyter server"""
 
-    tok: str | None = None
+    tok: SecretStr | None = Field(default=None, title="Auth Token")
     """Jupyter authentication token"""
 
 
@@ -190,18 +269,23 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
     """LibArchive filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
-    """Classification of the filesystem type"""
 
-    fo: UPath
+    fo: UPath = Field(title="Archive Path", examples=["/path/to/archive.tar.gz"])
     """Path to archive file"""
 
-    target_protocol: str | None = None
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = None
+    target_options: dict[str, Any] | None = Field(
+        default=None, title="Target Protocol Options"
+    )
     """Options for target protocol"""
 
-    block_size: int | None = None
+    block_size: int | None = Field(
+        default=None, gt=0, title="Block Size", examples=[8192, 65536]
+    )
     """Block size for read operations"""
 
 
@@ -212,12 +296,13 @@ class LocalFilesystemConfig(FileSystemConfig):
     """Local filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
     auto_mkdir: bool = False
     """Whether to automatically make directories"""
 
-    dir_policy: Literal["auto", "try_then_fail", "try_then_noop"] = "auto"
+    dir_policy: Literal["auto", "try_then_fail", "try_then_noop"] = Field(
+        default="auto", title="Directory Policy"
+    )
     """Policy for handling directories that may exist"""
 
 
@@ -228,7 +313,6 @@ class MemoryFilesystemConfig(FileSystemConfig):
     """Memory filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
 
 class SFTPFilesystemConfig(FileSystemConfig):
@@ -238,24 +322,32 @@ class SFTPFilesystemConfig(FileSystemConfig):
     """SFTP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    host: str
+    host: str = Field(title="SFTP Host", examples=["sftp.example.com", "192.168.1.100"])
     """Hostname or IP to connect to"""
 
-    port: int = 22
+    port: int = Field(default=22, ge=1, le=65535, title="SFTP Port", examples=[22, 2222])
     """Port to connect to"""
 
-    username: str | None = None
+    username: str | None = Field(
+        default=None,
+        title="Username",
+        examples=["user", "admin"],
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        min_length=1,
+        max_length=32,
+    )
     """Username for authentication"""
 
-    password: str | None = None
+    password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
-    temppath: str = "/tmp"
+    temppath: str = Field(
+        default="/tmp", title="Temp Path", examples=["/tmp", "/var/tmp"]
+    )
     """Path for temporary files during transactions"""
 
-    timeout: int = 30
+    timeout: int = Field(default=30, ge=0, title="Timeout", examples=[30, 60, 120])
     """Connection timeout in seconds"""
 
 
@@ -266,24 +358,34 @@ class SMBFilesystemConfig(FileSystemConfig):
     """SMB filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    host: str
+    host: str = Field(title="SMB Host", examples=["smb.example.com", "192.168.1.100"])
     """Hostname or IP of the SMB server"""
 
-    port: int | None = None
+    port: int | None = Field(
+        default=None, ge=1, le=65535, title="SMB Port", examples=[445, 139]
+    )
     """Port to connect to"""
 
-    username: str | None = None
+    username: str | None = Field(
+        default=None,
+        title="Username",
+        examples=["user", "admin"],
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        min_length=1,
+        max_length=32,
+    )
     """Username for authentication"""
 
-    password: str | None = None
+    password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
     auto_mkdir: bool = False
     """Whether to automatically make directories"""
 
-    register_session_retries: int | None = None
+    register_session_retries: int | None = Field(
+        default=None, ge=0, title="Session Retries", examples=[3, 5, 10]
+    )
     """Number of retries for session registration"""
 
 
@@ -294,21 +396,29 @@ class TarFilesystemConfig(FileSystemConfig):
     """Tar filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
-    """Classification of the filesystem type"""
 
-    fo: UPath
+    fo: UPath = Field(title="Tar File Path", examples=["/path/to/archive.tar.gz"])
     """Path to tar file"""
 
-    index_store: Any | None = None
+    index_store: Any | None = Field(default=None, title="Index Store")
     """Where to store the index"""
 
-    target_options: dict[str, Any] | None = None
+    target_options: dict[str, Any] | None = Field(
+        default=None, title="Target Protocol Options"
+    )
     """Options for target protocol"""
 
-    target_protocol: str | None = None
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
     """Protocol for source file"""
 
-    compression: str | None = None
+    compression: str | None = Field(
+        default=None,
+        title="Compression Type",
+        examples=["gz", "bz2", "xz"],
+        pattern=r"^(gz|bz2|xz|lzma)$",
+    )
     """Compression type (None, 'gz', 'bz2', 'xz')"""
 
 
@@ -319,24 +429,36 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
     """WebHDFS filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
-    """Classification of the filesystem type"""
 
-    host: str
+    host: str = Field(
+        title="WebHDFS Host", examples=["namenode.example.com", "192.168.1.100"]
+    )
     """Hostname or IP of the HDFS namenode"""
 
-    port: int = 50070
+    port: int = Field(
+        default=50070, ge=1, le=65535, title="WebHDFS Port", examples=[50070, 9870, 14000]
+    )
     """WebHDFS REST API port"""
 
-    user: str | None = None
+    user: str | None = Field(
+        default=None,
+        title="HDFS User",
+        examples=["hdfs", "hadoop", "admin"],
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        min_length=1,
+        max_length=64,
+    )
     """Username for authentication"""
 
     kerb: bool = False
     """Whether to use Kerberos authentication"""
 
-    proxy_to: str | None = None
+    proxy_to: str | None = Field(
+        default=None, title="Proxy Host", examples=["proxy.example.com", "192.168.1.200"]
+    )
     """Host to proxy to (instead of real host)"""
 
-    data_proxy: dict[str, str] | None = None
+    data_proxy: dict[str, str] | None = Field(default=None, title="Data Proxy Map")
     """Map of data nodes to proxies"""
 
     ssl_verify: bool = True
@@ -350,22 +472,31 @@ class ZipFilesystemConfig(FileSystemConfig):
     """Zip filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
-    """Classification of the filesystem type"""
 
-    fo: UPath
+    fo: UPath = Field(title="Zip File Path", examples=["/path/to/archive.zip"])
     """Path to zip file"""
 
-    mode: str = "r"
+    mode: str = Field(
+        default="r", title="Open Mode", examples=["r", "w", "a"], pattern=r"^[rwa]$"
+    )
     """Open mode ('r', 'w', 'a')"""
 
-    target_protocol: str | None = None
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = None
+    target_options: dict[str, Any] | None = Field(
+        default=None, title="Target Protocol Options"
+    )
     """Options for target protocol"""
 
-    compression: int = 0  # ZipFile.ZIP_STORED
+    compression: int = Field(
+        default=0, ge=0, le=99, title="Compression Method", examples=[0, 8]
+    )  # ZipFile.ZIP_STORED
     """Compression method"""
 
-    compresslevel: int | None = None
+    compresslevel: int | None = Field(
+        default=None, ge=1, le=9, title="Compression Level", examples=[1, 6, 9]
+    )
     """Compression level"""
