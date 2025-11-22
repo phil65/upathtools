@@ -2,7 +2,7 @@
 
 import pytest
 
-from upathtools.filesystems.modal_fs import ModalFS
+from upathtools.filesystems import ModalFS
 
 
 @pytest.fixture(scope="session")

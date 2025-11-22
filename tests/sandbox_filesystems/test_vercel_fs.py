@@ -2,7 +2,7 @@
 
 import pytest
 
-from upathtools.filesystems.vercel_fs import VercelFS
+from upathtools.filesystems import VercelFS
 
 
 @pytest.fixture(scope="session")

@@ -4,7 +4,7 @@ import contextlib
 
 import pytest
 
-from upathtools.filesystems.daytona_fs import DaytonaFS
+from upathtools.filesystems import DaytonaFS
 
 
 @pytest.fixture(scope="session")

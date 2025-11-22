@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from upathtools.filesystems.e2b_fs import E2BFS
+from upathtools.filesystems import E2BFS
 
 
 @pytest.fixture(scope="session")

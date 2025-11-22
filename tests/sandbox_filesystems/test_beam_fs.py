@@ -4,7 +4,7 @@ import contextlib
 
 import pytest
 
-from upathtools.filesystems.beam_fs import BeamFS
+from upathtools.filesystems import BeamFS
 
 
 @pytest.fixture(scope="session")
