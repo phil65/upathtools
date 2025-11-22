@@ -175,7 +175,7 @@ markers = [
   "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
 testpaths = "tests/"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 
 [tool.ruff]

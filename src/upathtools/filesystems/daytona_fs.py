@@ -116,10 +116,10 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
                 "size": info.size,
                 "type": "directory" if info.is_dir else "file",
                 "mtime": info.mod_time if info.mod_time else 0,
-                "mode": info.mode if hasattr(info, "mode") else 0,
-                "permissions": info.permissions if hasattr(info, "permissions") else "",
-                "owner": info.owner if hasattr(info, "owner") else "",
-                "group": info.group if hasattr(info, "group") else "",
+                "mode": info.mode,
+                "permissions": info.permissions,
+                "owner": info.owner,
+                "group": info.group,
             }
             for info in file_infos
         ]

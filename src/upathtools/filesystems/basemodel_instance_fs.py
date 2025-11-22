@@ -46,11 +46,6 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
             kwargs: Additional keyword arguments for the filesystem
         """
         super().__init__(**kwargs)
-
-        if not hasattr(type(instance), "model_fields"):
-            msg = "instance must be a Pydantic BaseModel instance"
-            raise ValueError(msg)
-
         self.instance = instance
 
     def _get_nested_value_at_path(self, path: str) -> tuple[Any, str]:
