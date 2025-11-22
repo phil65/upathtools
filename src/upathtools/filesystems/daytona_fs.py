@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
 from typing import Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
@@ -209,8 +210,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
         except Exception as exc:
             if create_parents and "parent" in str(exc).lower():
                 # Try to create parent directories first
-                import os
-
                 parent = os.path.dirname(path)  # noqa: PTH120
                 if parent and parent not in (path, "/"):
                     await self._mkdir(parent, create_parents=True)

@@ -890,7 +890,6 @@ class AsyncGistWriter:
 
 if __name__ == "__main__":
     import asyncio
-    import os
 
     logging.basicConfig(level=logging.INFO)
     print(f"Environment GITHUB_TOKEN set: {'GITHUB_TOKEN' in os.environ}")

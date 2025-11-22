@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import logging
+import os
 import tempfile
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
@@ -253,12 +255,8 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
             raise OSError(msg) from exc
         finally:
             # Clean up temporary file
-            try:
-                import os
-
+            with contextlib.suppress(OSError, UnboundLocalError):
                 os.unlink(tmp_file.name)  # noqa: PTH108
-            except (OSError, UnboundLocalError):
-                pass
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
@@ -276,8 +274,6 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
                 and create_parents
                 and "parent" in str(exc).lower()
             ):
-                import os
-
                 parent = os.path.dirname(path)  # noqa: PTH120
                 if parent and parent not in (path, "/"):
                     await self._mkdir(parent, create_parents=True)
