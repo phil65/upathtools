@@ -13,12 +13,15 @@ import weakref
 from fsspec.asyn import sync, sync_wrapper
 from fsspec.utils import infer_storage_options
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import (
+    AsyncFile,
+    BaseAsyncFileSystem,
+    BaseUPath,
+    BufferedWriter,
+)
 
 
 if TYPE_CHECKING:
-    from collections.abc import Buffer
-
     import httpx
 
 
@@ -87,13 +90,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             msg = "Either gist_id, username, or token must be provided"
             raise ValueError(msg)
 
-        # Setup authentication
-        if self.token:
-            self.headers = {"Authorization": f"token {self.token}"}
-        else:
-            self.headers = {}
-
-        # Initialize cache
+        self.headers = {"Authorization": f"token {self.token}"} if self.token else {}
         self.dircache: dict[str, Any] = {}
 
     @property
@@ -443,7 +440,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
         session = await self.set_session()
         path = self._strip_protocol(path)
-
         logger.debug("Writing to path: %s", path)
 
         # Parse the path into gist_id and filename
@@ -471,7 +467,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
         # Convert bytes to string content
         try:
-            content = value.decode("utf-8")
+            content = value.decode()
         except UnicodeDecodeError:
             # If content is binary, base64 encode it
             content = f"base64:{base64.b64encode(value).decode('ascii')}"
@@ -539,9 +535,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
         response = await session.patch(update_url, json=data)
         response.raise_for_status()
-
-        # Invalidate cache for this gist
-        self.dircache.pop(gist_id, None)
+        self.dircache.pop(gist_id, None)  # Invalidate cache for this gist
 
     rm_file = sync_wrapper(_rm_file)
 
@@ -561,7 +555,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             raise ValueError(msg)
 
         path = self._strip_protocol(path)
-
         # Determine if we're deleting a file or an entire gist
         if "/" in path or (self.gist_id and not path):
             # Path contains a filename or we're in single gist mode - delete file
@@ -709,7 +702,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ) -> io.BytesIO | GistBufferedWriter:
+    ) -> io.BytesIO | BufferedWriter:
         """Open a file.
 
         Args:
@@ -736,7 +729,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 raise ValueError(msg)
 
             buffer = io.BytesIO()
-            return GistBufferedWriter(buffer, self, path, **kwargs)
+            return BufferedWriter(buffer, self, path, **kwargs)
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
@@ -745,7 +738,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ) -> io.BytesIO | AsyncGistWriter:
+    ) -> io.BytesIO | AsyncFile:
         """Open a file asynchronously.
 
         Args:
@@ -766,11 +759,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             content = await self._cat_file(path, **kwargs)
             return io.BytesIO(content)
         if "w" in mode:
-            if not self.token:
-                msg = "GitHub token is required for write operations"
-                raise ValueError(msg)
-
-            return AsyncGistWriter(self, path, **kwargs)
+            return AsyncFile(self, path, **kwargs)
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
@@ -788,104 +777,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 parts = path.split("/")
                 if len(parts) >= 1:
                     self.dircache.pop(parts[0], None)
-
-
-class GistBufferedWriter(io.BufferedIOBase):
-    """Buffered writer for gist files that writes to the gist when closed."""
-
-    def __init__(
-        self,
-        buffer: io.BytesIO,
-        fs: GistFileSystem,
-        path: str,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the writer.
-
-        Args:
-            buffer: Buffer to store content
-            fs: GistFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to pipe_file
-        """
-        super().__init__()
-        self.buffer = buffer
-        self.fs = fs
-        self.path = path
-        self.kwargs = kwargs
-
-    def write(self, data: Buffer) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    def close(self) -> None:
-        """Close the writer and write content to the gist."""
-        if not self.closed:
-            # Get the buffer contents and write to the gist
-            content = self.buffer.getvalue()
-            self.fs.pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-            super().close()
-
-    def readable(self) -> bool:
-        """Whether the writer is readable."""
-        return False
-
-    def writable(self) -> bool:
-        """Whether the writer is writable."""
-        return True
-
-
-class AsyncGistWriter:
-    """Asynchronous writer for gist files."""
-
-    def __init__(self, fs: GistFileSystem, path: str, **kwargs: Any) -> None:
-        """Initialize the writer.
-
-        Args:
-            fs: GistFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to _pipe_file
-        """
-        self.fs = fs
-        self.path = path
-        self.buffer = io.BytesIO()
-        self.kwargs = kwargs
-        self.closed = False
-
-    async def write(self, data: bytes) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    async def close(self) -> None:
-        """Close the writer and write content to the gist."""
-        if not self.closed:
-            self.closed = True
-            content = self.buffer.getvalue()
-            await self.fs._pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-
-    def __aenter__(self) -> AsyncGistWriter:
-        """Enter the context manager."""
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        """Exit the context manager and close the writer."""
-        await self.close()
 
 
 if __name__ == "__main__":

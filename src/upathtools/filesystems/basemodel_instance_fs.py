@@ -34,11 +34,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
     protocol = "basemodel-instance"
     upath_cls = BaseModelInstancePath
 
-    def __init__(
-        self,
-        instance: BaseModel,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, instance: BaseModel, **kwargs: Any) -> None:
         """Initialize the filesystem.
 
         Args:
