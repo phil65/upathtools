@@ -44,6 +44,6 @@ class UPathFileSystemMixin[TPath: UPath]:
         if path is None:
             path = getattr(self, "root_marker", "/")
 
-        path_obj = self.upath_cls(path)
-        path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
+        path_obj = self.upath_cls(path)  # pyright: ignore[reportArgumentType]
+        path_obj._fs_cached = self  # type: ignore[assignment]
         return path_obj

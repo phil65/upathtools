@@ -30,6 +30,7 @@ class OpenApiInfo(TypedDict, total=False):
     spec_url: str
     operations: list[str]
     component_type: str | None
+    method: str | None
     operation_id: str | None
     summary: str | None
     parameters: list[str] | None
@@ -763,6 +764,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                                 name=f"{method.upper()} {path_key}",
                                 type="operation",
                                 size=len(str(operation.raw_element)),
+                                method=op_info.get("method"),
                                 operation_id=op_info.get("operation_id"),
                                 summary=op_info.get("summary"),
                                 description=op_info.get("description"),

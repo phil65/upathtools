@@ -42,8 +42,15 @@ class HttpInfo(TypedDict, total=False):
     name: str
     type: Literal["file"]
     size: int | None
-    content_type: str | None
+    mimetype: str | None
+    partial: bool | None
+    url: str | None
+    ETag: str | None
+    Content_MD5: str | None
+    Digest: str | None
+    # Additional fields that may be present
     last_modified: str | None
+    content_type: str | None
     etag: str | None
 
 
@@ -536,14 +543,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                     raise FileNotFoundError(path) from exc
                 logger.debug("HEAD request failed", exc_info=exc)
 
-        return HttpInfo(
-            name=path,
-            size=info.get("size"),
-            type="file",
-            content_type=info.get("content_type"),
-            last_modified=info.get("last_modified"),
-            etag=info.get("etag"),
-        )
+        return {"name": path, "size": None, **info, "type": "file"}  # type: ignore[return-value, typeddict-item]
 
     async def _glob(self, path: str, maxdepth: int | None = None, **kwargs: Any):
         """Find files by glob-matching."""
