@@ -10,16 +10,12 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import Any, Literal, overload
 
 from fsspec.asyn import sync_wrapper
 from fsspec.utils import infer_storage_options
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
-
-
-if TYPE_CHECKING:
-    from collections.abc import Buffer
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter
 
 
 logger = logging.getLogger(__name__)
@@ -498,7 +494,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | WikiBufferedWriter:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | BufferedWriter:
         """Open a wiki page as a file.
 
         Args:
@@ -524,7 +520,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
                 raise ValueError(msg)
 
             buffer = io.BytesIO()
-            return WikiBufferedWriter(buffer, self, path, **kwargs)
+            return BufferedWriter(buffer, self, path, **kwargs)
 
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
@@ -537,59 +533,6 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """
         self.dircache.clear()  # For simplicity, we just clear the entire cache
         await self._pull_latest_changes()
-
-
-class WikiBufferedWriter(io.BufferedIOBase):
-    """Buffered writer for wiki pages that writes to the wiki when closed."""
-
-    def __init__(
-        self,
-        buffer: io.BytesIO,
-        fs: WikiFileSystem,
-        path: str,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the writer.
-
-        Args:
-            buffer: Buffer to store content
-            fs: WikiFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to pipe_file
-        """
-        super().__init__()
-        self.buffer = buffer
-        self.fs = fs
-        self.path = path
-        self.kwargs = kwargs
-
-    def write(self, data: Buffer) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    def close(self) -> None:
-        """Close the writer and write content to the wiki."""
-        if not self.closed:
-            # Get the buffer contents and write to the wiki
-            content = self.buffer.getvalue()
-            self.fs.pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-            super().close()
-
-    def readable(self) -> bool:
-        """Whether the writer is readable."""
-        return False
-
-    def writable(self) -> bool:
-        """Whether the writer is writable."""
-        return True
 
 
 if __name__ == "__main__":
