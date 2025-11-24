@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import os
@@ -77,8 +78,8 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             self.auth_url = f"https://{self.token}@github.com/{owner}/{repo}.wiki.git"
         else:
             self.auth_url = self.wiki_url
-        self.temp_dir = tempfile.mkdtemp(prefix=f"wiki-{owner}-{repo}-")  # temp dir for git repo
-        self._setup_git_repo()
+        self.temp_dir = tempfile.mkdtemp(prefix=f"wiki-{owner}-{repo}-")
+        self._initialized = False
         self.dircache: dict[str, Any] = {}
 
     @property
@@ -86,33 +87,60 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """Filesystem ID."""
         return f"wiki-{self.owner}-{self.repo}"
 
-    def run_cmd(self, cmd: list[str], check: bool = True):
-        """Run a command in the temp wiki directory."""
-        return subprocess.run(cmd, cwd=self.temp_dir, check=check, text=True, capture_output=True)
+    async def _ensure_initialized(self) -> None:
+        """Ensure git repository is initialized."""
+        if not self._initialized:
+            await self._setup_git_repo()
+            self._initialized = True
 
-    def _pull_latest_changes(self) -> bool:
-        """Pull latest changes from remote repository."""
+    async def _run_git(self, cmd: list[str], check: bool = True):
+        """Run a git command directly without initialization check."""
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=self.temp_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_bytes, stderr_bytes = await proc.communicate()
+        stdout = stdout_bytes.decode() if stdout_bytes else ""
+        stderr = stderr_bytes.decode() if stderr_bytes else ""
+
+        if check and proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode or -1, cmd, stdout, stderr)
+
+        return subprocess.CompletedProcess(cmd, proc.returncode or 0, stdout, stderr)
+
+    async def run_cmd(self, cmd: list[str], check: bool = True):
+        """Run a command in the temp wiki directory."""
+        await self._ensure_initialized()
+        return await self._run_git(cmd, check)
+
+    async def _pull_latest_changes(self) -> bool:
+        """Pull the latest changes from the remote repository."""
         try:
             # Check if we're on a branch first. Don't fail if not on a branch.
-            result = self.run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=False)
+            result = await self.run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=False)
             if result.stdout.strip() == "HEAD":
-                self.run_cmd(["git", "fetch", "origin"], check=True)  # Not on a branch, just fetch
+                await self.run_cmd(
+                    ["git", "fetch", "origin"], check=True
+                )  # Not on a branch, just fetch
                 return True
-            self.run_cmd(["git", "pull", "--ff-only"])  # On a branch, do a pull
+            await self.run_cmd(["git", "pull", "--ff-only"])  # On a branch, do a pull
         except subprocess.CalledProcessError as e:
             logger.debug("Git operation failed: %s", e.stderr)
             return False
         else:
             return True
 
-    def _setup_git_repo(self) -> None:
-        """Setup a git repository for the wiki with sparse checkout."""
+    async def _setup_git_repo(self) -> None:
+        """Initialize git repository for the wiki."""
         try:
-            self.run_cmd(["git", "init"])
-            self.run_cmd(["git", "remote", "add", "origin", self.auth_url])
+            await self._run_git(["git", "init"])
+            await self._run_git(["git", "remote", "add", "origin", self.auth_url])
+
             try:  # Try to fetch to see if the wiki exists
-                self.run_cmd(["git", "fetch", "--depth=1"])
-                self.run_cmd(["git", "checkout", "origin/master", "--", "."])
+                await self._run_git(["git", "fetch", "--depth=1"])
+                await self._run_git(["git", "checkout", "origin/master", "--", "."])
                 logger.debug("Wiki repository initialized successfully")
             except subprocess.CalledProcessError as e:
                 if "repository not found" in e.stderr.lower():
@@ -191,7 +219,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             List of pages with metadata or just page names
         """
         path = self._strip_protocol(path or "")
-        self._pull_latest_changes()
+        await self._pull_latest_changes()
         target = pathlib.Path(self.temp_dir) / path
         if not target.exists():
             if path:  # Only raise error if not root path
@@ -210,11 +238,19 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
                 # Get git metadata
                 try:
                     # Get last commit date
-                    log = self.run_cmd(["git", "log", "-1", "--format=%at", "--", str(file_path)])
+                    log = await self.run_cmd([
+                        "git",
+                        "log",
+                        "-1",
+                        "--format=%at",
+                        "--",
+                        str(file_path),
+                    ])
                     last_modified = int(log.stdout.strip()) if log.stdout.strip() else 0
                     # Get creation date (first commit)
                     cmd = ["git", "log", "--reverse", "--format=%at", "--", str(file_path)]
-                    stdout = self.run_cmd(cmd).stdout
+                    stdout_result = await self.run_cmd(cmd)
+                    stdout = stdout_result.stdout
                     created_at = int(stdout.strip().split("\n")[0]) if stdout.strip() else 0
                 except (subprocess.CalledProcessError, ValueError, IndexError):
                     last_modified = int(stat.st_mtime)
@@ -262,7 +298,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         if not file_path.exists():
             msg = f"Wiki page not found: {path}"
             raise FileNotFoundError(msg)
-        self._pull_latest_changes()
+        await self._pull_latest_changes()
         with file_path.open("rb") as f:
             if start is not None or end is not None:
                 start = start or 0
@@ -292,16 +328,16 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         path = self._strip_protocol(path)
         file_path = pathlib.Path(self.temp_dir) / path
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        self._pull_latest_changes()
+        await self._pull_latest_changes()
         with file_path.open("wb") as f:
             f.write(value)
         file = pathlib.Path(path)
         page_title = file.stem.replace("-", " ")
         msg = kwargs.get("message", f"Update {page_title}")
         try:
-            self.run_cmd(["git", "add", path])
-            self.run_cmd(["git", "commit", "-m", msg])
-            self.run_cmd(["git", "push", "origin", "HEAD:master"])
+            await self.run_cmd(["git", "add", path])
+            await self.run_cmd(["git", "commit", "-m", msg])
+            await self.run_cmd(["git", "push", "origin", "HEAD:master"])
         except subprocess.CalledProcessError as e:
             error_msg = f"Error pushing changes: {e.stderr}"
             raise RuntimeError(error_msg) from e
@@ -330,15 +366,16 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             msg = f"Wiki page not found: {path}"
             raise FileNotFoundError(msg)
 
-        self._pull_latest_changes()
+        await self._ensure_initialized()
+        await self._pull_latest_changes()
         try:
             file_path.unlink()  # Delete file
-            self.run_cmd(["git", "rm", path])  # Stage the deletion
+            await self.run_cmd(["git", "rm", path])  # Stage the deletion
             file = pathlib.Path(path)
             page_title = file.stem.replace("-", " ")
             msg = kwargs.get("message", f"Delete {page_title}")
-            self.run_cmd(["git", "commit", "-m", msg])
-            self.run_cmd(["git", "push", "origin", "HEAD:master"])
+            await self.run_cmd(["git", "commit", "-m", msg])
+            await self.run_cmd(["git", "push", "origin", "HEAD:master"])
         except subprocess.CalledProcessError as e:
             error_msg = f"Error deleting file: {e.stderr}"
             raise RuntimeError(error_msg) from e
@@ -378,10 +415,17 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         file = pathlib.Path(path)
         try:
             # Get last commit date
-            log = self.run_cmd(["git", "log", "-1", "--format=%at", "--", str(file_path)])
+            log = await self.run_cmd(["git", "log", "-1", "--format=%at", "--", str(file_path)])
             last_modified = int(log.stdout.strip()) if log.stdout.strip() else 0
             # Get creation date (first commit)
-            first = self.run_cmd(["git", "log", "--reverse", "--format=%at", "--", str(file_path)])
+            first = await self.run_cmd([
+                "git",
+                "log",
+                "--reverse",
+                "--format=%at",
+                "--",
+                str(file_path),
+            ])
             created_at = int(first.stdout.strip().split("\n")[0]) if first.stdout.strip() else 0
         except (subprocess.CalledProcessError, ValueError, IndexError):
             last_modified = int(stat.st_mtime)
@@ -485,14 +529,14 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
-    def invalidate_cache(self, path: str | None = None) -> None:
+    async def invalidate_cache(self, path: str | None = None) -> None:
         """Clear the cache.
 
         Args:
             path: Optional path to invalidate (currently ignores path)
         """
         self.dircache.clear()  # For simplicity, we just clear the entire cache
-        self._pull_latest_changes()
+        await self._pull_latest_changes()
 
 
 class WikiBufferedWriter(io.BufferedIOBase):
