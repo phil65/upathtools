@@ -452,8 +452,13 @@ class BaseAsyncFileSystem[TPath: UPath](AsyncFileSystem):
 
     upath_cls: type[TPath]
 
-    def get_upath(self, path: str) -> TPath:
-        path_obj = self.upath_cls(path or "")
+    def get_upath(self, path: str | None = None) -> TPath:
+        """Get a UPath object for the given path.
+
+        Args:
+            path: The path to the file or directory. If None, the root path is returned.
+        """
+        path_obj = self.upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
         return path_obj
 
@@ -463,8 +468,13 @@ class BaseFileSystem[TPath: UPath](AbstractFileSystem):
 
     upath_cls: type[TPath]
 
-    def get_upath(self, path: str) -> TPath:
-        path_obj = self.upath_cls(path or "")
+    def get_upath(self, path: str | None = None) -> TPath:
+        """Get a UPath object for the given path.
+
+        Args:
+            path: The path to the file or directory. If None, the root path is returned.
+        """
+        path_obj = self.upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
         return path_obj
 
