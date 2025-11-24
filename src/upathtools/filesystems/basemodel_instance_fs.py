@@ -339,7 +339,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
             return {
                 "name": type(self.instance).__name__,
                 "type": "instance",
-                "class": f"{type(self.instance).__module__}.{type(self.instance).__name__}",  # noqa: E501
+                "class": f"{type(self.instance).__module__}.{type(self.instance).__name__}",
                 "is_basemodel": self._is_basemodel_instance(self.instance),
                 "field_count": len(type(self.instance).model_fields)
                 if self._is_basemodel_instance(self.instance)

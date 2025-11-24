@@ -233,10 +233,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
 
         try:
             # Simulate directory structure
-            if file_path.endswith("/"):
-                prefix = file_path
-            else:
-                prefix = file_path + "/" if file_path else ""
+            prefix = file_path if file_path.endswith("/") else file_path + "/" if file_path else ""
 
             # List all files in bucket
             response = self.storage.list_files(bucket_id=bucket_id)
@@ -628,7 +625,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
                 # Check if bucket is empty
                 files = await self._ls(path, detail=False)
                 if files:
-                    msg = f"Cannot delete non-empty bucket without recursive=True: {bucket_id}"  # noqa: E501
+                    msg = f"Cannot delete non-empty bucket without recursive=True: {bucket_id}"
                     raise ValueError(msg)
 
             # Note: Appwrite doesn't support bucket deletion via API

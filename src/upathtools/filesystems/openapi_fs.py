@@ -94,7 +94,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
                         spec_dict = yaml.safe_load(content)
                     except ImportError as exc:
-                        msg = "PyYAML is required for YAML files. Install with: pip install pyyaml"  # noqa: E501
+                        msg = "PyYAML is required for YAML files. Install with: pip install pyyaml"
                         raise ImportError(msg) from exc
                 else:
                     spec_dict = json.loads(content)
@@ -492,7 +492,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                                         else "https://api.example.com"
                                     )
                                     curl_cmd = (
-                                        f"curl -X {method.upper()} \\\n  '{server_url}{path_key}'"  # noqa: E501
+                                        f"curl -X {method.upper()} \\\n  '{server_url}{path_key}'"
                                     )
 
                                     operation = getattr(path_obj, method)
