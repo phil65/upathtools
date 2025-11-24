@@ -309,12 +309,7 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to table data."""
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"

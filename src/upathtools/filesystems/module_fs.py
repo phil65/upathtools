@@ -229,12 +229,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         msg = f"Could not find source for {name}"
         raise FileNotFoundError(msg)
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> BytesIO:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> BytesIO:
         """Provide file-like access to source code."""
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"

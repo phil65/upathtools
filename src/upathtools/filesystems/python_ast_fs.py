@@ -171,12 +171,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         lines = self._source.splitlines()
         return "\n".join(lines[member.start_line : member.end_line]).encode()
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to module or member source."""
         # Make sure we have the source
         self._load()

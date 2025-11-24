@@ -64,30 +64,21 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             **kwargs: Additional filesystem options
         """
         super().__init__(asynchronous=asynchronous, loop=loop, **kwargs)
-
         self.owner = owner
         self.repo = repo
         token_env = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
         self.token = token or token_env
-
-        # We need both owner and repo to function
-        if not owner or not repo:
+        if not owner or not repo:  # We need both owner and repo to function
             msg = "Both owner and repo must be provided"
             raise ValueError(msg)
-
-        # Create wiki URL
         self.wiki_url = f"https://github.com/{owner}/{repo}.wiki.git"
         if self.token:
             # Insert token into URL for auth
             self.auth_url = f"https://{self.token}@github.com/{owner}/{repo}.wiki.git"
         else:
             self.auth_url = self.wiki_url
-
-        # Create a temporary directory for git operations
-        self.temp_dir = tempfile.mkdtemp(prefix=f"wiki-{owner}-{repo}-")
+        self.temp_dir = tempfile.mkdtemp(prefix=f"wiki-{owner}-{repo}-")  # temp dir for git repo
         self._setup_git_repo()
-
-        # Initialize cache
         self.dircache: dict[str, Any] = {}
 
     @property
@@ -95,36 +86,19 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """Filesystem ID."""
         return f"wiki-{self.owner}-{self.repo}"
 
+    def run_cmd(self, cmd: list[str], check: bool = True):
+        """Run a command in the temp wiki directory."""
+        return subprocess.run(cmd, cwd=self.temp_dir, check=check, text=True, capture_output=True)
+
     def _pull_latest_changes(self) -> bool:
         """Pull latest changes from remote repository."""
         try:
-            # Check if we're on a branch first
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=self.temp_dir,
-                check=False,  # Don't fail if not on a branch
-                capture_output=True,
-                text=True,
-            )
-
+            # Check if we're on a branch first. Don't fail if not on a branch.
+            result = self.run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=False)
             if result.stdout.strip() == "HEAD":
-                # Not on a branch, just fetch
-                subprocess.run(
-                    ["git", "fetch", "origin"],
-                    cwd=self.temp_dir,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
+                self.run_cmd(["git", "fetch", "origin"], check=True)  # Not on a branch, just fetch
                 return True
-            # On a branch, do a pull
-            subprocess.run(
-                ["git", "pull", "--ff-only"],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
+            self.run_cmd(["git", "pull", "--ff-only"])  # On a branch, do a pull
         except subprocess.CalledProcessError as e:
             logger.debug("Git operation failed: %s", e.stderr)
             return False
@@ -134,43 +108,11 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
     def _setup_git_repo(self) -> None:
         """Setup a git repository for the wiki with sparse checkout."""
         try:
-            # Initialize git repo
-            subprocess.run(
-                ["git", "init"],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Add remote
-            subprocess.run(
-                ["git", "remote", "add", "origin", self.auth_url],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Try to fetch to see if the wiki exists
-            try:
-                subprocess.run(
-                    ["git", "fetch", "--depth=1"],
-                    cwd=self.temp_dir,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-
-                # Checkout the default branch
-                subprocess.run(
-                    ["git", "checkout", "origin/master", "--", "."],
-                    cwd=self.temp_dir,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-
+            self.run_cmd(["git", "init"])
+            self.run_cmd(["git", "remote", "add", "origin", self.auth_url])
+            try:  # Try to fetch to see if the wiki exists
+                self.run_cmd(["git", "fetch", "--depth=1"])
+                self.run_cmd(["git", "checkout", "origin/master", "--", "."])
                 logger.debug("Wiki repository initialized successfully")
             except subprocess.CalledProcessError as e:
                 if "repository not found" in e.stderr.lower():
@@ -188,7 +130,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
     def close(self) -> None:
         """Close the filesystem and clean up resources."""
-        if hasattr(self, "temp_dir") and pathlib.Path(self.temp_dir).exists():
+        if pathlib.Path(self.temp_dir).exists():
             try:
                 shutil.rmtree(self.temp_dir)
                 logger.debug("Temporary directory removed: %s", self.temp_dir)
@@ -206,7 +148,6 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """Parse URL into constructor kwargs."""
         so = infer_storage_options(path)
         out = {}
-
         if so.get("username"):
             out["owner"] = so["username"]
         if so.get("password"):
@@ -250,11 +191,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             List of pages with metadata or just page names
         """
         path = self._strip_protocol(path or "")
-
-        # Pull latest changes
         self._pull_latest_changes()
-
-        # List files in the directory
         target = pathlib.Path(self.temp_dir) / path
         if not target.exists():
             if path:  # Only raise error if not root path
@@ -264,49 +201,26 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         else:
             files = [str(t) for t in target.iterdir()]
 
-        # Filter markdown files
         markdown_files = [f for f in files if f.endswith(".md")]
-
         if detail:
             result = []
             for filename in markdown_files:
                 file_path = target / filename
                 stat = file_path.stat()
-
                 # Get git metadata
                 try:
                     # Get last commit date
-                    git_log = subprocess.run(
-                        ["git", "log", "-1", "--format=%at", "--", str(file_path)],
-                        cwd=self.temp_dir,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    last_modified = int(git_log.stdout.strip()) if git_log.stdout.strip() else 0
-
+                    log = self.run_cmd(["git", "log", "-1", "--format=%at", "--", str(file_path)])
+                    last_modified = int(log.stdout.strip()) if log.stdout.strip() else 0
                     # Get creation date (first commit)
-                    git_log_first = subprocess.run(
-                        ["git", "log", "--reverse", "--format=%at", "--", str(file_path)],
-                        cwd=self.temp_dir,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    created_at = (
-                        int(git_log_first.stdout.strip().split("\n")[0])
-                        if git_log_first.stdout.strip()
-                        else 0
-                    )
-
+                    cmd = ["git", "log", "--reverse", "--format=%at", "--", str(file_path)]
+                    stdout = self.run_cmd(cmd).stdout
+                    created_at = int(stdout.strip().split("\n")[0]) if stdout.strip() else 0
                 except (subprocess.CalledProcessError, ValueError, IndexError):
                     last_modified = int(stat.st_mtime)
                     created_at = int(stat.st_ctime)
-
-                # Convert filename to wiki title
-                file = pathlib.Path(filename)
+                file = pathlib.Path(filename)  # Convert filename to wiki title
                 title = file.stem.replace("-", " ")
-
                 result.append({
                     "name": filename,
                     "type": "file",
@@ -345,14 +259,10 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """
         path = self._strip_protocol(path)
         file_path = pathlib.Path(self.temp_dir) / path
-
         if not file_path.exists():
             msg = f"Wiki page not found: {path}"
             raise FileNotFoundError(msg)
-
-        # Pull latest changes to make sure we have the current version
         self._pull_latest_changes()
-
         with file_path.open("rb") as f:
             if start is not None or end is not None:
                 start = start or 0
@@ -363,12 +273,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore
 
-    async def _pipe_file(
-        self,
-        path: str,
-        value: bytes,
-        **kwargs: Any,
-    ) -> None:
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write content to a wiki page.
 
         Args:
@@ -386,55 +291,22 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
         path = self._strip_protocol(path)
         file_path = pathlib.Path(self.temp_dir) / path
-
-        # Make sure directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Pull latest changes first
         self._pull_latest_changes()
-
-        # Write content to file
         with file_path.open("wb") as f:
             f.write(value)
-
-        # Commit and push changes
         file = pathlib.Path(path)
         page_title = file.stem.replace("-", " ")
         msg = kwargs.get("message", f"Update {page_title}")
-
         try:
-            # Add the file
-            subprocess.run(
-                ["git", "add", path],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Commit
-            subprocess.run(
-                ["git", "commit", "-m", msg],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Push
-            subprocess.run(
-                ["git", "push", "origin", "HEAD:master"],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
+            self.run_cmd(["git", "add", path])
+            self.run_cmd(["git", "commit", "-m", msg])
+            self.run_cmd(["git", "push", "origin", "HEAD:master"])
         except subprocess.CalledProcessError as e:
             error_msg = f"Error pushing changes: {e.stderr}"
             raise RuntimeError(error_msg) from e
 
-        # Invalidate cache
-        self.dircache.clear()
+        self.dircache.clear()  # Invalidate cache
 
     pipe_file = sync_wrapper(_pipe_file)
 
@@ -454,55 +326,24 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
         path = self._strip_protocol(path)
         file_path = pathlib.Path(self.temp_dir) / path
-
         if not file_path.exists():
             msg = f"Wiki page not found: {path}"
             raise FileNotFoundError(msg)
 
-        # Pull latest changes first
         self._pull_latest_changes()
-
-        # Remove the file
         try:
-            # Delete file
-            file_path.unlink()
-
-            # Stage the deletion
-            subprocess.run(
-                ["git", "rm", path],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Commit
+            file_path.unlink()  # Delete file
+            self.run_cmd(["git", "rm", path])  # Stage the deletion
             file = pathlib.Path(path)
             page_title = file.stem.replace("-", " ")
             msg = kwargs.get("message", f"Delete {page_title}")
-
-            subprocess.run(
-                ["git", "commit", "-m", msg],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Push
-            subprocess.run(
-                ["git", "push", "origin", "HEAD:master"],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
+            self.run_cmd(["git", "commit", "-m", msg])
+            self.run_cmd(["git", "push", "origin", "HEAD:master"])
         except subprocess.CalledProcessError as e:
             error_msg = f"Error deleting file: {e.stderr}"
             raise RuntimeError(error_msg) from e
 
-        # Invalidate cache
-        self.dircache.clear()
+        self.dircache.clear()  # Invalidate cache
 
     rm_file = sync_wrapper(_rm_file)
 
@@ -521,14 +362,9 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         """
         path = self._strip_protocol(path)
 
-        if not path:
-            # Root directory
-            return {
-                "name": "",
-                "size": 0,
-                "type": "directory",
-                "wiki": f"{self.owner}/{self.repo}",
-            }
+        if not path:  # Root directory
+            info = f"{self.owner}/{self.repo}"
+            return {"name": "", "size": 0, "type": "directory", "wiki": info}
 
         file_path = pathlib.Path(self.temp_dir) / path
         if not file_path.exists():
@@ -536,49 +372,22 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             raise FileNotFoundError(msg)
 
         if file_path.is_dir():
-            return {
-                "name": file_path.name or path,
-                "size": 0,
-                "type": "directory",
-            }
+            return {"name": file_path.name or path, "size": 0, "type": "directory"}
 
-        # File info
-        stat = file_path.stat()
+        stat = file_path.stat()  # File info
         file = pathlib.Path(path)
-
-        # Get git metadata
         try:
             # Get last commit date
-            git_log = subprocess.run(
-                ["git", "log", "-1", "--format=%at", "--", str(file_path)],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            last_modified = int(git_log.stdout.strip()) if git_log.stdout.strip() else 0
-
+            log = self.run_cmd(["git", "log", "-1", "--format=%at", "--", str(file_path)])
+            last_modified = int(log.stdout.strip()) if log.stdout.strip() else 0
             # Get creation date (first commit)
-            git_log_first = subprocess.run(
-                ["git", "log", "--reverse", "--format=%at", "--", str(file_path)],
-                cwd=self.temp_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            created_at = (
-                int(git_log_first.stdout.strip().split("\n")[0])
-                if git_log_first.stdout.strip()
-                else 0
-            )
-
+            first = self.run_cmd(["git", "log", "--reverse", "--format=%at", "--", str(file_path)])
+            created_at = int(first.stdout.strip().split("\n")[0]) if first.stdout.strip() else 0
         except (subprocess.CalledProcessError, ValueError, IndexError):
             last_modified = int(stat.st_mtime)
             created_at = int(stat.st_ctime)
 
-        # Convert filename to wiki title
-        title = file.stem.replace("-", " ")
-
+        title = file.stem.replace("-", " ")  # Convert filename to wiki title
         return {
             "name": file.name,
             "type": "file",
@@ -645,12 +454,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | WikiBufferedWriter:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | WikiBufferedWriter:
         """Open a wiki page as a file.
 
         Args:
@@ -687,10 +491,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
         Args:
             path: Optional path to invalidate (currently ignores path)
         """
-        # For simplicity, we just clear the entire cache
-        self.dircache.clear()
-
-        # Pull latest changes
+        self.dircache.clear()  # For simplicity, we just clear the entire cache
         self._pull_latest_changes()
 
 
