@@ -217,15 +217,8 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
         # Fetch the specific gist metadata
         meta = await self._fetch_gist_metadata(gist_id)
-
-        files = meta.get("files", {})
-        out = []
-        for fname, finfo in files.items():
-            if finfo is None:
-                continue
-
-            # Enhanced file information
-            file_entry = {
+        out = [
+            {
                 "name": fname,
                 "type": "file",
                 "size": finfo.get("size", 0),
@@ -240,8 +233,9 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 "public": meta.get("public", False),
                 "truncated": finfo.get("truncated", False),
             }
-            out.append(file_entry)
-
+            for fname, finfo in meta.get("files", {}).items()
+            if finfo is not None
+        ]
         self.dircache[gist_id] = out
         return out
 
@@ -257,10 +251,8 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             gists = await self._fetch_user_gists(page=page, per_page=100)
             all_gists.extend(gists)
             page += 1
-
-        out = []
-        for gist in all_gists:
-            gist_entry = {
+        out = [
+            {
                 "name": gist["id"],
                 "type": "directory",
                 "description": gist.get("description", ""),
@@ -277,7 +269,8 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 "files_preview": list(gist.get("files", {}).keys()),
                 "size": sum(f.get("size", 0) for f in gist.get("files", {}).values()),
             }
-            out.append(gist_entry)
+            for gist in all_gists
+        ]
 
         self.dircache[""] = out
         return out
@@ -370,12 +363,10 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
     ) -> bytes:
         """Get contents of a file."""
         path = self._strip_protocol(path)
-
-        # Parse path into gist_id and file_name
         if self.gist_id:
             gist_id = self.gist_id
             file_name = path
-        else:
+        else:  # Parse path into gist_id and file_name
             if "/" not in path:
                 msg = f"Invalid file path: {path}"
                 raise ValueError(msg)
@@ -384,14 +375,11 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         # Find file info in dircache
         files = await self._get_gist_file_list(gist_id)
         matches = [f for f in files if f["name"] == file_name]
-
         if not matches:
             msg = f"File not found: {path}"
             raise FileNotFoundError(msg)
 
-        file_info = matches[0]
-        raw_url = file_info["raw_url"]
-
+        raw_url = matches[0]["raw_url"]
         if not raw_url:
             msg = f"No raw URL for file: {path}"
             raise FileNotFoundError(msg)
@@ -432,7 +420,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         session = await self.set_session()
         path = self._strip_protocol(path)
         logger.debug("Writing to path: %s", path)
-
         # Parse the path into gist_id and filename
         if self.gist_id and "/" not in path:
             # Single gist mode with just a filename
@@ -446,7 +433,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             gist_id, filename = path.split("/", 1)
 
         logger.debug("Resolved gist_id=%s, filename=%s", gist_id, filename)
-
         # Determine if we're updating an existing gist or creating a new one
         is_update = True
         try:
@@ -464,7 +450,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             content = f"base64:{base64.b64encode(value).decode('ascii')}"
 
         files_data = {filename: {"content": content}}
-
         if is_update:
             # Update existing gist
             update_url = f"https://api.github.com/gists/{gist_id}"
@@ -683,12 +668,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | BufferedWriter:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | BufferedWriter:
         """Open a file.
 
         Args:
