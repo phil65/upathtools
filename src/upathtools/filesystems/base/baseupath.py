@@ -20,12 +20,6 @@ class BaseUPath(UPath):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
     @classmethod
-    def _from_upath(cls, upath: UPath, /) -> Self:
-        if isinstance(upath, cls):
-            return upath
-        return object.__new__(cls)
-
-    @classmethod
     def _fs_factory(
         cls,
         urlpath: str,
@@ -172,9 +166,7 @@ class BaseUPath(UPath):
                 entry_path = str(entry)
 
             if entry_path and entry_path != self.path:
-                yield self._from_upath(
-                    type(self)(entry_path, protocol=self.protocol, **self.storage_options)
-                )
+                yield type(self)(entry_path, protocol=self.protocol, **self.storage_options)
 
     async def aglob(
         self, pattern: str, *, case_sensitive: bool | None = None
@@ -187,10 +179,12 @@ class BaseUPath(UPath):
         matches = await fs._glob(full_pattern)
         for match_path in matches:
             if isinstance(match_path, dict):
-                match_path = match_path.get("name", match_path.get("path", ""))
-            yield self._from_upath(
-                type(self)(match_path, protocol=self.protocol, **self.storage_options)
-            )
+                path_str = match_path.get("name", match_path.get("path", ""))
+            else:
+                path_str = str(match_path)
+
+            if path_str:
+                yield type(self)(path_str, protocol=self.protocol, **self.storage_options)
 
     async def arglob(
         self,
@@ -243,7 +237,7 @@ class BaseUPath(UPath):
 
     async def acopy(self, target: JoinablePathLike, **kwargs: Any) -> BaseUPath:
         """Asynchronously copy file to target location."""
-        path = self._from_upath(type(self)(target)) if not isinstance(target, BaseUPath) else target
+        path = type(self)(target) if not isinstance(target, BaseUPath) else target
         content = await self.aread_bytes()  # Read source and write to target
         await path.awrite_bytes(content)
         return path
