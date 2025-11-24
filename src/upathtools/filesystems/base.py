@@ -234,12 +234,7 @@ class BaseUPath(UPath):
         """Asynchronously remove file."""
         try:
             fs = await self.afs()
-            if hasattr(fs, "_rm_file"):
-                await fs._rm_file(self.path)
-            elif hasattr(fs, "_rm"):
-                await fs._rm(self.path)
-            else:
-                await asyncio.to_thread(self.unlink, missing_ok=missing_ok)
+            await fs._rm(self.path)
         except Exception:  # noqa: BLE001
             await asyncio.to_thread(self.unlink, missing_ok=missing_ok)
 
@@ -248,7 +243,7 @@ class BaseUPath(UPath):
         try:
             fs = await self.afs()
             if hasattr(fs, "_rmdir"):
-                await fs._rmdir(self.path)
+                await fs._rmdir(self.path)  # pyright: ignore[reportAttributeAccessIssue]
             else:
                 await asyncio.to_thread(self.rmdir)
         except Exception:  # noqa: BLE001
@@ -262,11 +257,7 @@ class BaseUPath(UPath):
         """Implementation of async directory iteration."""
         try:
             fs = await self.afs()
-            if hasattr(fs, "_ls"):
-                entries = await fs._ls(self.path, detail=False)
-            else:
-                entries = await asyncio.to_thread(fs.ls, self.path, detail=False)
-
+            entries = await fs._ls(self.path, detail=False)
             for entry in entries:
                 if isinstance(entry, dict):
                     entry_path = entry.get("name", entry.get("path", ""))
