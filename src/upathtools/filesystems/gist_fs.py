@@ -13,12 +13,7 @@ import weakref
 from fsspec.asyn import sync, sync_wrapper
 from fsspec.utils import infer_storage_options
 
-from upathtools.filesystems.base import (
-    AsyncFile,
-    BaseAsyncFileSystem,
-    BaseUPath,
-    BufferedWriter,
-)
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter
 
 
 if TYPE_CHECKING:
@@ -721,36 +716,6 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
             buffer = io.BytesIO()
             return BufferedWriter(buffer, self, path, **kwargs)
-        msg = f"Mode {mode} not supported"
-        raise NotImplementedError(msg)
-
-    async def open_async(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | AsyncFile:
-        """Open a file asynchronously.
-
-        Args:
-            path: Path to the file
-            mode: File mode ('rb' for reading, 'wb' for writing)
-            **kwargs: Additional arguments for write operations
-                gist_description: Optional description for new gists
-                public: Whether the gist should be public (default: False)
-
-        Returns:
-            File-like object for reading or async writer for writing
-
-        Raises:
-            ValueError: If token is not provided for write operations
-            NotImplementedError: If mode is not supported
-        """
-        if "r" in mode:
-            content = await self._cat_file(path, **kwargs)
-            return io.BytesIO(content)
-        if "w" in mode:
-            return AsyncFile(self, path, **kwargs)
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
