@@ -1,20 +1,18 @@
-"""Filesystem implementation for browsing Pydantic BaseModel schemas."""
+"""Base UPath class (with async methods)."""
 
 from __future__ import annotations
 
 import asyncio
-import io
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
-from fsspec.asyn import AsyncFileSystem
-from fsspec.spec import AbstractFileSystem
 from upath import UPath
 from upath._stat import UPathStatResult
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Buffer
+    from collections.abc import AsyncIterator
 
+    from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
 
 
@@ -350,167 +348,3 @@ class BaseUPath(UPath):
 
     def __repr__(self) -> str:
         return f"BaseUPath({self.path!r}, protocol={self.protocol!r})"
-
-
-class BaseAsyncFileSystem[TPath: UPath](AsyncFileSystem):
-    """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
-
-    upath_cls: type[TPath]
-
-    def get_upath(self, path: str | None = None) -> TPath:
-        """Get a UPath object for the given path.
-
-        Args:
-            path: The path to the file or directory. If None, the root path is returned.
-        """
-        path_obj = self.upath_cls(path if path is not None else self.root_marker)
-        path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
-        return path_obj
-
-    async def open_async(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | AsyncFile:
-        """Open a file asynchronously.
-
-        Args:
-            path: Path to the file
-            mode: File mode ('rb' for reading, 'wb' for writing)
-            **kwargs: Additional arguments for write operations
-                gist_description: Optional description for new gists
-                public: Whether the gist should be public (default: False)
-
-        Returns:
-            File-like object for reading or async writer for writing
-
-        Raises:
-            ValueError: If token is not provided for write operations
-            NotImplementedError: If mode is not supported
-        """
-        if "r" in mode:
-            content = await self._cat_file(path, **kwargs)
-            return io.BytesIO(content)
-        if "w" in mode:
-            return AsyncFile(self, path, **kwargs)
-        msg = f"Mode {mode} not supported"
-        raise NotImplementedError(msg)
-
-
-class BaseFileSystem[TPath: UPath](AbstractFileSystem):
-    """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
-
-    upath_cls: type[TPath]
-
-    def get_upath(self, path: str | None = None) -> TPath:
-        """Get a UPath object for the given path.
-
-        Args:
-            path: The path to the file or directory. If None, the root path is returned.
-        """
-        path_obj = self.upath_cls(path if path is not None else self.root_marker)
-        path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
-        return path_obj
-
-
-class AsyncFile:
-    """Asynchronous writer for gist files."""
-
-    def __init__(self, fs: AsyncFileSystem, path: str, **kwargs: Any) -> None:
-        """Initialize the writer.
-
-        Args:
-            fs: GistFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to _pipe_file
-        """
-        self.fs = fs
-        self.path = path
-        self.buffer = io.BytesIO()
-        self.kwargs = kwargs
-        self.closed = False
-
-    async def write(self, data: bytes) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    async def close(self) -> None:
-        """Close the writer and write content to the file."""
-        if not self.closed:
-            self.closed = True
-            content = self.buffer.getvalue()
-            await self.fs._pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-
-    def __aenter__(self) -> AsyncFile:
-        """Enter the context manager."""
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        """Exit the context manager and close the writer."""
-        await self.close()
-
-
-class BufferedWriter(io.BufferedIOBase):
-    """Buffered writer for filesystems that writes when closed.
-
-    Generic implementation that can be used by any filesystem implementing
-    a pipe_file method for writing content.
-    """
-
-    def __init__(
-        self,
-        buffer: io.BytesIO,
-        fs: AbstractFileSystem,
-        path: str,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the writer.
-
-        Args:
-            buffer: Buffer to store content
-            fs: Filesystem instance with pipe_file method
-            path: Path to write to
-            **kwargs: Additional arguments to pass to pipe_file
-        """
-        super().__init__()
-        self.buffer = buffer
-        self.fs = fs
-        self.path = path
-        self.kwargs = kwargs
-
-    def write(self, data: Buffer) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    def close(self) -> None:
-        """Close the writer and write content to the filesystem."""
-        if not self.closed:
-            # Get the buffer contents and write to the filesystem
-            content = self.buffer.getvalue()
-            self.fs.pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-            super().close()
-
-    def readable(self) -> bool:
-        """Whether the writer is readable."""
-        return False
-
-    def writable(self) -> bool:
-        """Whether the writer is writable."""
-        return True
