@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Self, overload
 
 from upath import UPath
 from upath._stat import UPathStatResult
@@ -77,29 +77,9 @@ class BaseUPath(UPath):
         newline: str | None = None,
     ) -> str:
         """Asynchronously read file content as text."""
-        try:
-            fs = await self.afs()
-
-            # Try async open if available
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-
-                async_file = await open_method(
-                    self.path, "rt", encoding=encoding, errors=errors, newline=newline
-                )
-                async with async_file:
-                    return await async_file.read()
-            else:
-                # Fallback to sync method in thread
-                return await asyncio.to_thread(
-                    self.read_text, encoding=encoding, errors=errors, newline=newline
-                )
-
-        except Exception:  # noqa: BLE001
-            # Final fallback
-            return await asyncio.to_thread(
-                self.read_text, encoding=encoding, errors=errors, newline=newline
-            )
+        fs = await self.afs()
+        data = await fs._cat_file(self.path)
+        return data.decode(encoding or "utf-8", errors)
 
     async def awrite_bytes(self, data: bytes) -> int:
         """Asynchronously write bytes to file."""
@@ -133,30 +113,10 @@ class BaseUPath(UPath):
         newline: str | None = None,
     ) -> int:
         """Asynchronously write text to file."""
-        try:
-            fs = await self.afs()
-
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-
-                async_file = await open_method(
-                    self.path, "wt", encoding=encoding, errors=errors, newline=newline
-                )
-                async with async_file:
-                    return await async_file.write(data)
-            else:
-                return await asyncio.to_thread(
-                    self.write_text,
-                    data,
-                    encoding=encoding,
-                    errors=errors,
-                    newline=newline,
-                )
-
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(
-                self.write_text, data, encoding=encoding, errors=errors, newline=newline
-            )
+        fs = await self.afs()
+        encoded_data = data.encode(encoding or "utf-8", errors)
+        await fs._pipe_file(self.path, encoded_data)
+        return len(data)
 
     async def aexists(self) -> bool:
         """Asynchronously check if path exists."""
@@ -248,46 +208,6 @@ class BaseUPath(UPath):
         info = await fs._info(self.path)
         return UPathStatResult.from_info(info)
 
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["r", "rt"] = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["rb"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["w", "wt", "x", "xt", "a", "at"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["wb", "xb", "ab"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
     async def aopen(
         self,
         mode: str = "r",
@@ -298,23 +218,11 @@ class BaseUPath(UPath):
         **kwargs: Any,
     ):
         """Asynchronously open file."""
-        try:
-            fs = await self.afs()
+        fs = await self.afs()
 
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-                return await open_method(
-                    self.path,
-                    mode=mode,
-                    buffering=buffering,
-                    encoding=encoding,
-                    errors=errors,
-                    newline=newline,
-                    **kwargs,
-                )
-            # Note: This returns a sync file object wrapped to work in async context
-            return await asyncio.to_thread(
-                self.open,
+        try:
+            return await fs.open_async(
+                self.path,
                 mode=mode,
                 buffering=buffering,
                 encoding=encoding,
@@ -322,7 +230,7 @@ class BaseUPath(UPath):
                 newline=newline,
                 **kwargs,
             )
-        except Exception:  # noqa: BLE001
+        except (NotImplementedError, ValueError):
             return await asyncio.to_thread(
                 self.open,
                 mode=mode,
