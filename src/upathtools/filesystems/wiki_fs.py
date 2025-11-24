@@ -283,9 +283,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
                         capture_output=True,
                         text=True,
                     )
-                    last_modified = (
-                        int(git_log.stdout.strip()) if git_log.stdout.strip() else 0
-                    )
+                    last_modified = int(git_log.stdout.strip()) if git_log.stdout.strip() else 0
 
                     # Get creation date (first commit)
                     git_log_first = subprocess.run(

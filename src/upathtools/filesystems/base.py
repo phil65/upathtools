@@ -275,9 +275,7 @@ class BaseUPath(UPath):
 
                 if entry_path and entry_path != self.path:
                     yield self._from_upath(
-                        type(self)(
-                            entry_path, protocol=self.protocol, **self.storage_options
-                        )
+                        type(self)(entry_path, protocol=self.protocol, **self.storage_options)
                     )
 
         except Exception:  # noqa: BLE001
@@ -286,9 +284,7 @@ class BaseUPath(UPath):
             for item in sync_iter:
                 yield item
 
-    def aglob(
-        self, pattern: str, *, case_sensitive: bool | None = None
-    ) -> AsyncIterator[Self]:
+    def aglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously glob for paths matching pattern."""
         return self._aglob_impl(pattern, case_sensitive=case_sensitive)
 
@@ -301,9 +297,7 @@ class BaseUPath(UPath):
         try:
             fs = await self.afs()
             if hasattr(fs, "_glob"):
-                full_pattern = (
-                    str(self / pattern) if not pattern.startswith("/") else pattern
-                )
+                full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
                 matches = await fs._glob(full_pattern)
             else:
                 # Fallback to sync glob in thread
@@ -329,9 +323,7 @@ class BaseUPath(UPath):
             for match in sync_matches:
                 yield match
 
-    def arglob(
-        self, pattern: str, *, case_sensitive: bool | None = None
-    ) -> AsyncIterator[Self]:
+    def arglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously recursively glob for paths matching pattern."""
         return self.aglob(f"**/{pattern}", case_sensitive=case_sensitive)
 
@@ -436,9 +428,7 @@ class BaseUPath(UPath):
     async def acopy(self, target: JoinablePathLike, **kwargs: Any) -> BaseUPath:
         """Asynchronously copy file to target location."""
         target_path = (
-            self._from_upath(type(self)(target))
-            if not isinstance(target, BaseUPath)
-            else target
+            self._from_upath(type(self)(target)) if not isinstance(target, BaseUPath) else target
         )
 
         # Read source and write to target

@@ -221,8 +221,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                         return [
                             item
                             for item in items
-                            if hasattr(self._spec.info, item)
-                            and getattr(self._spec.info, item)
+                            if hasattr(self._spec.info, item) and getattr(self._spec.info, item)
                         ]
 
                     return [
@@ -232,8 +231,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                             "value": str(getattr(self._spec.info, item))[:100],
                         }
                         for item in items
-                        if hasattr(self._spec.info, item)
-                        and getattr(self._spec.info, item)
+                        if hasattr(self._spec.info, item) and getattr(self._spec.info, item)
                     ]
 
             case "servers":
@@ -304,9 +302,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                 if is_operation_detail:
                     # List operation details
                     # Reconstruct path from parts excluding the method
-                    path_parts = parts[
-                        1:-1
-                    ]  # All parts except first (paths) and last (method)
+                    path_parts = parts[1:-1]  # All parts except first (paths) and last (method)
                     path_key = "/" + "/".join(path_parts)
                     method = parts[-1].lower()  # Last part is the method
 
@@ -425,8 +421,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                         return items
 
                     return [
-                        {"name": item, "type": f"component_{component_type[:-1]}"}
-                        for item in items
+                        {"name": item, "type": f"component_{component_type[:-1]}"} for item in items
                     ]
 
             case "tags":
@@ -479,9 +474,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                 case "__curl__":
                     # Generate curl command for operation
                     if len(parts) >= 4:  # noqa: PLR2004
-                        path_parts = parts[
-                            1:-2
-                        ]  # All parts except first, method, and special
+                        path_parts = parts[1:-2]  # All parts except first, method, and special
                         path_key = "/" + "/".join(path_parts)
                         method = parts[-2].lower()  # Method is second to last
 
@@ -491,25 +484,22 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
                             if path_key in self._spec.paths:
                                 path_obj = self._spec.paths[path_key]
-                                if hasattr(path_obj, method) and getattr(
-                                    path_obj, method
-                                ):
+                                if hasattr(path_obj, method) and getattr(path_obj, method):
                                     # Basic curl command generation
                                     server_url = (
                                         self._spec.servers[0].url
                                         if self._spec.servers
                                         else "https://api.example.com"
                                     )
-                                    curl_cmd = f"curl -X {method.upper()} \\\n  '{server_url}{path_key}'"  # noqa: E501
+                                    curl_cmd = (
+                                        f"curl -X {method.upper()} \\\n  '{server_url}{path_key}'"  # noqa: E501
+                                    )
 
                                     operation = getattr(path_obj, method)
                                     if operation.parameters:
                                         curl_cmd += " \\\n  # Add parameters as needed"
 
-                                    if (
-                                        hasattr(operation, "requestBody")
-                                        and operation.requestBody
-                                    ):
+                                    if hasattr(operation, "requestBody") and operation.requestBody:
                                         curl_cmd += " \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"key\": \"value\"}'"  # noqa: E501
 
                                     return curl_cmd.encode()
@@ -517,9 +507,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                 case "__summary__":
                     # Operation summary
                     if len(parts) >= 4:  # noqa: PLR2004
-                        path_parts = parts[
-                            1:-2
-                        ]  # All parts except first, method, and special
+                        path_parts = parts[1:-2]  # All parts except first, method, and special
                         path_key = "/" + "/".join(path_parts)
                         method = parts[-2].lower()  # Method is second to last
 
@@ -529,9 +517,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
                             if path_key in self._spec.paths:
                                 path_obj = self._spec.paths[path_key]
-                                if hasattr(path_obj, method) and getattr(
-                                    path_obj, method
-                                ):
+                                if hasattr(path_obj, method) and getattr(path_obj, method):
                                     operation = getattr(path_obj, method)
                                     summary = {
                                         "method": method.upper(),
@@ -612,9 +598,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                         # Format: /paths/.../METHOD/SECTION
                         method = parts[-2].lower()
                         section = parts[-1]
-                        path_parts = parts[
-                            1:-2
-                        ]  # Everything except paths, method, section
+                        path_parts = parts[1:-2]  # Everything except paths, method, section
                     elif parts[-1].lower() in possible_methods:
                         # Format: /paths/.../METHOD
                         method = parts[-1].lower()
@@ -636,16 +620,13 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
                             if section is None:
                                 # Return full operation
-                                return json.dumps(
-                                    operation.raw_element, indent=2
-                                ).encode()
+                                return json.dumps(operation.raw_element, indent=2).encode()
                             if section == "parameters" and operation.parameters:
                                 params = [p.raw_element for p in operation.parameters]
                                 return json.dumps(params, indent=2).encode()
                             if section == "responses" and operation.responses:
                                 responses = {
-                                    k: v.raw_element
-                                    for k, v in operation.responses.items()
+                                    k: v.raw_element for k, v in operation.responses.items()
                                 }
                                 return json.dumps(responses, indent=2).encode()
                             if (
@@ -742,9 +723,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                         }
                 elif len(parts) >= 3:  # noqa: PLR2004
                     # Reconstruct path from parts excluding the method
-                    path_parts = parts[
-                        1:-1
-                    ]  # All parts except first (paths) and last (method)
+                    path_parts = parts[1:-1]  # All parts except first (paths) and last (method)
                     path_key = "/" + "/".join(path_parts)
                     method = parts[-1].lower()  # Last part is the method
 

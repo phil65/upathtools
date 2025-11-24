@@ -67,9 +67,7 @@ async def read_path(
 
 
 @overload
-async def read_path(
-    path: JoinablePathLike, mode: Literal["rb"], encoding: str = ...
-) -> bytes: ...
+async def read_path(path: JoinablePathLike, mode: Literal["rb"], encoding: str = ...) -> bytes: ...
 
 
 async def read_path(

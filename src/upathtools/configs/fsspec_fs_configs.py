@@ -48,9 +48,7 @@ class DaskWorkerFilesystemConfig(FileSystemConfig):
     )
     """Target protocol to use when running on workers"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
     client: Any | str | None = Field(
@@ -88,19 +86,13 @@ class FTPFilesystemConfig(FileSystemConfig):
     password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
-    acct: str | None = Field(
-        default=None, title="Account String", examples=["account123"]
-    )
+    acct: str | None = Field(default=None, title="Account String", examples=["account123"])
     """Account string some servers need for auth"""
 
-    block_size: int | None = Field(
-        default=None, gt=0, title="Block Size", examples=[8192, 65536]
-    )
+    block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for file operations"""
 
-    tempdir: str | None = Field(
-        default=None, title="Temp Directory", examples=["/tmp", "/var/tmp"]
-    )
+    tempdir: str | None = Field(default=None, title="Temp Directory", examples=["/tmp", "/var/tmp"])
     """Directory for temporary files during transactions"""
 
     timeout: int = Field(default=30, ge=0, title="Timeout", examples=[30, 60, 120])
@@ -215,9 +207,7 @@ class HadoopFilesystemConfig(FileSystemConfig):
     )
     """Hostname, IP or 'default' to use Hadoop config"""
 
-    port: int = Field(
-        default=0, ge=0, le=65535, title="HDFS Port", examples=[0, 8020, 9000]
-    )
+    port: int = Field(default=0, ge=0, le=65535, title="HDFS Port", examples=[0, 8020, 9000])
     """Port number or 0 to use default from Hadoop config"""
 
     user: str | None = Field(
@@ -235,9 +225,7 @@ class HadoopFilesystemConfig(FileSystemConfig):
     )
     """Kerberos ticket for authentication"""
 
-    replication: int = Field(
-        default=3, ge=1, title="Replication Factor", examples=[1, 3, 5]
-    )
+    replication: int = Field(default=3, ge=1, title="Replication Factor", examples=[1, 3, 5])
     """Replication factor for write operations"""
 
     extra_conf: dict[str, Any] | None = Field(default=None, title="Extra Configuration")
@@ -278,14 +266,10 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
-    block_size: int | None = Field(
-        default=None, gt=0, title="Block Size", examples=[8192, 65536]
-    )
+    block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for read operations"""
 
 
@@ -342,9 +326,7 @@ class SFTPFilesystemConfig(FileSystemConfig):
     password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
-    temppath: str = Field(
-        default="/tmp", title="Temp Path", examples=["/tmp", "/var/tmp"]
-    )
+    temppath: str = Field(default="/tmp", title="Temp Path", examples=["/tmp", "/var/tmp"])
     """Path for temporary files during transactions"""
 
     timeout: int = Field(default=30, ge=0, title="Timeout", examples=[30, 60, 120])
@@ -362,9 +344,7 @@ class SMBFilesystemConfig(FileSystemConfig):
     host: str = Field(title="SMB Host", examples=["smb.example.com", "192.168.1.100"])
     """Hostname or IP of the SMB server"""
 
-    port: int | None = Field(
-        default=None, ge=1, le=65535, title="SMB Port", examples=[445, 139]
-    )
+    port: int | None = Field(default=None, ge=1, le=65535, title="SMB Port", examples=[445, 139])
     """Port to connect to"""
 
     username: str | None = Field(
@@ -403,9 +383,7 @@ class TarFilesystemConfig(FileSystemConfig):
     index_store: Any | None = Field(default=None, title="Index Store")
     """Where to store the index"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
     target_protocol: str | None = Field(
@@ -430,9 +408,7 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "base"
 
-    host: str = Field(
-        title="WebHDFS Host", examples=["namenode.example.com", "192.168.1.100"]
-    )
+    host: str = Field(title="WebHDFS Host", examples=["namenode.example.com", "192.168.1.100"])
     """Hostname or IP of the HDFS namenode"""
 
     port: int = Field(
@@ -476,9 +452,7 @@ class ZipFilesystemConfig(FileSystemConfig):
     fo: UPath = Field(title="Zip File Path", examples=["/path/to/archive.zip"])
     """Path to zip file"""
 
-    mode: str = Field(
-        default="r", title="Open Mode", examples=["r", "w", "a"], pattern=r"^[rwa]$"
-    )
+    mode: str = Field(default="r", title="Open Mode", examples=["r", "w", "a"], pattern=r"^[rwa]$")
     """Open mode ('r', 'w', 'a')"""
 
     target_protocol: str | None = Field(
@@ -486,9 +460,7 @@ class ZipFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
     compression: int = Field(

@@ -200,9 +200,7 @@ class CliFS(BaseFileSystem[CliPath]):
             return result.encode(self.encoding)
 
         except subprocess.CalledProcessError as e:
-            raise subprocess.CalledProcessError(
-                e.returncode, e.cmd, e.output, e.stderr
-            ) from None
+            raise subprocess.CalledProcessError(e.returncode, e.cmd, e.output, e.stderr) from None
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         """Get information about a command.

@@ -162,10 +162,7 @@ def multi_glob(
 
     def files_from_globs(globs: list[str]) -> set[UPath]:
         return {
-            file
-            for pattern in globs
-            for file in directory_path.glob(pattern)
-            if file.is_file()
+            file for pattern in globs for file in directory_path.glob(pattern) if file.is_file()
         }
 
     matching_files = files_from_globs(keep_globs) - files_from_globs(drop_globs)

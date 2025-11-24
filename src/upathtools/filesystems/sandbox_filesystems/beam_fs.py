@@ -172,9 +172,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[False] = False, **kwargs: Any
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -384,11 +382,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
 
         try:
             info = await asyncio.to_thread(sandbox.fs.stat_file, path)
-            return (
-                float(info.mod_time)
-                if hasattr(info, "mod_time") and info.mod_time
-                else 0.0
-            )
+            return float(info.mod_time) if hasattr(info, "mod_time") and info.mod_time else 0.0
         except Exception as exc:
             from beta9.exceptions import SandboxFileSystemError
 

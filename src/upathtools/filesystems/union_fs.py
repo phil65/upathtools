@@ -67,18 +67,14 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
                     resolved_filesystems[protocol] = fs_or_path
                 else:
                     # It's a path - convert to filesystem
-                    resolved_filesystems[protocol] = upath_to_fs(
-                        fs_or_path, asynchronous=True
-                    )
+                    resolved_filesystems[protocol] = upath_to_fs(fs_or_path, asynchronous=True)
 
         if not resolved_filesystems:
             msg = "Must provide filesystems dict"
             raise ValueError(msg)
 
         self.filesystems = resolved_filesystems
-        logger.debug(
-            "Created UnionFileSystem with protocols: %s", list(resolved_filesystems)
-        )
+        logger.debug("Created UnionFileSystem with protocols: %s", list(resolved_filesystems))
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:

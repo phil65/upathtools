@@ -268,9 +268,7 @@ class AsyncUPath(ProxyUPath):
             for item in sync_iter:
                 yield item
 
-    def aglob(
-        self, pattern: str, *, case_sensitive: bool | None = None
-    ) -> AsyncIterator[Self]:
+    def aglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously glob for paths matching pattern."""
         return self._aglob_impl(pattern, case_sensitive=case_sensitive)
 
@@ -283,9 +281,7 @@ class AsyncUPath(ProxyUPath):
         try:
             fs = await self.afs()
             if hasattr(fs, "_glob"):
-                full_pattern = (
-                    str(self / pattern) if not pattern.startswith("/") else pattern
-                )
+                full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
                 matches = await fs._glob(full_pattern)
             else:
                 # Fallback to sync glob in thread
@@ -313,9 +309,7 @@ class AsyncUPath(ProxyUPath):
             for match in sync_matches:
                 yield match
 
-    def arglob(
-        self, pattern: str, *, case_sensitive: bool | None = None
-    ) -> AsyncIterator[Self]:
+    def arglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously recursively glob for paths matching pattern."""
         return self.aglob(f"**/{pattern}", case_sensitive=case_sensitive)
 

@@ -53,9 +53,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
 
             self.wrapped_fs = upath_to_fs(wrapped_fs, asynchronous=True)
 
-        logger.debug(
-            "Created SkillsFileSystem wrapping %s", type(self.wrapped_fs).__name__
-        )
+        logger.debug("Created SkillsFileSystem wrapping %s", type(self.wrapped_fs).__name__)
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
@@ -79,9 +77,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
 
     def _join_path(self, *parts: str) -> str:
         """Join path parts using wrapped filesystem's separator."""
-        return self.wrapped_fs.sep.join(
-            str(p).strip(self.wrapped_fs.sep) for p in parts if p
-        )
+        return self.wrapped_fs.sep.join(str(p).strip(self.wrapped_fs.sep) for p in parts if p)
 
     async def _parse_skill_metadata(self, path: str) -> dict[str, Any] | None:
         """Parse SKILL.md metadata from directory."""
@@ -114,15 +110,11 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
                             "skill_metadata": metadata,
                         }
 
-                        logger.debug(
-                            "Parsed skill metadata for %s: %s", path, metadata.get("name")
-                        )
+                        logger.debug("Parsed skill metadata for %s: %s", path, metadata.get("name"))
                         return skill_info
 
                 except yaml.YAMLError as e:
-                    logger.warning(
-                        "Failed to parse YAML frontmatter in %s: %s", skill_path, e
-                    )
+                    logger.warning("Failed to parse YAML frontmatter in %s: %s", skill_path, e)
 
         except Exception as e:  # noqa: BLE001
             logger.debug("Could not parse skill metadata for %s: %s", path, e)
@@ -204,9 +196,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         result = []
         for i, entry in enumerate(enhanced_entries):
             if isinstance(entry, Exception):
-                logger.warning(
-                    "Failed to enhance entry %s: %s", entries[i].get("name"), entry
-                )
+                logger.warning("Failed to enhance entry %s: %s", entries[i].get("name"), entry)
                 result.append(entries[i])  # Use original entry
             else:
                 result.append(entry)

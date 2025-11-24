@@ -214,9 +214,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
                     "type": "field",
                     "field_type": str(field_type),
                     "required": field_info.is_required(),
-                    "default": str(field_info.default)
-                    if field_info.default is not ...
-                    else None,
+                    "default": str(field_info.default) if field_info.default is not ... else None,
                     "alias": field_info.alias,
                     "nested_model": is_nested,
                     "description": field_info.description,
@@ -259,9 +257,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
                             else None,
                             "alias": field_info.alias,
                             "description": field_info.description,
-                            "constraints": [
-                                str(constraint) for constraint in field_info.metadata
-                            ]
+                            "constraints": [str(constraint) for constraint in field_info.metadata]
                             if field_info.metadata
                             else [],
                         }
@@ -275,9 +271,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
                         name: {
                             "type": str(field.annotation),
                             "required": field.is_required(),
-                            "default": field.default
-                            if field.default is not ...
-                            else None,
+                            "default": field.default if field.default is not ... else None,
                             "alias": field.alias,
                         }
                         for name, field in current_model.model_fields.items()
@@ -351,9 +345,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
             "default": field_info.default if field_info.default is not ... else None,
             "alias": field_info.alias,
             "description": field_info.description,
-            "constraints": [str(c) for c in field_info.metadata]
-            if field_info.metadata
-            else [],
+            "constraints": [str(c) for c in field_info.metadata] if field_info.metadata else [],
         }
 
         return json.dumps(field_data, indent=2, default=str).encode()
@@ -420,9 +412,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
             "alias": field_info.alias,
             "description": field_info.description,
             "size": 0,
-            "constraints": [str(c) for c in field_info.metadata]
-            if field_info.metadata
-            else [],
+            "constraints": [str(c) for c in field_info.metadata] if field_info.metadata else [],
         }
 
 

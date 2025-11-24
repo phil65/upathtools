@@ -88,8 +88,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
             self._project = project or os.environ.get("APPWRITE_PROJECT")
             key = key or os.environ.get("APPWRITE_API_KEY")
             self_signed = (
-                self_signed
-                or os.environ.get("APPWRITE_SELF_SIGNED", "false").lower() == "true"
+                self_signed or os.environ.get("APPWRITE_SELF_SIGNED", "false").lower() == "true"
             )
 
             if self._endpoint and self._project and key:
@@ -245,11 +244,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
 
             # Apply prefix filtering to simulate directories
             if prefix:
-                files = [
-                    f
-                    for f in files
-                    if f["name"].startswith(prefix) or f["name"] == file_path
-                ]
+                files = [f for f in files if f["name"].startswith(prefix) or f["name"] == file_path]
 
             # Extract virtual directories from paths
             result: list[Any] = []
@@ -902,9 +897,7 @@ if __name__ == "__main__":
 
     print(f"APPWRITE_ENDPOINT: {os.environ.get('APPWRITE_ENDPOINT')}")
     print(f"APPWRITE_PROJECT: {os.environ.get('APPWRITE_PROJECT')}")
-    print(
-        f"APPWRITE_API_KEY: {'Set' if os.environ.get('APPWRITE_API_KEY') else 'Not set'}"
-    )
+    print(f"APPWRITE_API_KEY: {'Set' if os.environ.get('APPWRITE_API_KEY') else 'Not set'}")
     print(f"APPWRITE_BUCKET_ID: {os.environ.get('APPWRITE_BUCKET_ID')}")
 
     fs = AppwriteFileSystem(

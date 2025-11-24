@@ -270,9 +270,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         return {
             "name": path,
             "type": "class" if inspect.isclass(obj) else "function",
-            "size": len(
-                self._get_member_source(obj, path)
-            ),  # size of the member's source
+            "size": len(self._get_member_source(obj, path)),  # size of the member's source
             "doc": obj.__doc__,
         }
 

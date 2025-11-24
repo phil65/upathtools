@@ -136,9 +136,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath]):
         self.notion.pages.update(page_id=page_id, archived=True)
 
         # Remove from cache
-        self._path_cache = {
-            k: v for k, v in self._path_cache.items() if not k.startswith(path)
-        }
+        self._path_cache = {k: v for k, v in self._path_cache.items() if not k.startswith(path)}
 
     def rm_file(self, path: str) -> None:
         """Remove a file (alias for rm)."""
@@ -360,9 +358,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath]):
                         {
                             "type": "paragraph",
                             "paragraph": {
-                                "rich_text": [
-                                    {"type": "text", "text": {"content": chunk}}
-                                ]
+                                "rich_text": [{"type": "text", "text": {"content": chunk}}]
                             },
                         }
                     ],
@@ -392,15 +388,11 @@ class NotionFile:
         self.binary = binary
         self.buffer = (
             io.BytesIO(
-                self.content
-                if isinstance(self.content, bytes)
-                else self.content.encode("utf-8")
+                self.content if isinstance(self.content, bytes) else self.content.encode("utf-8")
             )
             if binary
             else io.StringIO(
-                self.content
-                if isinstance(self.content, str)
-                else self.content.decode("utf-8")
+                self.content if isinstance(self.content, str) else self.content.decode("utf-8")
             )
         )
         self._closed = False

@@ -87,9 +87,7 @@ class GistFilesystemConfig(FileSystemConfig):
     )
     """GitHub username for listing all gists"""
 
-    token: SecretStr | None = Field(
-        default=None, title="GitHub Token", examples=["abc123"]
-    )
+    token: SecretStr | None = Field(default=None, title="GitHub Token", examples=["abc123"])
     """GitHub personal access token for authentication"""
 
     sha: str | None = Field(
@@ -116,17 +114,13 @@ class HttpFilesystemConfig(FileSystemConfig):
     simple_links: bool = True
     """Whether to extract links using simpler regex patterns"""
 
-    block_size: int | None = Field(
-        default=None, gt=0, title="Block Size", examples=[8192, 65536]
-    )
+    block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for reading files in chunks"""
 
     same_scheme: bool = True
     """Whether to keep the same scheme (http/https) when following links"""
 
-    size_policy: str | None = Field(
-        default=None, title="Size Policy", examples=["head", "get"]
-    )
+    size_policy: str | None = Field(default=None, title="Size Policy", examples=["head", "get"])
     """Policy for determining file size ('head' or 'get')"""
 
     cache_type: str = Field(
@@ -154,9 +148,7 @@ class MarkdownFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
 
@@ -176,9 +168,7 @@ class ModuleFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
 
@@ -215,9 +205,7 @@ class PythonAstFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
 
@@ -334,17 +322,13 @@ class HttpxFilesystemConfig(FileSystemConfig):
     simple_links: bool = True
     """Whether to extract links using simpler regex patterns"""
 
-    block_size: int | None = Field(
-        default=None, gt=0, title="Block Size", examples=[8192, 65536]
-    )
+    block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for reading files in chunks"""
 
     same_scheme: bool = True
     """Whether to keep the same scheme (http/https) when following links"""
 
-    size_policy: str | None = Field(
-        default=None, title="Size Policy", examples=["head", "get"]
-    )
+    size_policy: str | None = Field(default=None, title="Size Policy", examples=["head", "get"])
     """Policy for determining file size ('head' or 'get')"""
 
     cache_type: str = Field(
@@ -355,9 +339,7 @@ class HttpxFilesystemConfig(FileSystemConfig):
     encoded: bool = False
     """Whether URLs are already encoded"""
 
-    timeout: int | None = Field(
-        default=None, ge=0, title="Request Timeout", examples=[30, 60, 120]
-    )
+    timeout: int | None = Field(default=None, ge=0, title="Request Timeout", examples=[30, 60, 120])
     """HTTP request timeout in seconds"""
 
 
@@ -425,9 +407,7 @@ class OpenApiFilesystemConfig(FileSystemConfig):
     )
     """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(
-        default=None, title="Target Protocol Options"
-    )
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
     """Options for target protocol"""
 
 
@@ -483,9 +463,7 @@ class BeamFilesystemConfig(FileSystemConfig):
     )
     """Existing sandbox ID to connect to"""
 
-    cpu: float = Field(
-        default=1.0, gt=0, title="CPU Allocation", examples=[0.5, 1.0, 2.0]
-    )
+    cpu: float = Field(default=1.0, gt=0, title="CPU Allocation", examples=[0.5, 1.0, 2.0])
     """CPU allocation for new sandboxes"""
 
     memory: int = Field(default=128, gt=0, title="Memory (MB)", examples=[128, 512, 1024])
@@ -502,9 +480,7 @@ class BeamFilesystemConfig(FileSystemConfig):
     timeout: float = Field(default=300, gt=0, title="Timeout", examples=[60, 300, 600])
     """Default timeout for operations in seconds"""
 
-    env_variables: dict[str, str] | None = Field(
-        default=None, title="Environment Variables"
-    )
+    env_variables: dict[str, str] | None = Field(default=None, title="Environment Variables")
     """Environment variables for new sandboxes"""
 
 
@@ -601,9 +577,7 @@ class MicrosandboxFilesystemConfig(FileSystemConfig):
     )
     """Docker image to use"""
 
-    memory: int = Field(
-        default=512, gt=0, title="Memory Limit (MB)", examples=[256, 512, 1024]
-    )
+    memory: int = Field(default=512, gt=0, title="Memory Limit (MB)", examples=[256, 512, 1024])
     """Memory limit in MB"""
 
     cpus: float = Field(default=1.0, gt=0, title="CPU Limit", examples=[0.5, 1.0, 2.0])
@@ -638,9 +612,7 @@ class ModalFilesystemConfig(FileSystemConfig):
     timeout: float = Field(default=600, gt=0, title="Timeout", examples=[300, 600, 1200])
     """Default timeout for operations in seconds"""
 
-    idle_timeout: float = Field(
-        default=300, gt=0, title="Idle Timeout", examples=[60, 300, 600]
-    )
+    idle_timeout: float = Field(default=300, gt=0, title="Idle Timeout", examples=[60, 300, 600])
     """Sandbox idle timeout in seconds"""
 
 

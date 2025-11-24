@@ -136,9 +136,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         par = super()._parent(path)
         return par if len(par) > 7 else ""  # noqa: PLR2004
 
-    async def _get_decompressor(
-        self, response: httpx.Response
-    ) -> Callable[[bytes], bytes] | None:
+    async def _get_decompressor(self, response: httpx.Response) -> Callable[[bytes], bytes] | None:
         """Get decompressor based on Content-Encoding header."""
         encoding = response.headers.get("Content-Encoding", "").lower()
         if encoding == "gzip":
@@ -233,9 +231,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[False] = False, **kwargs: Any
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -362,9 +358,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
             msg = f"method must be either 'post' or 'put', not: {method!r}"
             raise ValueError(msg)
 
-        r = await getattr(session, method)(
-            str(self.encode_url(rpath)), content=gen_chunks(), **kw
-        )
+        r = await getattr(session, method)(str(self.encode_url(rpath)), content=gen_chunks(), **kw)
         self._raise_not_found_for_status(r, rpath)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
@@ -572,9 +566,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
             else:
                 depth = None  # type: ignore
 
-        allpaths = await self._find(
-            root, maxdepth=depth, withdirs=True, detail=True, **kwargs
-        )
+        allpaths = await self._find(root, maxdepth=depth, withdirs=True, detail=True, **kwargs)
 
         pattern = glob_translate(path + ("/" if ends_with_slash else ""))
         pattern = re.compile(pattern)
@@ -582,9 +574,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         out = {
             (
                 p.rstrip("/")
-                if not append_slash_to_dirname
-                and info["type"] == "directory"
-                and p.endswith("/")
+                if not append_slash_to_dirname and info["type"] == "directory" and p.endswith("/")
                 else p
             ): info
             for p, info in sorted(allpaths.items())  # type: ignore

@@ -310,9 +310,7 @@ class TestSqliteFSChaining:
         port = 0  # Let the OS choose a free port
         with socketserver.TCPServer(
             ("", port),
-            lambda *args: http.server.SimpleHTTPRequestHandler(
-                *args, directory=serve_dir
-            ),
+            lambda *args: http.server.SimpleHTTPRequestHandler(*args, directory=serve_dir),
         ) as httpd:
             port = httpd.server_address[1]
             server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)

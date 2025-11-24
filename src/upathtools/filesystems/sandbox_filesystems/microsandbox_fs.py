@@ -92,9 +92,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             await self._sandbox.stop()
             logger.info("Stopped Microsandbox: %s", self._sandbox._name)
 
-    async def _ls_real(
-        self, path: str = "/", detail: bool = True
-    ) -> list[dict[str, Any]]:
+    async def _ls_real(self, path: str = "/", detail: bool = True) -> list[dict[str, Any]]:
         """List directory contents using ls command."""
         sandbox = await self._get_sandbox()
         # Use ls -la to get detailed directory listing

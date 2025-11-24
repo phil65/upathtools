@@ -59,9 +59,7 @@ def test_list_module_contents(example_py: Path) -> None:
     assert set(names) == {"test_func", "TestClass"}
 
 
-@pytest.mark.skipif(
-    os.environ.get("CI") == "true", reason="TODO: can only load source locally"
-)
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="TODO: can only load source locally")
 def test_get_module_source(example_py: Path) -> None:
     """Test getting module source code."""
     fs = fsspec.filesystem("mod", module_path=str(example_py))

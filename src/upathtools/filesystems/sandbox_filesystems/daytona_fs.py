@@ -130,9 +130,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[False] = False, **kwargs: Any
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any

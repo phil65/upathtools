@@ -177,9 +177,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         response.raise_for_status()
         return response.json()
 
-    async def _fetch_user_gists(
-        self, page: int = 1, per_page: int = 100
-    ) -> list[dict[str, Any]]:
+    async def _fetch_user_gists(self, page: int = 1, per_page: int = 100) -> list[dict[str, Any]]:
         """Fetch gists for a user.
 
         Args:
@@ -278,9 +276,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 "git_push_url": gist.get("git_push_url"),
                 "comments": gist.get("comments", 0),
                 "public": gist.get("public", False),
-                "owner": gist.get("owner", {}).get("login")
-                if gist.get("owner")
-                else None,
+                "owner": gist.get("owner", {}).get("login") if gist.get("owner") else None,
                 "files_count": len(gist.get("files", {})),
                 # Include truncated file names as a preview
                 "files_preview": list(gist.get("files", {}).keys()),
@@ -484,9 +480,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             # Create new gist
             create_url = "https://api.github.com/gists"
             logger.debug("Creating new gist: %s", create_url)
-            description = kwargs.get(
-                "gist_description", "Gist created via GistFileSystem"
-            )
+            description = kwargs.get("gist_description", "Gist created via GistFileSystem")
             public = kwargs.get("public", False)
             data = {"description": description, "public": public, "files": files_data}
             response = await session.post(create_url, json=data)
@@ -523,9 +517,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
             filename = path
         else:
             if "/" not in path:
-                msg = (
-                    "Cannot identify file without gist_id. Use 'gist_id/filename' format"
-                )
+                msg = "Cannot identify file without gist_id. Use 'gist_id/filename' format"
                 raise ValueError(msg)
             gist_id, filename = path.split("/", 1)
 
@@ -634,8 +626,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                                 "files_count": len(meta.get("files", {})),
                                 "files_preview": list(meta.get("files", {}).keys()),
                                 "size": sum(
-                                    f.get("size", 0)
-                                    for f in meta.get("files", {}).values()
+                                    f.get("size", 0) for f in meta.get("files", {}).values()
                                 ),
                             }
                         except FileNotFoundError:

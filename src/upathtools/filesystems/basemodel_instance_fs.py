@@ -241,16 +241,12 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
                     if self._is_basemodel_instance(target_obj):
                         return json.dumps(target_obj.model_dump(), indent=2).encode()
                     if hasattr(target_obj, "__dict__"):
-                        return json.dumps(
-                            target_obj.__dict__, indent=2, default=str
-                        ).encode()
+                        return json.dumps(target_obj.__dict__, indent=2, default=str).encode()
                     return json.dumps(dict(target_obj), indent=2, default=str).encode()
 
                 case "__schema__":
                     if self._is_basemodel_instance(target_obj):
-                        return json.dumps(
-                            target_obj.model_json_schema(), indent=2
-                        ).encode()
+                        return json.dumps(target_obj.model_json_schema(), indent=2).encode()
                     msg = "Schema only available for BaseModel instances"
                     raise FileNotFoundError(msg)
 
@@ -286,9 +282,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
 
                 case "__values__":
                     if self._is_dict_like(target_obj):
-                        return json.dumps(
-                            list(target_obj.values()), indent=2, default=str
-                        ).encode()
+                        return json.dumps(list(target_obj.values()), indent=2, default=str).encode()
                     msg = "Values only available for dict-like objects"
                     raise FileNotFoundError(msg)
 
@@ -368,8 +362,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
                 "type": "nested_object",
                 "class": f"{type(current_obj).__module__}.{type(current_obj).__name__}",
                 "is_basemodel": self._is_basemodel_instance(current_obj),
-                "is_collection": self._is_list_like(current_obj)
-                or self._is_dict_like(current_obj),
+                "is_collection": self._is_list_like(current_obj) or self._is_dict_like(current_obj),
                 "size": len(current_obj) if hasattr(current_obj, "__len__") else None,
                 "data": str(current_obj)[:200] + "..."
                 if len(str(current_obj)) > 200  # noqa: PLR2004
@@ -406,8 +399,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
             if len(str(field_value)) > 200  # noqa: PLR2004
             else str(field_value),
             "is_basemodel": self._is_basemodel_instance(field_value),
-            "is_collection": self._is_list_like(field_value)
-            or self._is_dict_like(field_value),
+            "is_collection": self._is_list_like(field_value) or self._is_dict_like(field_value),
             "size": len(field_value) if hasattr(field_value, "__len__") else None,
         }
 

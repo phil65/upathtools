@@ -106,9 +106,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
                 resolved_filesystems.append(upath_to_fs(fs_or_path, asynchronous=True))
 
         self.filesystems = resolved_filesystems
-        logger.debug(
-            "Created FlatUnionFileSystem with %d filesystems", len(resolved_filesystems)
-        )
+        logger.debug("Created FlatUnionFileSystem with %d filesystems", len(resolved_filesystems))
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
@@ -125,9 +123,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
             Dictionary with 'filesystems' key containing list of path strings
         """
         # Remove protocol prefix first
-        path_without_protocol = path.removeprefix("flatunion://").removeprefix(
-            "flat-union://"
-        )
+        path_without_protocol = path.removeprefix("flatunion://").removeprefix("flat-union://")
 
         # Check if using query parameter format
         if "?" in path_without_protocol:

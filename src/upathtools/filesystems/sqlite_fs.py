@@ -217,9 +217,7 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
 
         async with engine.begin() as conn:
             result = await conn.execute(
-                text(
-                    "SELECT sql FROM sqlite_master WHERE name = :name AND sql IS NOT NULL"
-                ),
+                text("SELECT sql FROM sqlite_master WHERE name = :name AND sql IS NOT NULL"),
                 {"name": table_name},
             )
             row = result.fetchone()

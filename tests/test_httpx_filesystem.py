@@ -535,9 +535,7 @@ def test_content_length_zero(server):
 
 
 def test_content_encoding_gzip(server):
-    h = fsspec.filesystem(
-        "http", headers={"give_length": "true", "gzip_encoding": "true"}
-    )
+    h = fsspec.filesystem("http", headers={"give_length": "true", "gzip_encoding": "true"})
     url = server.realfile
     with h.open(url, "rb") as f:
         assert isinstance(f, OurHTTPStreamFile)

@@ -24,9 +24,7 @@ NOTION_TOKEN = os.environ.get("NOTION_API_KEY")
 PARENT_PAGE_ID = os.environ.get("NOTION_PARENT_PAGE_ID")
 
 if not NOTION_TOKEN or not PARENT_PAGE_ID:
-    pytest.skip(
-        "NOTION_API_KEY and NOTION_PARENT_PAGE_ID must be set", allow_module_level=True
-    )
+    pytest.skip("NOTION_API_KEY and NOTION_PARENT_PAGE_ID must be set", allow_module_level=True)
 
 
 @pytest.fixture
@@ -39,10 +37,7 @@ def fs():
     # Cleanup all test pages after each test
     for page in fs.ls("/"):
         page_name = page["name"] if isinstance(page, dict) else page
-        if any(
-            test_prefix in page_name
-            for test_prefix in ["Test", "FSSpec", "Special", "Large"]
-        ):
+        if any(test_prefix in page_name for test_prefix in ["Test", "FSSpec", "Special", "Large"]):
             with contextlib.suppress(Exception):
                 fs.rm(f"/{page_name}")
 

@@ -117,9 +117,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath]):
             await self._sandbox.stop()
             self._sandbox = None
 
-    async def _ls_real(
-        self, path: str = "/", detail: bool = True
-    ) -> list[dict[str, Any]]:
+    async def _ls_real(self, path: str = "/", detail: bool = True) -> list[dict[str, Any]]:
         """List directory contents."""
         sandbox = await self._get_sandbox()
 
