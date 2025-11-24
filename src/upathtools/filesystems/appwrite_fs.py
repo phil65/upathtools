@@ -7,13 +7,12 @@ import io
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from fsspec.asyn import sync_wrapper
 from fsspec.utils import tokenize
-from upath import UPath
 
-from upathtools.filesystems.base import BaseAsyncFileSystem
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -23,7 +22,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AppwritePath(UPath):
+class AppwriteInfo(TypedDict, total=False):
+    """Info dict for Appwrite storage paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    bucket_name: str | None
+    enabled: bool | None
+    file_id: str | None
+    created: str | None
+    updated: str | None
+    mime_type: str | None
+
+
+class AppwritePath(BaseUPath[AppwriteInfo]):
     """UPath implementation for Appwrite storage."""
 
     __slots__ = ()
@@ -34,7 +47,7 @@ class AppwritePath(UPath):
         yield from super().iterdir()
 
 
-class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
+class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
     """Filesystem for Appwrite storage service.
 
     This filesystem allows you to interact with Appwrite storage buckets
@@ -165,7 +178,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         path: str = "",
         detail: Literal[True] = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[AppwriteInfo]: ...
 
     @overload
     async def _ls(
@@ -180,7 +193,7 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[AppwriteInfo] | list[str]:
         """List files in a bucket or path."""
         # Strip protocol but preserve trailing slash
         original_path = path
@@ -195,13 +208,13 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
 
                 if detail:
                     return [
-                        {
-                            "name": bucket["$id"],
-                            "type": "directory",
-                            "size": 0,
-                            "bucket_name": bucket["name"],
-                            "enabled": bucket.get("enabled", True),
-                        }
+                        AppwriteInfo(
+                            name=bucket["$id"],
+                            type="directory",
+                            size=0,
+                            bucket_name=bucket["name"],
+                            enabled=bucket.get("enabled", True),
+                        )
                         for bucket in buckets
                     ]
                 return [bucket["$id"] for bucket in buckets]
@@ -261,15 +274,17 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
                         virtual_dirs.add(full_dir)
                     # It's a file within the prefix
                     elif detail:
-                        result.append({
-                            "name": name,
-                            "type": "file",
-                            "size": file.get("sizeOriginal", 0),
-                            "file_id": file["$id"],
-                            "created": file.get("$createdAt"),
-                            "updated": file.get("$updatedAt"),
-                            "mime_type": file.get("mimeType"),
-                        })
+                        result.append(
+                            AppwriteInfo(
+                                name=name,
+                                type="file",
+                                size=file.get("sizeOriginal", 0),
+                                file_id=file["$id"],
+                                created=file.get("$createdAt"),
+                                updated=file.get("$updatedAt"),
+                                mime_type=file.get("mimeType"),
+                            )
+                        )
                     else:
                         result.append(name)
                 elif not prefix:
@@ -280,40 +295,46 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
                         virtual_dirs.add(dir_name)
                     # It's a file in root
                     elif detail:
-                        result.append({
-                            "name": name,
-                            "type": "file",
-                            "size": file.get("sizeOriginal", 0),
-                            "file_id": file["$id"],
-                            "created": file.get("$createdAt"),
-                            "updated": file.get("$updatedAt"),
-                            "mime_type": file.get("mimeType"),
-                        })
+                        result.append(
+                            AppwriteInfo(
+                                name=name,
+                                type="file",
+                                size=file.get("sizeOriginal", 0),
+                                file_id=file["$id"],
+                                created=file.get("$createdAt"),
+                                updated=file.get("$updatedAt"),
+                                mime_type=file.get("mimeType"),
+                            )
+                        )
                     else:
                         result.append(name)
                 elif name == file_path:
                     # Exact file match
                     if detail:
-                        result.append({
-                            "name": name,
-                            "type": "file",
-                            "size": file.get("sizeOriginal", 0),
-                            "file_id": file["$id"],
-                            "created": file.get("$createdAt"),
-                            "updated": file.get("$updatedAt"),
-                            "mime_type": file.get("mimeType"),
-                        })
+                        result.append(
+                            AppwriteInfo(
+                                name=name,
+                                type="file",
+                                size=file.get("sizeOriginal", 0),
+                                file_id=file["$id"],
+                                created=file.get("$createdAt"),
+                                updated=file.get("$updatedAt"),
+                                mime_type=file.get("mimeType"),
+                            )
+                        )
                     else:
                         result.append(name)
 
             # Add virtual directories
             for vdir in virtual_dirs:
                 if detail:
-                    result.append({
-                        "name": vdir,
-                        "type": "directory",
-                        "size": 0,
-                    })
+                    result.append(
+                        AppwriteInfo(
+                            name=vdir,
+                            type="directory",
+                            size=0,
+                        )
+                    )
                 else:
                     result.append(vdir)
         except Exception as e:  # noqa: BLE001
@@ -326,15 +347,15 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
                         file_info = self.storage.get_file(bucket_id, file_id)
                         if detail:
                             return [
-                                {
-                                    "name": file_info["name"],
-                                    "type": "file",
-                                    "size": file_info.get("sizeOriginal", 0),
-                                    "file_id": file_info["$id"],
-                                    "created": file_info.get("$createdAt"),
-                                    "updated": file_info.get("$updatedAt"),
-                                    "mime_type": file_info.get("mimeType"),
-                                }
+                                AppwriteInfo(
+                                    name=file_info["name"],
+                                    type="file",
+                                    size=file_info.get("sizeOriginal", 0),
+                                    file_id=file_info["$id"],
+                                    created=file_info.get("$createdAt"),
+                                    updated=file_info.get("$updatedAt"),
+                                    mime_type=file_info.get("mimeType"),
+                                )
                             ]
                         return [file_info["name"]]
                 except Exception:  # noqa: BLE001
@@ -369,16 +390,16 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         else:
             return None
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> AppwriteInfo:
         """Get info about a file or directory."""
         path = self._strip_protocol(path)  # pyright: ignore
 
         if not path or path == "/":
-            return {
-                "name": "",
-                "type": "directory",
-                "size": 0,
-            }
+            return AppwriteInfo(
+                name="",
+                type="directory",
+                size=0,
+            )
 
         bucket_id, file_path = self._split_path(path)
 
@@ -386,13 +407,13 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
         if not file_path:
             try:
                 bucket = self.storage.get_bucket(bucket_id)
-                return {
-                    "name": bucket_id,
-                    "type": "directory",
-                    "size": 0,
-                    "bucket_name": bucket["name"],
-                    "enabled": bucket.get("enabled", True),
-                }
+                return AppwriteInfo(
+                    name=bucket_id,
+                    type="directory",
+                    size=0,
+                    bucket_name=bucket["name"],
+                    enabled=bucket.get("enabled", True),
+                )
             except Exception as e:
                 msg = f"Bucket not found: {bucket_id}"
                 raise FileNotFoundError(msg) from e
@@ -403,11 +424,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
             try:
                 files = await self._ls(path, detail=False)
                 if files:
-                    return {
-                        "name": file_path.rstrip("/").split("/")[-1] + "/",
-                        "type": "directory",
-                        "size": 0,
-                    }
+                    return AppwriteInfo(
+                        name=file_path.rstrip("/").split("/")[-1] + "/",
+                        type="directory",
+                        size=0,
+                    )
                 msg = f"Directory not found: {path}"
                 raise FileNotFoundError(msg)  # noqa: TRY301
             except Exception as e:
@@ -423,11 +444,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
                 test_path = f"{path}/"
                 files = await self._ls(test_path, detail=False)
                 if files:
-                    return {
-                        "name": file_path.split("/")[-1],
-                        "type": "directory",
-                        "size": 0,
-                    }
+                    return AppwriteInfo(
+                        name=file_path.split("/")[-1],
+                        type="directory",
+                        size=0,
+                    )
                 msg = f"File not found: {path}"
                 raise FileNotFoundError(msg)  # noqa: TRY301
             except Exception as e:
@@ -436,15 +457,15 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath]):
 
         try:
             file_info = self.storage.get_file(bucket_id, file_id)
-            return {
-                "name": file_info["name"],
-                "type": "file",
-                "size": file_info.get("sizeOriginal", 0),
-                "file_id": file_info["$id"],
-                "created": file_info.get("$createdAt"),
-                "updated": file_info.get("$updatedAt"),
-                "mime_type": file_info.get("mimeType"),
-            }
+            return AppwriteInfo(
+                name=file_info["name"],
+                type="file",
+                size=file_info.get("sizeOriginal", 0),
+                file_id=file_info["$id"],
+                created=file_info.get("$createdAt"),
+                updated=file_info.get("$updatedAt"),
+                mime_type=file_info.get("mimeType"),
+            )
         except Exception as e:
             msg = f"File not found: {path}"
             raise FileNotFoundError(msg) from e

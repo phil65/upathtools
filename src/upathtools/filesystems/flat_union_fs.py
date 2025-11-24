@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -18,10 +18,19 @@ if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
 
+class FlatUnionInfo(TypedDict, total=False):
+    """Info dict for flat union filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    filesystems: int
+
+
 logger = logging.getLogger(__name__)
 
 
-class FlatUnionPath(BaseUPath):
+class FlatUnionPath(BaseUPath[FlatUnionInfo]):
     """UPath implementation for browsing FlatUnionFS."""
 
     __slots__ = ()
@@ -40,7 +49,7 @@ class FlatUnionPath(BaseUPath):
         return path.lstrip("/")  # Other paths strip leading slash
 
 
-class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
+class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
     """Filesystem that merges multiple filesystems into a single flat view.
 
     Unlike UnionFileSystem which organizes by protocol, FlatUnionFileSystem
@@ -210,17 +219,17 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
         else:
             fs.pipe_file(norm_path, value, **kwargs)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> FlatUnionInfo:
         """Get info about a path."""
         logger.debug("Getting info for path: %s", path)
 
         if not path or path == self.root_marker:
-            return {
-                "name": "",
-                "size": 0,
-                "type": "directory",
-                "filesystems": len(self.filesystems),
-            }
+            return FlatUnionInfo(
+                name="",
+                size=0,
+                type="directory",
+                filesystems=len(self.filesystems),
+            )
 
         # Try to find the path in any filesystem
         fs, _ = await self._get_matching_fs(path, **kwargs)
@@ -228,20 +237,20 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
         if fs is None:
             # Check if it might be a virtual directory
             if await self._isdir(path, **kwargs):
-                return {
-                    "name": path.strip("/").split("/")[-1] if path.strip("/") else "",
-                    "size": 0,
-                    "type": "directory",
-                }
+                return FlatUnionInfo(
+                    name=path.strip("/").split("/")[-1] if path.strip("/") else "",
+                    size=0,
+                    type="directory",
+                )
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
 
         if fs is self:
-            return {
-                "name": "",
-                "size": 0,
-                "type": "directory",
-            }
+            return FlatUnionInfo(
+                name="",
+                size=0,
+                type="directory",
+            )
 
         # Use the same path in the target filesystem
         norm_path = path.lstrip("/")
@@ -250,14 +259,16 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath]):
         else:
             info = fs.info(norm_path, **kwargs)
 
-        # Normalize the name to be relative to our root
-        if "name" in info:
-            name = info["name"]
-            if "/" in name:
-                name = name.split("/")[-1]
-            info["name"] = name
+        # Normalize the name to be relative to our root and create FlatUnionInfo
+        name = info.get("name", "")
+        if "/" in name:
+            name = name.split("/")[-1]
 
-        return info
+        return FlatUnionInfo(
+            name=name,
+            type=info.get("type", "file"),
+            size=info.get("size", 0),
+        )
 
     @overload
     async def _ls(

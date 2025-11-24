@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args, get_origin, overload
 
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
@@ -13,7 +13,25 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelPath(BaseUPath):
+class BaseModelInfo(TypedDict, total=False):
+    """Info dict for BaseModel paths."""
+
+    name: str
+    type: Literal["model", "nested_model", "field"]
+    size: int
+    module: str | None
+    doc: str | None
+    field_count: int | None
+    schema: dict[str, Any] | None
+    annotation: str | None
+    required: bool | None
+    default: Any
+    alias: str | None
+    description: str | None
+    constraints: list[str] | None
+
+
+class BaseModelPath(BaseUPath[BaseModelInfo]):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
     __slots__ = ()
@@ -29,7 +47,7 @@ class BaseModelPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class BaseModelFS(BaseFileSystem[BaseModelPath]):
+class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     protocol = "basemodel"
@@ -364,21 +382,21 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
         except FileNotFoundError:
             return False
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> BaseModelInfo:
         """Get detailed info about a model or field."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root model info
-            return {
-                "name": self.model_class.__name__,
-                "type": "model",
-                "module": self.model_class.__module__,
-                "doc": self.model_class.__doc__,
-                "field_count": len(self.model_class.model_fields),
-                "schema": self.model_class.model_json_schema(),
-                "size": len(self.model_class.model_fields),
-            }
+            return BaseModelInfo(
+                name=self.model_class.__name__,
+                type="model",
+                module=self.model_class.__module__,
+                doc=self.model_class.__doc__,
+                field_count=len(self.model_class.model_fields),
+                schema=self.model_class.model_json_schema(),
+                size=len(self.model_class.model_fields),
+            )
 
         try:
             current_model, field_name = self._get_nested_model_at_path(path)
@@ -388,14 +406,14 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
 
         if not field_name:
             # Nested model info
-            return {
-                "name": current_model.__name__,
-                "type": "nested_model",
-                "module": current_model.__module__,
-                "doc": current_model.__doc__,
-                "field_count": len(current_model.model_fields),
-                "size": len(current_model.model_fields),
-            }
+            return BaseModelInfo(
+                name=current_model.__name__,
+                type="nested_model",
+                module=current_model.__module__,
+                doc=current_model.__doc__,
+                field_count=len(current_model.model_fields),
+                size=len(current_model.model_fields),
+            )
 
         # Field info
         if field_name not in current_model.model_fields:
@@ -403,17 +421,17 @@ class BaseModelFS(BaseFileSystem[BaseModelPath]):
             raise FileNotFoundError(msg)
 
         field_info = current_model.model_fields[field_name]
-        return {
-            "name": field_name,
-            "type": "field",
-            "annotation": str(field_info.annotation),
-            "required": field_info.is_required(),
-            "default": field_info.default if field_info.default is not ... else None,
-            "alias": field_info.alias,
-            "description": field_info.description,
-            "size": 0,
-            "constraints": [str(c) for c in field_info.metadata] if field_info.metadata else [],
-        }
+        return BaseModelInfo(
+            name=field_name,
+            type="field",
+            annotation=str(field_info.annotation),
+            required=field_info.is_required(),
+            default=field_info.default if field_info.default is not ... else None,
+            alias=field_info.alias,
+            description=field_info.description,
+            size=0,
+            constraints=[str(c) for c in field_info.metadata] if field_info.metadata else None,
+        )
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import ast
 from dataclasses import dataclass
 import io
 import os
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypedDict, overload
 
 import fsspec
 
@@ -14,6 +14,15 @@ from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class", "import", "assign"]
+
+
+class PythonAstInfo(TypedDict, total=False):
+    """Info dict for Python AST filesystem paths."""
+
+    name: str
+    type: Literal["module", "function", "class", "import", "assign"]
+    size: int
+    doc: str | None
 
 
 @dataclass
@@ -27,7 +36,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class PythonAstPath(BaseUPath):
+class PythonAstPath(BaseUPath[PythonAstInfo]):
     """UPath implementation for browsing Python AST."""
 
     __slots__ = ()
@@ -38,7 +47,7 @@ class PythonAstPath(BaseUPath):
         yield from super().iterdir()
 
 
-class PythonAstFS(BaseFileSystem[PythonAstPath]):
+class PythonAstFS(BaseFileSystem[PythonAstPath, PythonAstInfo]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"
@@ -194,7 +203,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
         # Return a file-like object
         return io.BytesIO(content)
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> PythonAstInfo:
         """Get info about the module or a specific member."""
         self._load()
         assert self._source is not None
@@ -203,12 +212,12 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
 
         if not path:
             # Root path - return info about the module itself
-            return {
-                "name": os.path.splitext(os.path.basename(self.path))[0],  # noqa: PTH119, PTH122
-                "type": "module",
-                "size": len(self._source),
-                "doc": ast.get_docstring(ast.parse(self._source)),
-            }
+            return PythonAstInfo(
+                name=os.path.splitext(os.path.basename(self.path))[0],  # noqa: PTH119, PTH122
+                type="module",
+                size=len(self._source),
+                doc=ast.get_docstring(ast.parse(self._source)),
+            )
 
         # Get specific member info
         if path not in self._members:
@@ -217,7 +226,7 @@ class PythonAstFS(BaseFileSystem[PythonAstPath]):
 
         member = self._members[path]
         size = member.end_line - member.start_line
-        return {"name": member.name, "type": member.type, "size": size, "doc": member.doc}
+        return PythonAstInfo(name=member.name, type=member.type, size=size, doc=member.doc)
 
 
 if __name__ == "__main__":

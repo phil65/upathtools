@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -16,16 +16,32 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
+
+class SkillsInfo(TypedDict, total=False):
+    """Info dict for Skills filesystem paths."""
+
+    name: str
+    type: str
+    size: int
+    # Skill metadata fields
+    skill_name: str
+    skill_description: str
+    skill_version: str
+    skill_author: str
+    skill_tags: list[str]
+    skill_dependencies: list[str]
+
+
 logger = logging.getLogger(__name__)
 
 
-class SkillsPath(BaseUPath):
+class SkillsPath(BaseUPath[SkillsInfo]):
     """UPath implementation for Skills filesystem."""
 
     __slots__ = ()
 
 
-class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
+class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
     """Filesystem wrapper that enriches directory listings with skill metadata."""
 
     protocol = "skills"
@@ -121,9 +137,13 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
 
         return None
 
-    async def _enhance_with_skill_info(self, info: dict[str, Any]) -> dict[str, Any]:
+    async def _enhance_with_skill_info(self, info: dict[str, Any]) -> SkillsInfo:
         """Enhance file info with skill metadata if it's a skill directory."""
-        enhanced_info = info.copy()
+        enhanced_info = SkillsInfo(
+            name=info.get("name", ""),
+            type=info.get("type", "file"),
+            size=info.get("size", 0),
+        )
 
         # Only check directories
         if info.get("type") == "directory":
@@ -133,7 +153,19 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
             if await self._is_skill_directory(path):
                 skill_metadata = await self._parse_skill_metadata(path)
                 if skill_metadata:
-                    enhanced_info.update(skill_metadata)
+                    # Update with skill-specific fields
+                    if "skill_name" in skill_metadata:
+                        enhanced_info["skill_name"] = skill_metadata["skill_name"]
+                    if "skill_description" in skill_metadata:
+                        enhanced_info["skill_description"] = skill_metadata["skill_description"]
+                    if "skill_version" in skill_metadata:
+                        enhanced_info["skill_version"] = skill_metadata["skill_version"]
+                    if "skill_author" in skill_metadata:
+                        enhanced_info["skill_author"] = skill_metadata["skill_author"]
+                    if "skill_tags" in skill_metadata:
+                        enhanced_info["skill_tags"] = skill_metadata["skill_tags"]
+                    if "skill_dependencies" in skill_metadata:
+                        enhanced_info["skill_dependencies"] = skill_metadata["skill_dependencies"]
 
         return enhanced_info
 
@@ -150,7 +182,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         else:
             self.wrapped_fs.pipe_file(path, value, **kwargs)
 
-    async def _info(self, path: str, **kwargs: Any):
+    async def _info(self, path: str, **kwargs: Any) -> SkillsInfo:
         """Get enhanced info about a path."""
         if isinstance(self.wrapped_fs, AsyncFileSystem):
             info = await self.wrapped_fs._info(path, **kwargs)
@@ -165,7 +197,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         path: str,
         detail: Literal[True] = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[SkillsInfo]: ...
 
     @overload
     async def _ls(
@@ -175,7 +207,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         **kwargs: Any,
     ) -> list[str]: ...
 
-    async def _ls(self, path: str, detail=True, **kwargs: Any):
+    async def _ls(self, path: str, detail=True, **kwargs: Any) -> list[SkillsInfo] | list[str]:
         """List directory contents with skill metadata enhancement."""
         # Get base listing from wrapped filesystem
         if isinstance(self.wrapped_fs, AsyncFileSystem):
@@ -197,8 +229,17 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath]):
         for i, entry in enumerate(enhanced_entries):
             if isinstance(entry, Exception):
                 logger.warning("Failed to enhance entry %s: %s", entries[i].get("name"), entry)
-                result.append(entries[i])  # Use original entry
+                # Create SkillsInfo from original entry
+                original = entries[i]
+                fallback_info = SkillsInfo(
+                    name=original.get("name", ""),
+                    type=original.get("type", "file"),
+                    size=original.get("size", 0),
+                )
+                result.append(fallback_info)
             else:
+                # entry is already SkillsInfo from _enhance_with_skill_info
+                assert isinstance(entry, dict), "Enhanced entry should be SkillsInfo dict"
                 result.append(entry)
 
         return result

@@ -6,7 +6,7 @@ import importlib.metadata
 import importlib.util
 import os
 import pkgutil
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
 
@@ -16,6 +16,16 @@ from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import ModuleType
+
+
+class DistributionInfo(TypedDict, total=False):
+    """Info dict for distribution paths."""
+
+    name: str
+    type: Literal["directory", "package", "module"]
+    size: int
+    mtime: float | None
+    doc: str | None
 
 
 def _get_mtime(module: ModuleType) -> float | None:
@@ -28,7 +38,7 @@ def _get_mtime(module: ModuleType) -> float | None:
     return None
 
 
-class DistributionPath(BaseUPath):
+class DistributionPath(BaseUPath[DistributionInfo]):
     """UPath implementation for browsing Python distributions."""
 
     __slots__ = ()
@@ -44,7 +54,7 @@ class DistributionPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class DistributionFS(BaseFileSystem[DistributionPath]):
+class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
     """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"
@@ -144,25 +154,27 @@ class DistributionFS(BaseFileSystem[DistributionPath]):
             for pkg in packages
         ]
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> DistributionInfo:
         """Get info about a path."""
         norm_path = self._normalize_path(path)
 
         if not norm_path:
-            return {"name": "", "type": "directory", "size": 0}
+            return DistributionInfo(name="", type="directory", size=0)
 
         module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
-            type_ = "package" if hasattr(module, "__path__") else "module"
+            type_: Literal["package", "module"] = (
+                "package" if hasattr(module, "__path__") else "module"
+            )
 
-            return {
-                "name": module_name.split(".")[-1],
-                "type": type_,
-                "size": 0 if type_ == "package" else 1,
-                "mtime": _get_mtime(module),
-                "doc": module.__doc__,
-            }
+            return DistributionInfo(
+                name=module_name.split(".")[-1],
+                type=type_,
+                size=0 if type_ == "package" else 1,
+                mtime=_get_mtime(module),
+                doc=module.__doc__,
+            )
         except ImportError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc

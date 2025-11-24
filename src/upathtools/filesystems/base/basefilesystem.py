@@ -12,7 +12,7 @@ from upath import UPath
 from upathtools.filesystems.base.file_objects import AsyncFile
 
 
-class BaseAsyncFileSystem[TPath: UPath](AsyncFileSystem):
+class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSystem):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]
@@ -58,7 +58,7 @@ class BaseAsyncFileSystem[TPath: UPath](AsyncFileSystem):
         raise NotImplementedError(msg)
 
 
-class BaseFileSystem[TPath: UPath](AbstractFileSystem):
+class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSystem):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]

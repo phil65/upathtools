@@ -7,7 +7,7 @@ import contextlib
 import io
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 import weakref
 
 from fsspec.asyn import sync, sync_wrapper
@@ -20,16 +20,41 @@ if TYPE_CHECKING:
     import httpx
 
 
+class GistInfo(TypedDict, total=False):
+    """Info dict for Gist filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    description: str | None
+    created_at: str | None
+    updated_at: str | None
+    html_url: str | None
+    git_pull_url: str | None
+    git_push_url: str | None
+    comments: int | None
+    public: bool | None
+    owner: str | None
+    files_count: int | None
+    files_preview: list[str] | None
+    # File-specific fields from GitHub API
+    filename: str | None
+    raw_url: str | None
+    language: str | None
+    content: str | None
+    truncated: bool | None
+
+
 logger = logging.getLogger(__name__)
 
 
-class GistPath(BaseUPath):
+class GistPath(BaseUPath[GistInfo]):
     """UPath implementation for GitHub Gist filesystem."""
 
     __slots__ = ()
 
 
-class GistFileSystem(BaseAsyncFileSystem[GistPath]):
+class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
     """Filesystem for accessing GitHub Gists files.
 
     Supports both individual gists and listing all gists for a user.
@@ -555,16 +580,16 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
     rm = sync_wrapper(_rm)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> GistInfo:
         """Get info about a path."""
         path = self._strip_protocol(path)
         if not path:
-            return {
-                "name": "",
-                "type": "directory",
-                "size": 0,
-                "description": "Root directory listing gists",
-            }
+            return GistInfo(
+                name="",
+                type="directory",
+                size=0,
+                description="Root directory listing gists",
+            )
 
         parts = path.split("/")
         if len(parts) == 1:
@@ -576,7 +601,18 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                     if not matches:
                         msg = f"File not found: {path}"
                         raise FileNotFoundError(msg)  # noqa: TRY301
-                    return matches[0]
+                    file_info = matches[0]
+                    return GistInfo(
+                        name=file_info.get("name", path),
+                        type="file",
+                        size=file_info.get("size", 0),
+                        description=file_info.get("description"),
+                        filename=file_info.get("filename"),
+                        raw_url=file_info.get("raw_url"),
+                        language=file_info.get("language"),
+                        content=file_info.get("content"),
+                        truncated=file_info.get("truncated", False),
+                    )
                 except FileNotFoundError:
                     msg = f"File not found: {path}"
                     raise FileNotFoundError(msg)  # noqa: B904
@@ -589,30 +625,39 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                         # Try to fetch the specific gist
                         try:
                             meta = await self._fetch_gist_metadata(parts[0])
-                            return {
-                                "name": parts[0],
-                                "type": "directory",
-                                "description": meta.get("description", ""),
-                                "created_at": meta.get("created_at"),
-                                "updated_at": meta.get("updated_at"),
-                                "html_url": meta.get("html_url"),
-                                "git_pull_url": meta.get("git_pull_url"),
-                                "git_push_url": meta.get("git_push_url"),
-                                "comments": meta.get("comments", 0),
-                                "public": meta.get("public", False),
-                                "owner": meta.get("owner", {}).get("login")
+                            return GistInfo(
+                                name=parts[0],
+                                type="directory",
+                                description=meta.get("description", ""),
+                                created_at=meta.get("created_at"),
+                                updated_at=meta.get("updated_at"),
+                                html_url=meta.get("html_url"),
+                                git_pull_url=meta.get("git_pull_url"),
+                                git_push_url=meta.get("git_push_url"),
+                                comments=meta.get("comments", 0),
+                                public=meta.get("public", False),
+                                owner=meta.get("owner", {}).get("login")
                                 if meta.get("owner")
                                 else None,
-                                "files_count": len(meta.get("files", {})),
-                                "files_preview": list(meta.get("files", {}).keys()),
-                                "size": sum(
-                                    f.get("size", 0) for f in meta.get("files", {}).values()
-                                ),
-                            }
+                                files_count=len(meta.get("files", {})),
+                                files_preview=list(meta.get("files", {}).keys()),
+                                size=sum(f.get("size", 0) for f in meta.get("files", {}).values()),
+                            )
                         except FileNotFoundError:
                             msg = f"Gist not found: {parts[0]}"
                             raise FileNotFoundError(msg)  # noqa: B904
-                    return matches[0]
+                    file_info = matches[0]
+                    return GistInfo(
+                        name=file_info.get("name", parts[0]),
+                        type="file",
+                        size=file_info.get("size", 0),
+                        description=file_info.get("description"),
+                        filename=file_info.get("filename"),
+                        raw_url=file_info.get("raw_url"),
+                        language=file_info.get("language"),
+                        content=file_info.get("content"),
+                        truncated=file_info.get("truncated", False),
+                    )
                 except FileNotFoundError:
                     msg = f"Gist not found: {parts[0]}"
                     raise FileNotFoundError(msg)  # noqa: B904
@@ -627,7 +672,18 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
                 if not matches:
                     msg = f"File not found: {path}"
                     raise FileNotFoundError(msg)  # noqa: TRY301
-                return matches[0]
+                file_info = matches[0]
+                return GistInfo(
+                    name=file_info.get("name", file_name),
+                    type="file",
+                    size=file_info.get("size", 0),
+                    description=file_info.get("description"),
+                    filename=file_info.get("filename"),
+                    raw_url=file_info.get("raw_url"),
+                    language=file_info.get("language"),
+                    content=file_info.get("content"),
+                    truncated=file_info.get("truncated", False),
+                )
             except FileNotFoundError:
                 msg = f"File not found: {path}"
                 raise FileNotFoundError(msg)  # noqa: B904
@@ -652,7 +708,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
 
         try:
             info = await self._info(path, **kwargs)
-            return info["type"] == "directory"
+            return info["type"] == "directory"  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except FileNotFoundError:
             return False
 
@@ -662,7 +718,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath]):
         """Check if path is a file."""
         try:
             info = await self._info(path, **kwargs)
-            return info["type"] == "file"
+            return info["type"] == "file"  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except FileNotFoundError:
             return False
 

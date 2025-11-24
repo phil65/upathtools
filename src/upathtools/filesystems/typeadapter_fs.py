@@ -11,12 +11,26 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypedDict, overload
 
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
-class TypeAdapterPath(BaseUPath):
+class TypeAdapterInfo(TypedDict, total=False):
+    """Info dict for TypeAdapter filesystem paths."""
+
+    name: str
+    type: Literal["model", "nested_object", "field"]
+    size: int
+    title: str | None
+    description: str | None
+    field_count: int | None
+    schema: dict[str, Any] | None
+    field_type: str | None
+    default: Any
+
+
+class TypeAdapterPath(BaseUPath[TypeAdapterInfo]):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
     __slots__ = ()
@@ -32,7 +46,7 @@ class TypeAdapterPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
+class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
     """Filesystem for browsing type schemas via Pydantic TypeAdapter.
 
     Supports browsing field definitions and schemas for any TypeAdapter-compatible type:
@@ -373,22 +387,22 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
         except FileNotFoundError:
             return False
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> TypeAdapterInfo:
         """Get detailed info about a model or field."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root model info
             schema = self.type_adapter.json_schema()
-            return {
-                "name": self.model_path,
-                "type": "model",
-                "title": schema.get("title", self.model_path),
-                "description": schema.get("description"),
-                "field_count": len(schema.get("properties", {})),
-                "schema": schema,
-                "size": len(json.dumps(schema)),
-            }
+            return TypeAdapterInfo(
+                name=self.model_path,
+                type="model",
+                title=schema.get("title", self.model_path),
+                description=schema.get("description"),
+                field_count=len(schema.get("properties", {})),
+                schema=schema,
+                size=len(json.dumps(schema)),
+            )
 
         try:
             current_fields, field_name = self._get_nested_field_info(path)
@@ -398,12 +412,12 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
 
         if not field_name:
             # Nested object info
-            return {
-                "name": path.split("/")[-1],
-                "type": "nested_object",
-                "field_count": len(current_fields),
-                "size": len(json.dumps(current_fields)),
-            }
+            return TypeAdapterInfo(
+                name=path.split("/")[-1],
+                type="nested_object",
+                field_count=len(current_fields),
+                size=len(json.dumps(current_fields)),
+            )
 
         # Field info
         if field_name not in current_fields:
@@ -411,15 +425,15 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath]):
             raise FileNotFoundError(msg)
 
         field_schema = current_fields[field_name]
-        return {
-            "name": field_name,
-            "type": "field",
-            "field_type": field_schema.get("type", "unknown"),
-            "title": field_schema.get("title", field_name),
-            "description": field_schema.get("description"),
-            "default": field_schema.get("default"),
-            "size": len(json.dumps(field_schema)),
-        }
+        return TypeAdapterInfo(
+            name=field_name,
+            type="field",
+            field_type=field_schema.get("type", "unknown"),
+            title=field_schema.get("title", field_name),
+            description=field_schema.get("description"),
+            default=field_schema.get("default"),
+            size=len(json.dumps(field_schema)),
+        )
 
 
 if __name__ == "__main__":

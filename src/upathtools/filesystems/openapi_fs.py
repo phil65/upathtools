@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 from urllib.parse import urlparse
 
 import fsspec
@@ -16,7 +16,30 @@ if TYPE_CHECKING:
     from openapi3.paths import Operation
 
 
-class OpenAPIPath(BaseUPath):
+class OpenApiInfo(TypedDict, total=False):
+    """Info dict for OpenAPI filesystem paths."""
+
+    name: str
+    type: str
+    size: int
+    version: str
+    api_version: str
+    description: str | None
+    paths_count: int
+    components_count: int
+    spec_url: str
+    operations: list[str]
+    component_type: str | None
+    operation_id: str | None
+    summary: str | None
+    parameters: list[str] | None
+    responses: list[str] | None
+    request_body: bool | None
+    deprecated: bool | None
+    tags: list[str] | None
+
+
+class OpenAPIPath(BaseUPath[OpenApiInfo]):
     """UPath implementation for browsing OpenAPI specifications."""
 
     __slots__ = ()
@@ -32,7 +55,7 @@ class OpenAPIPath(BaseUPath):
         return "/" if path == "." else path
 
 
-class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
+class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
     """Filesystem for browsing OpenAPI specifications and API documentation."""
 
     protocol = "openapi"
@@ -668,7 +691,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
             return content[start:end]
         return content
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> OpenApiInfo:
         """Get detailed info about an OpenAPI element."""
         self._load_spec()
         assert self._spec is not None
@@ -678,19 +701,19 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
         if not path:
             # Root spec info
             spec_content = self.cat("").decode()
-            return {
-                "name": self._spec.info.title,
-                "type": "openapi_spec",
-                "version": self._spec.openapi,
-                "api_version": self._spec.info.version,
-                "description": self._spec.info.description,
-                "paths_count": len(self._spec.paths) if self._spec.paths else 0,
-                "components_count": len(self._spec.components.schemas)
+            return OpenApiInfo(
+                name=self._spec.info.title,
+                type="openapi_spec",
+                version=self._spec.openapi,
+                api_version=self._spec.info.version,
+                description=self._spec.info.description,
+                paths_count=len(self._spec.paths) if self._spec.paths else 0,
+                components_count=len(self._spec.components.schemas)
                 if self._spec.components and self._spec.components.schemas
                 else 0,
-                "spec_url": self.spec_url,
-                "size": len(spec_content),
-            }
+                spec_url=self.spec_url,
+                size=len(spec_content),
+            )
 
         parts = path.split("/")
 
@@ -714,13 +737,13 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                             if hasattr(path_obj, method) and getattr(path_obj, method):
                                 operations.append(method.upper())  # noqa: PERF401
 
-                        return {
-                            "name": path_key,
-                            "type": "api_path",
-                            "operations": operations,
-                            "description": getattr(path_obj, "description", "") or "",
-                            "size": len(str(path_obj.raw_element)),
-                        }
+                        return OpenApiInfo(
+                            name=path_key,
+                            type="api_path",
+                            operations=operations,
+                            description=getattr(path_obj, "description", "") or "",
+                            size=len(str(path_obj.raw_element)),
+                        )
                 elif len(parts) >= 3:  # noqa: PLR2004
                     # Reconstruct path from parts excluding the method
                     path_parts = parts[1:-1]  # All parts except first (paths) and last (method)
@@ -735,12 +758,20 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
                         path_obj = self._spec.paths[path_key]
                         if hasattr(path_obj, method) and getattr(path_obj, method):
                             operation = getattr(path_obj, method)
-                            return {
-                                "name": f"{method.upper()} {path_key}",
-                                "type": "operation",
-                                "size": len(str(operation.raw_element)),
-                                **self._get_operation_info(operation, method, path_key),
-                            }
+                            op_info = self._get_operation_info(operation, method, path_key)
+                            return OpenApiInfo(
+                                name=f"{method.upper()} {path_key}",
+                                type="operation",
+                                size=len(str(operation.raw_element)),
+                                operation_id=op_info.get("operation_id"),
+                                summary=op_info.get("summary"),
+                                description=op_info.get("description"),
+                                parameters=op_info.get("parameters", []),
+                                responses=op_info.get("responses", []),
+                                request_body=op_info.get("request_body", False),
+                                deprecated=op_info.get("deprecated", False),
+                                tags=op_info.get("tags", []),
+                            )
 
             case "components":
                 if len(parts) == 3 and self._spec.components:  # noqa: PLR2004
@@ -750,12 +781,12 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath]):
 
                     if component_map and component_name in component_map:
                         component = component_map[component_name]
-                        return {
-                            "name": component_name,
-                            "type": f"component_{component_type[:-1]}",
-                            "size": len(str(component.raw_element)),
-                            "component_type": component_type,
-                        }
+                        return OpenApiInfo(
+                            name=component_name,
+                            type=f"component_{component_type[:-1]}",
+                            size=len(str(component.raw_element)),
+                            component_type=component_type,
+                        )
 
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)

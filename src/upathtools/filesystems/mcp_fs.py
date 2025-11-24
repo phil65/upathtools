@@ -8,7 +8,7 @@ filesystem operations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 from urllib.parse import quote, unquote
 
 from fsspec.asyn import sync_wrapper
@@ -21,16 +21,28 @@ if TYPE_CHECKING:
     from fastmcp import Client as FastMCPClient
 
 
+class McpInfo(TypedDict, total=False):
+    """Info dict for MCP filesystem paths."""
+
+    name: str
+    type: Literal["file"]
+    size: int | None
+    uri: str | None
+    mimeType: str | None
+    description: str | None
+    title: str | None
+
+
 logger = get_logger(__name__)
 
 
-class MCPPath(BaseUPath):
+class MCPPath(BaseUPath[McpInfo]):
     """MCP-specific UPath implementation."""
 
     __slots__ = ()
 
 
-class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
+class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
     """FSSpec filesystem that exposes MCP resources.
 
     This filesystem wraps a FastMCP client to expose MCP resources
@@ -296,13 +308,22 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath]):
     # Sync wrapper
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> McpInfo:
         """Get file information asynchronously."""
         if not self._cache_valid:
             await self._refresh_resources()
 
         if path in self._resource_cache:
-            return self._resource_cache[path].copy()
+            resource = self._resource_cache[path]
+            return McpInfo(
+                name=resource["name"],
+                type=resource["type"],
+                size=resource["size"],
+                uri=resource["uri"],
+                mimeType=resource["mimeType"],
+                description=resource["description"],
+                title=resource["title"],
+            )
         msg = f"Path not found: {path}"
         raise FileNotFoundError(msg)
 

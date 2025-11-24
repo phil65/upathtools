@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -14,10 +14,19 @@ if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
 
+class UnionInfo(TypedDict, total=False):
+    """Info dict for union filesystem paths."""
+
+    name: str
+    type: str
+    size: int
+    protocols: list[str]
+
+
 logger = logging.getLogger(__name__)
 
 
-class UnionPath(BaseUPath):
+class UnionPath(BaseUPath[UnionInfo]):
     """UPath implementation for browsing UnionFS."""
 
     __slots__ = ()
@@ -43,7 +52,7 @@ class UnionPath(BaseUPath):
         return super().__str__().replace(":///", "://")
 
 
-class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
+class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
     """Filesystem that combines multiple filesystems by protocol."""
 
     protocol = "union"
@@ -154,19 +163,19 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
         else:
             fs.pipe_file(path, value, **kwargs)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> UnionInfo:
         """Get info about a path."""
         logger.debug("Getting info for path: %s", path)
 
         fs, norm_path = self._get_fs_and_path(path)
 
         if fs is self:
-            return {
-                "name": "",
-                "size": 0,
-                "type": "directory",
-                "protocols": list(self.filesystems),
-            }
+            return UnionInfo(
+                name="",
+                size=0,
+                type="directory",
+                protocols=list(self.filesystems),
+            )
 
         if isinstance(fs, AsyncFileSystem):
             out = await fs._info(norm_path, **kwargs)
@@ -175,12 +184,15 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath]):
 
         # Only try to get protocol if we're not dealing with self
         protocol = next(p for p, f in self.filesystems.items() if f is fs)
-        if "name" in out:
-            name = out["name"]
-            if "://" in name:
-                name = name.split("://", 1)[1]
-            out["name"] = self._normalize_path(protocol, name)
-        return out
+        name = out.get("name", "")
+        if "://" in name:
+            name = name.split("://", 1)[1]
+
+        return UnionInfo(
+            name=self._normalize_path(protocol, name),
+            type=out.get("type", "file"),
+            size=out.get("size", 0),
+        )
 
     def _normalize_path(self, protocol: str, path: str) -> str:
         """Normalize path to handle protocol and slashes correctly."""

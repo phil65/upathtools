@@ -9,7 +9,7 @@ import io
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 import weakref
 
 from fsspec.asyn import AbstractAsyncStreamedFile, sync, sync_wrapper
@@ -36,6 +36,17 @@ if TYPE_CHECKING:
     from yarl import URL
 
 
+class HttpInfo(TypedDict, total=False):
+    """Info dict for HTTP filesystem paths."""
+
+    name: str
+    type: Literal["file"]
+    size: int | None
+    content_type: str | None
+    last_modified: str | None
+    etag: str | None
+
+
 # URL pattern in HTML href tags
 HREF_PATTERN = re.compile(r"""<(a|A)\s+(?:[^>]*?\s+)?(href|HREF)=["'](?P<url>[^"']+)""")
 # URL pattern for direct links
@@ -43,7 +54,7 @@ URL_PATTERN = re.compile(r"""(?P<url>http[s]?://[-a-zA-Z0-9@:%_+.~#?&/=]+)""")
 logger = logging.getLogger("fsspec.http")
 
 
-class HttpPath(BaseUPath):
+class HttpPath(BaseUPath[HttpInfo]):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -56,7 +67,7 @@ async def get_client(**kwargs: Any) -> httpx.AsyncClient:
     return httpx.AsyncClient(follow_redirects=True, **kwargs)
 
 
-class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
+class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
     """Simple File-System for fetching data via HTTP(S)."""
 
     sep = "/"
@@ -502,7 +513,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
         r = await session.put(str(self.encode_url(url)), content=value, **kw)
         self._raise_not_found_for_status(r, url)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> HttpInfo:
         """Get info of URL."""
         info = {}
         session = await self.set_session()
@@ -525,7 +536,14 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath]):
                     raise FileNotFoundError(path) from exc
                 logger.debug("HEAD request failed", exc_info=exc)
 
-        return {"name": path, "size": None, **info, "type": "file"}
+        return HttpInfo(
+            name=path,
+            size=info.get("size"),
+            type="file",
+            content_type=info.get("content_type"),
+            last_modified=info.get("last_modified"),
+            etag=info.get("etag"),
+        )
 
     async def _glob(self, path: str, maxdepth: int | None = None, **kwargs: Any):
         """Find files by glob-matching."""

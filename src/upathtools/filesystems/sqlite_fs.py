@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
 from fsspec.asyn import sync_wrapper
@@ -19,7 +19,16 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
 
 
-class SqlitePath(BaseUPath):
+class SqliteInfo(TypedDict, total=False):
+    """Info dict for SQLite filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    table_type: str
+
+
+class SqlitePath(BaseUPath[SqliteInfo]):
     """UPath implementation for browsing SQLite databases."""
 
     __slots__ = ()
@@ -30,7 +39,7 @@ class SqlitePath(BaseUPath):
         yield from super().iterdir()
 
 
-class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
+class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
     """Filesystem for browsing SQLite databases."""
 
     protocol = "sqlite"
@@ -228,7 +237,7 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
             msg = f"Table {table_name} not found"
             raise FileNotFoundError(msg)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> SqliteInfo:
         """Get info about database objects."""
         from sqlalchemy import text
 
@@ -237,28 +246,28 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
 
         if not path or path == "/":
             # Root directory info
-            return {
-                "name": "root",
-                "type": "directory",
-                "size": 0,
-            }
+            return SqliteInfo(
+                name="root",
+                type="directory",
+                size=0,
+            )
 
         # Handle special files
         if path == ".schema":
             schema_content = await self._get_schema()
-            return {
-                "name": ".schema",
-                "type": "file",
-                "size": len(schema_content),
-            }
+            return SqliteInfo(
+                name=".schema",
+                type="file",
+                size=len(schema_content),
+            )
         if path.endswith(".schema"):
             table_name = path.removesuffix(".schema")
             schema_content = await self._get_table_schema(table_name)
-            return {
-                "name": path,
-                "type": "file",
-                "size": len(schema_content),
-            }
+            return SqliteInfo(
+                name=path,
+                type="file",
+                size=len(schema_content),
+            )
 
         # Regular table info
         async with engine.begin() as conn:
@@ -276,12 +285,12 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath]):
             count_result = await conn.execute(text(f"SELECT COUNT(*) FROM `{path}`"))
             count = count_result.scalar()
 
-            return {
-                "name": path,
-                "type": "file",
-                "size": count or 0,
-                "table_type": row.type,  # type: ignore[reportAttributeAccessIssue]
-            }
+            return SqliteInfo(
+                name=path,
+                type="file",
+                size=count or 0,
+                table_type=row.type,  # type: ignore[reportAttributeAccessIssue]
+            )
 
     info = sync_wrapper(_info)
 

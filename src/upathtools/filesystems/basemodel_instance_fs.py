@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
@@ -12,7 +12,22 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelInstancePath(BaseUPath):
+class BaseModelInstanceInfo(TypedDict, total=False):
+    """Info dict for BaseModel instance paths."""
+
+    name: str
+    type: Literal["instance", "nested_object", "value"]
+    class_name: str | None
+    is_basemodel: bool | None
+    field_count: int | None
+    data: str | None
+    is_collection: bool | None
+    size: int | None
+    value_type: str | None
+    value: str | None
+
+
+class BaseModelInstancePath(BaseUPath[BaseModelInstanceInfo]):
     """UPath implementation for browsing Pydantic BaseModel instance data."""
 
     __slots__ = ()
@@ -28,7 +43,7 @@ class BaseModelInstancePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
+class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanceInfo]):
     """Filesystem for browsing Pydantic BaseModel instance data and values."""
 
     protocol = "basemodel-instance"
@@ -330,24 +345,24 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
             return field_value.model_dump_json(indent=2).encode()
         return json.dumps(field_value, indent=2, default=str).encode()
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> BaseModelInstanceInfo:
         """Get detailed info about an instance field or value."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root instance info
-            return {
-                "name": type(self.instance).__name__,
-                "type": "instance",
-                "class": f"{type(self.instance).__module__}.{type(self.instance).__name__}",
-                "is_basemodel": self._is_basemodel_instance(self.instance),
-                "field_count": len(type(self.instance).model_fields)
+            return BaseModelInstanceInfo(
+                name=type(self.instance).__name__,
+                type="instance",
+                class_name=f"{type(self.instance).__module__}.{type(self.instance).__name__}",
+                is_basemodel=self._is_basemodel_instance(self.instance),
+                field_count=len(type(self.instance).model_fields)
                 if self._is_basemodel_instance(self.instance)
                 else 0,
-                "data": str(self.instance)[:200] + "..."
+                data=str(self.instance)[:200] + "..."
                 if len(str(self.instance)) > 200  # noqa: PLR2004
                 else str(self.instance),
-            }
+            )
 
         try:
             current_obj, field_name = self._get_nested_value_at_path(path)
@@ -357,17 +372,17 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
 
         if not field_name:
             # Nested object info
-            return {
-                "name": type(current_obj).__name__,
-                "type": "nested_object",
-                "class": f"{type(current_obj).__module__}.{type(current_obj).__name__}",
-                "is_basemodel": self._is_basemodel_instance(current_obj),
-                "is_collection": self._is_list_like(current_obj) or self._is_dict_like(current_obj),
-                "size": len(current_obj) if hasattr(current_obj, "__len__") else None,
-                "data": str(current_obj)[:200] + "..."
+            return BaseModelInstanceInfo(
+                name=type(current_obj).__name__,
+                type="nested_object",
+                class_name=f"{type(current_obj).__module__}.{type(current_obj).__name__}",
+                is_basemodel=self._is_basemodel_instance(current_obj),
+                is_collection=self._is_list_like(current_obj) or self._is_dict_like(current_obj),
+                size=len(current_obj) if hasattr(current_obj, "__len__") else None,
+                data=str(current_obj)[:200] + "..."
                 if len(str(current_obj)) > 200  # noqa: PLR2004
                 else str(current_obj),
-            }
+            )
 
         # Field/item value info
         if self._is_basemodel_instance(current_obj):
@@ -391,17 +406,17 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath]):
             msg = f"Cannot access {field_name} on {type(current_obj)}"
             raise FileNotFoundError(msg)
 
-        return {
-            "name": field_name,
-            "type": "value",
-            "value_type": type(field_value).__name__,
-            "value": str(field_value)[:200] + "..."
+        return BaseModelInstanceInfo(
+            name=field_name,
+            type="value",
+            value_type=type(field_value).__name__,
+            value=str(field_value)[:200] + "..."
             if len(str(field_value)) > 200  # noqa: PLR2004
             else str(field_value),
-            "is_basemodel": self._is_basemodel_instance(field_value),
-            "is_collection": self._is_list_like(field_value) or self._is_dict_like(field_value),
-            "size": len(field_value) if hasattr(field_value, "__len__") else None,
-        }
+            is_basemodel=self._is_basemodel_instance(field_value),
+            is_collection=self._is_list_like(field_value) or self._is_dict_like(field_value),
+            size=len(field_value) if hasattr(field_value, "__len__") else None,
+        )
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import pkgutil
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
 
@@ -18,7 +18,17 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-class PackagePath(BaseUPath):
+class PackageInfo(TypedDict, total=False):
+    """Info dict for package filesystem paths."""
+
+    name: str
+    type: Literal["package", "module"]
+    size: int
+    mtime: float | None
+    doc: str | None
+
+
+class PackagePath(BaseUPath[PackageInfo]):
     """UPath implementation for browsing Python packages."""
 
     __slots__ = ()
@@ -34,7 +44,7 @@ class PackagePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class PackageFS(BaseFileSystem[PackagePath]):
+class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"
@@ -134,7 +144,7 @@ class PackageFS(BaseFileSystem[PackagePath]):
             pass
         return None
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> PackageInfo:
         """Get info about a path."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -145,15 +155,17 @@ class PackageFS(BaseFileSystem[PackagePath]):
 
         try:
             module = self._get_module(module_name)
-            type_ = "package" if hasattr(module, "__path__") else "module"
+            type_: Literal["package", "module"] = (
+                "package" if hasattr(module, "__path__") else "module"
+            )
 
-            return {
-                "name": module_name.split(".")[-1],
-                "type": type_,
-                "size": 0 if type_ == "package" else 1,
-                "mtime": self._get_mtime(module),
-                "doc": module.__doc__,
-            }
+            return PackageInfo(
+                name=module_name.split(".")[-1],
+                type=type_,
+                size=0 if type_ == "package" else 1,
+                mtime=self._get_mtime(module),
+                doc=module.__doc__,
+            )
         except ImportError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -15,14 +15,22 @@ if TYPE_CHECKING:
     from microsandbox import BaseSandbox
 
 
+class MicrosandboxInfo(TypedDict, total=False):
+    """Info dict for Microsandbox filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+
+
 logger = logging.getLogger(__name__)
 
 
-class MicrosandboxPath(BaseUPath):
+class MicrosandboxPath(BaseUPath[MicrosandboxInfo]):
     """Microsandbox-specific UPath implementation."""
 
 
-class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
+class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
     """Async filesystem for Microsandbox environments.
 
     This filesystem provides access to files within a Microsandbox environment,
@@ -301,13 +309,13 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath]):
             return result.encode("utf-8")
         return result
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> MicrosandboxInfo:
         """Get file info (sync wrapper)."""
-        return {
-            "name": path,
-            "size": self.size(path) if self.isfile(path) else 0,
-            "type": "directory" if self.isdir(path) else "file",
-        }
+        return MicrosandboxInfo(
+            name=path,
+            size=self.size(path) if self.isfile(path) else 0,
+            type="directory" if self.isdir(path) else "file",
+        )
 
 
 class MicrosandboxFile:

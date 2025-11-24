@@ -10,12 +10,25 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypedDict, overload
 
 from fsspec.asyn import sync_wrapper
 from fsspec.utils import infer_storage_options
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter
+
+
+class WikiInfo(TypedDict, total=False):
+    """Info dict for Wiki filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    wiki: str
+    title: str
+    created_at: int
+    updated_at: int
+    html_url: str
 
 
 logger = logging.getLogger(__name__)
@@ -24,13 +37,13 @@ logger = logging.getLogger(__name__)
 PREVIEW_LENGTH = 200
 
 
-class WikiPath(BaseUPath):
+class WikiPath(BaseUPath[WikiInfo]):
     """UPath implementation for GitHub Wiki filesystem."""
 
     __slots__ = ()
 
 
-class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
+class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
     """Filesystem for accessing GitHub Wiki pages using git operations.
 
     This implementation uses git commands to interact with GitHub Wiki repositories.
@@ -380,7 +393,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
     rm_file = sync_wrapper(_rm_file)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> WikiInfo:
         """Get info about a wiki page or root.
 
         Args:
@@ -397,7 +410,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
 
         if not path:  # Root directory
             info = f"{self.owner}/{self.repo}"
-            return {"name": "", "size": 0, "type": "directory", "wiki": info}
+            return WikiInfo(name="", size=0, type="directory", wiki=info)
 
         file_path = pathlib.Path(self.temp_dir) / path
         if not file_path.exists():
@@ -405,7 +418,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             raise FileNotFoundError(msg)
 
         if file_path.is_dir():
-            return {"name": file_path.name or path, "size": 0, "type": "directory"}
+            return WikiInfo(name=file_path.name or path, size=0, type="directory")
 
         stat = file_path.stat()  # File info
         file = pathlib.Path(path)
@@ -428,15 +441,15 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath]):
             created_at = int(stat.st_ctime)
 
         title = file.stem.replace("-", " ")  # Convert filename to wiki title
-        return {
-            "name": file.name,
-            "type": "file",
-            "size": stat.st_size,
-            "title": title,
-            "created_at": created_at,
-            "updated_at": last_modified,
-            "html_url": f"https://github.com/{self.owner}/{self.repo}/wiki/{file.stem}",
-        }
+        return WikiInfo(
+            name=file.name,
+            type="file",
+            size=stat.st_size,
+            title=title,
+            created_at=created_at,
+            updated_at=last_modified,
+            html_url=f"https://github.com/{self.owner}/{self.repo}/wiki/{file.stem}",
+        )
 
     info = sync_wrapper(_info)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
@@ -11,13 +11,21 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-class NotionPath(BaseUPath):
+class NotionInfo(TypedDict, total=False):
+    """Info dict for Notion filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+
+
+class NotionPath(BaseUPath[NotionInfo]):
     """UPath implementation for Notion filesystem."""
 
     __slots__ = ()
 
 
-class NotionFS(BaseAsyncFileSystem[NotionPath]):
+class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
     protocol = "notion"
     upath_cls = NotionPath
 

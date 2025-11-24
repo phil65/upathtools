@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict, overload
 
 from upath.types import UNSET_DEFAULT
 
@@ -18,10 +18,19 @@ if TYPE_CHECKING:
     from upath.types import WritablePathLike
 
 
+class CliInfo(TypedDict, total=False):
+    """Info dict for CLI paths."""
+
+    name: str
+    type: Literal["directory", "command"]
+    size: int
+    executable: str
+
+
 logger = logging.getLogger(__name__)
 
 
-class CliPath(BaseUPath):
+class CliPath(BaseUPath[CliInfo]):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -44,7 +53,7 @@ class CliPath(BaseUPath):
         raise NotImplementedError(msg)
 
 
-class CliFS(BaseFileSystem[CliPath]):
+class CliFS(BaseFileSystem[CliPath, CliInfo]):
     """Filesystem for executing CLI commands and capturing their output."""
 
     protocol = "cli"
@@ -202,7 +211,7 @@ class CliFS(BaseFileSystem[CliPath]):
         except subprocess.CalledProcessError as e:
             raise subprocess.CalledProcessError(e.returncode, e.cmd, e.output, e.stderr) from None
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> CliInfo:
         """Get information about a command.
 
         Args:
@@ -217,7 +226,7 @@ class CliFS(BaseFileSystem[CliPath]):
         """
         command = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not command:
-            return {"name": "", "type": "directory", "size": 0}
+            return CliInfo(name="", type="directory", size=0)
 
         # Get just the command name without args
         cmd_name = command.split()[0]
@@ -227,12 +236,12 @@ class CliFS(BaseFileSystem[CliPath]):
             msg = f"Command not found: {cmd_name}"
             raise FileNotFoundError(msg)
 
-        return {
-            "name": cmd_name,
-            "type": "command",
-            "size": 0,
-            "executable": commands[cmd_name],
-        }
+        return CliInfo(
+            name=cmd_name,
+            type="command",
+            size=0,
+            executable=commands[cmd_name],
+        )
 
 
 if __name__ == "__main__":

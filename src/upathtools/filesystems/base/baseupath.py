@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
 
-class BaseUPath(UPath):
+class BaseUPath[TInfoDict = dict[str, Any]](UPath):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
     @classmethod
@@ -158,7 +158,7 @@ class BaseUPath(UPath):
     async def aiterdir(self) -> AsyncIterator[Self]:
         """Asynchronously iterate over directory contents."""
         fs = await self.afs()
-        entries = await fs._ls(self.path, detail=False)
+        entries: list[TInfoDict | str] = await fs._ls(self.path, detail=False)
         for entry in entries:
             if isinstance(entry, dict):
                 entry_path = entry.get("name", entry.get("path", ""))
@@ -176,7 +176,7 @@ class BaseUPath(UPath):
         case_sensitive = case_sensitive or False
         fs = await self.afs()
         full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
-        matches = await fs._glob(full_pattern)
+        matches: list[TInfoDict | str] = await fs._glob(full_pattern)
         for match_path in matches:
             if isinstance(match_path, dict):
                 path_str = match_path.get("name", match_path.get("path", ""))

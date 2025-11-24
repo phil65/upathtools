@@ -9,7 +9,7 @@ from io import BytesIO
 import os
 import sys
 from types import ModuleType
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypedDict, overload
 
 import fsspec
 
@@ -28,7 +28,17 @@ class ModuleMember:
     doc: str | None = None
 
 
-class ModulePath(BaseUPath):
+class ModuleInfo(TypedDict, total=False):
+    """Info dict for module paths and members."""
+
+    name: str
+    type: Literal["module", "function", "class"]
+    size: int
+    doc: str | None
+    mtime: float | None
+
+
+class ModulePath(BaseUPath[ModuleInfo]):
     """UPath implementation for browsing Python modules."""
 
     __slots__ = ()
@@ -44,7 +54,7 @@ class ModulePath(BaseUPath):
         return "/" if path == "." else path
 
 
-class ModuleFS(BaseFileSystem[ModulePath]):
+class ModuleFS(BaseFileSystem[ModulePath, ModuleInfo]):
     """Runtime-based filesystem for browsing a single Python module."""
 
     protocol = "mod"
@@ -122,7 +132,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         path: str = "",
         detail: Literal[True] = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[ModuleInfo]: ...
 
     @overload
     def ls(
@@ -137,7 +147,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[ModuleInfo] | list[str]:
         """List module contents (functions and classes)."""
         self._load()
         assert self._module is not None
@@ -157,7 +167,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
         if not detail:
             return [m.name for m in members]
 
-        return [{"name": m.name, "type": m.type, "doc": m.doc} for m in members]
+        return [ModuleInfo(name=m.name, type=m.type, doc=m.doc, size=0) for m in members]
 
     def cat(self, path: str = "") -> bytes:
         """Get source code of whole module or specific member."""
@@ -237,7 +247,7 @@ class ModuleFS(BaseFileSystem[ModulePath]):
 
         return BytesIO(self.cat(path))
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> ModuleInfo:
         """Get info about a path."""
         self._load()  # Make sure module is loaded
         assert self._module is not None
@@ -246,15 +256,15 @@ class ModuleFS(BaseFileSystem[ModulePath]):
 
         if not path:
             # Root path - return info about the module itself
-            return {
-                "name": self._module.__name__,
-                "type": "module",
-                "size": os.path.getsize(self.source_path),  # noqa: PTH202
-                "mtime": os.path.getmtime(self.source_path)  # noqa: PTH204
+            return ModuleInfo(
+                name=self._module.__name__,
+                type="module",
+                size=os.path.getsize(self.source_path),  # noqa: PTH202
+                doc=self._module.__doc__,
+                mtime=os.path.getmtime(self.source_path)  # noqa: PTH204
                 if os.path.exists(self.source_path)  # noqa: PTH110
                 else None,
-                "doc": self._module.__doc__,
-            }
+            )
 
         # Get specific member
         obj = getattr(self._module, path, None)
@@ -262,12 +272,12 @@ class ModuleFS(BaseFileSystem[ModulePath]):
             msg = f"Member {path} not found"
             raise FileNotFoundError(msg)
 
-        return {
-            "name": path,
-            "type": "class" if inspect.isclass(obj) else "function",
-            "size": len(self._get_member_source(obj, path)),  # size of the member's source
-            "doc": obj.__doc__,
-        }
+        return ModuleInfo(
+            name=path,
+            type="class" if inspect.isclass(obj) else "function",
+            size=len(self._get_member_source(obj, path)),
+            doc=obj.__doc__,
+        )
 
     def _get_member_source(self, obj: Any, name: str) -> str:
         """Get source code for a member, with fallback for inspect failures."""

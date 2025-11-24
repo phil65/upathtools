@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
 
@@ -14,6 +14,15 @@ from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+class MarkdownInfo(TypedDict, total=False):
+    """Info dict for Markdown filesystem paths."""
+
+    name: str
+    type: Literal["file", "directory"]
+    size: int
+    level: int
 
 
 class MarkdownNode:
@@ -48,7 +57,7 @@ class MarkdownNode:
         return len(self.content.encode())
 
 
-class MarkdownPath(BaseUPath):
+class MarkdownPath(BaseUPath[MarkdownInfo]):
     """UPath implementation for browsing markdown documents."""
 
     __slots__ = ()
@@ -59,7 +68,7 @@ class MarkdownPath(BaseUPath):
         yield from super().iterdir()
 
 
-class MarkdownFS(BaseFileSystem[MarkdownPath]):
+class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
@@ -251,17 +260,17 @@ class MarkdownFS(BaseFileSystem[MarkdownPath]):
 
         return "\n".join(lines).encode()
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> MarkdownInfo:
         """Get info about a path."""
         node = self._get_node(path)
         name = "root" if not path or path == "/" else path.split("/")[-1]
 
-        return {
-            "name": name,
-            "size": node.get_size(),
-            "type": "directory" if node.is_dir() else "file",
-            "level": node.level,
-        }
+        return MarkdownInfo(
+            name=name,
+            size=node.get_size(),
+            type="directory" if node.is_dir() else "file",
+            level=node.level,
+        )
 
     def _open(
         self,
