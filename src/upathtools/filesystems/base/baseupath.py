@@ -176,7 +176,7 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
         case_sensitive = case_sensitive or False
         fs = await self.afs()
         full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
-        matches: list[TInfoDict | str] = await fs._glob(full_pattern)
+        matches = await fs._glob(full_pattern)
         for match_path in matches:
             if isinstance(match_path, dict):
                 path_str = match_path.get("name", match_path.get("path", ""))
@@ -240,7 +240,7 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
         path = type(self)(target) if not isinstance(target, BaseUPath) else target
         content = await self.aread_bytes()  # Read source and write to target
         await path.awrite_bytes(content)
-        return path
+        return path  # pyright: ignore[reportReturnType]
 
     async def amove(self, target: JoinablePathLike) -> BaseUPath:
         """Asynchronously move file to target location."""

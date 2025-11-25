@@ -268,7 +268,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                 raise FileNotFoundError(path) from e
 
         if detail:
-            return out
+            return out  # pyright: ignore[reportReturnType]
         return sorted(out)  # pyright: ignore[reportArgumentType]
 
     ls = sync_wrapper(_ls)
@@ -470,7 +470,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         session = await self.set_session()
         if size is None:
             with contextlib.suppress(FileNotFoundError):
-                size = (await self._info(path, **kwargs))["size"]
+                size = (await self._info(path, **kwargs)).get("size")
         return AsyncStreamFile(
             self,
             path,
