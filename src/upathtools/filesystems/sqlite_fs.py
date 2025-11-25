@@ -5,12 +5,12 @@ from __future__ import annotations
 import csv
 import io
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -19,11 +19,9 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
 
 
-class SqliteInfo(TypedDict, total=False):
+class SqliteInfo(FileInfo, total=False):
     """Info dict for SQLite filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     table_type: str
 

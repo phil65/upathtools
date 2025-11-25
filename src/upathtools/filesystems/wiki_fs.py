@@ -10,19 +10,17 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Literal, TypedDict, overload
+from typing import Any, Literal, overload
 
 from fsspec.asyn import sync_wrapper
 from fsspec.utils import infer_storage_options
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter, FileInfo
 
 
-class WikiInfo(TypedDict, total=False):
+class WikiInfo(FileInfo, total=False):
     """Info dict for Wiki filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     wiki: str
     title: str

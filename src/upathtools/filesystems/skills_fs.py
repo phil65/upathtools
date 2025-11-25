@@ -4,24 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
 import yaml
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
 
-class SkillsInfo(TypedDict, total=False):
+class SkillsInfo(FileInfo, total=False):
     """Info dict for Skills filesystem paths."""
 
-    name: str
-    type: str
     size: int
     # Skill metadata fields
     skill_name: str

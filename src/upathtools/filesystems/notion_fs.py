@@ -2,20 +2,18 @@ from __future__ import annotations
 
 import io
 import json
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-class NotionInfo(TypedDict, total=False):
+class NotionInfo(FileInfo, total=False):
     """Info dict for Notion filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
 
 

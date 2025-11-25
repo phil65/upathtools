@@ -7,24 +7,22 @@ import contextlib
 import io
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
 from fsspec.asyn import sync, sync_wrapper
 from fsspec.utils import infer_storage_options
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter, FileInfo
 
 
 if TYPE_CHECKING:
     import httpx
 
 
-class GistInfo(TypedDict, total=False):
+class GistInfo(FileInfo, total=False):
     """Info dict for Gist filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     description: str | None
     created_at: str | None

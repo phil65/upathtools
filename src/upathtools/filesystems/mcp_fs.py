@@ -8,12 +8,12 @@ filesystem operations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import quote, unquote
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 from upathtools.log import get_logger
 
 
@@ -21,14 +21,12 @@ if TYPE_CHECKING:
     from fastmcp import Client as FastMCPClient
 
 
-class McpInfo(TypedDict, total=False):
+class McpInfo(FileInfo, total=False):
     """Info dict for MCP filesystem paths."""
 
-    name: str
-    type: Literal["file"]
     size: int | None
     uri: str | None
-    mimeType: str | None
+    mime_type: str | None
     description: str | None
     title: str | None
 
@@ -172,7 +170,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
                     "size": resource.size,
                     "type": "file",
                     "uri": str(resource.uri),
-                    "mimeType": resource.mimeType,
+                    "mime_type": resource.mimeType,
                     "description": resource.description,
                     "title": resource.title,
                 }
@@ -298,7 +296,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
                 type=resource["type"],
                 size=resource["size"],
                 uri=resource["uri"],
-                mimeType=resource["mimeType"],
+                mime_type=resource["mimeType"],
                 description=resource["description"],
                 title=resource["title"],
             )

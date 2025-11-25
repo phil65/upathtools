@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict
 
 
 if TYPE_CHECKING:
@@ -11,6 +11,13 @@ if TYPE_CHECKING:
 
     from fsspec.asyn import AsyncFileSystem
     from fsspec.spec import AbstractFileSystem
+
+
+class FileInfo(TypedDict):
+    """Info dict for Markdown filesystem paths."""
+
+    name: Required[str]
+    type: Required[Literal["file", "directory"]]
 
 
 class AsyncFile:

@@ -4,22 +4,20 @@ from __future__ import annotations
 
 import io
 import os
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class TreeSitterInfo(TypedDict, total=False):
+class TreeSitterInfo(FileInfo, total=False):
     """Info dict for tree-sitter filesystem paths."""
 
-    name: str
-    type: Literal["directory", "file"]
     node_type: str
     size: int
     start_byte: int

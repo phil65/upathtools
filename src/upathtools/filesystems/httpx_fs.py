@@ -9,7 +9,7 @@ import io
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
 from fsspec.asyn import AbstractAsyncStreamedFile, sync, sync_wrapper
@@ -25,7 +25,7 @@ from fsspec.utils import (
     tokenize,
 )
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -36,11 +36,9 @@ if TYPE_CHECKING:
     from yarl import URL
 
 
-class HttpInfo(TypedDict, total=False):
+class HttpInfo(FileInfo, total=False):
     """Info dict for HTTP filesystem paths."""
 
-    name: str
-    type: Literal["file"]
     size: int | None
     mimetype: str | None
     partial: bool | None

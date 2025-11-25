@@ -5,22 +5,20 @@ from __future__ import annotations
 import io
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class MarkdownInfo(TypedDict, total=False):
+class MarkdownInfo(FileInfo, total=False):
     """Info dict for Markdown filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     level: int
 
@@ -204,27 +202,17 @@ class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
         return current
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[MarkdownInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     def ls(
         self,
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    ) -> Sequence[str | MarkdownInfo]:
         """List contents of a path."""
         node = self._get_node(path)
 
@@ -232,12 +220,12 @@ class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
             return list(node.children)
 
         return [
-            {
-                "name": name,
-                "size": child.get_size(),
-                "type": "directory" if child.is_dir() else "file",
-                "level": child.level,
-            }
+            MarkdownInfo(
+                name=name,
+                size=child.get_size(),
+                type="directory" if child.is_dir() else "file",
+                level=child.level,
+            )
             for name, child in node.children.items()
         ]
 

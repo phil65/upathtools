@@ -7,12 +7,12 @@ import io
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import sync_wrapper
 from fsspec.utils import tokenize
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -22,11 +22,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AppwriteInfo(TypedDict, total=False):
+class AppwriteInfo(FileInfo, total=False):
     """Info dict for Appwrite storage paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     bucket_name: str | None
     enabled: bool | None

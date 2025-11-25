@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 from upathtools.helpers import upath_to_fs
 
 
@@ -18,11 +18,9 @@ if TYPE_CHECKING:
     from upath.types import JoinablePathLike
 
 
-class FlatUnionInfo(TypedDict, total=False):
+class FlatUnionInfo(FileInfo, total=False):
     """Info dict for flat union filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
     filesystems: int
 
