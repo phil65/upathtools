@@ -12,6 +12,15 @@ import sqlalchemy.exc
 from upathtools.filesystems.sqlite_fs import SqliteFS
 
 
+# Skip all tests in this file on Windows due to SQLite file locking issues
+pytest.importorskip("sys")
+import sys
+
+
+if sys.platform == "win32":
+    pytest.skip("SQLite file locking issues on Windows", allow_module_level=True)
+
+
 @pytest.fixture
 def sample_db():
     """Create a sample SQLite database for testing."""
