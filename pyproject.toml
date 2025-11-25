@@ -29,8 +29,6 @@ dependencies = [
   "fsspec>=2025.2.0",
   "morefs[asynclocalfs]>=0.2.2",
   "python-dotenv>=1.0.0",
-  "tree-sitter-c>=0.24.1",
-  "tree-sitter-javascript>=0.25.0",
   "universal-pathlib>=0.2.6",
 ]
 
