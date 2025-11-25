@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
@@ -26,6 +27,12 @@ class FlatUnionInfo(FileInfo, total=False):
 
 
 logger = logging.getLogger(__name__)
+
+
+def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
+    if not isinstance(filesystem, AsyncFileSystem):
+        return AsyncFileSystemWrapper(filesystem)
+    return filesystem
 
 
 class FlatUnionPath(BaseUPath[FlatUnionInfo]):
@@ -102,12 +109,12 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         super().__init__(**kwargs)
 
         # Convert paths to filesystems
-        resolved_filesystems = []
+        resolved_filesystems: list[AsyncFileSystem] = []
 
         for fs_or_path in filesystems:
             if isinstance(fs_or_path, AbstractFileSystem):
                 # It's already a filesystem
-                resolved_filesystems.append(fs_or_path)
+                resolved_filesystems.append(to_async(fs_or_path))
             else:
                 # It's a path - convert to filesystem
                 resolved_filesystems.append(upath_to_fs(fs_or_path, asynchronous=True))
@@ -154,7 +161,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         self,
         path: str,
         **kwargs: Any,
-    ) -> tuple[AbstractFileSystem, int] | tuple[None, None]:
+    ) -> tuple[AsyncFileSystem, int] | tuple[None, None]:
         """Find the first filesystem containing the given path.
 
         Returns:
@@ -168,12 +175,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         # Try each filesystem in order
         for i, fs in enumerate(self.filesystems):
             try:
-                if isinstance(fs, AsyncFileSystem):
-                    exists = await fs._exists(path, **kwargs)
-                else:
-                    exists = fs.exists(path, **kwargs)
-
-                if exists:
+                if await fs._exists(path, **kwargs):
                     logger.debug("Path %s found in filesystem %d", path, i)
                     return fs, i
             except Exception as e:  # noqa: BLE001
@@ -195,9 +197,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
             raise IsADirectoryError(msg)
 
         # Use the same path in the target filesystem
-        if isinstance(fs, AsyncFileSystem):
-            return await fs._cat_file(path.lstrip("/"), start=start, end=end, **kwargs)
-        return fs.cat_file(path.lstrip("/"), start=start, end=end, **kwargs)  # pyright: ignore
+        return await fs._cat_file(path.lstrip("/"), start=start, end=end, **kwargs)
 
     async def _pipe_file(self, path: str, value, **kwargs: Any) -> None:
         """Write file contents.
@@ -211,11 +211,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
 
         fs = self.filesystems[0]
         norm_path = path.lstrip("/")
-
-        if isinstance(fs, AsyncFileSystem):
-            await fs._pipe_file(norm_path, value, **kwargs)
-        else:
-            fs.pipe_file(norm_path, value, **kwargs)
+        await fs._pipe_file(norm_path, value, **kwargs)
 
     async def _info(self, path: str, **kwargs: Any) -> FlatUnionInfo:
         """Get info about a path."""
@@ -252,11 +248,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
 
         # Use the same path in the target filesystem
         norm_path = path.lstrip("/")
-        if isinstance(fs, AsyncFileSystem):
-            info = await fs._info(norm_path, **kwargs)
-        else:
-            info = fs.info(norm_path, **kwargs)
-
+        info = await fs._info(norm_path, **kwargs)
         # Normalize the name to be relative to our root and create FlatUnionInfo
         name = info.get("name", "")
         if "/" in name:
@@ -290,21 +282,11 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         for i, fs in enumerate(self.filesystems):
             try:
                 # Check if the path exists in this filesystem
-                exists = False
-                if isinstance(fs, AsyncFileSystem):
-                    exists = await fs._exists(norm_path, **kwargs) if norm_path else True
-                else:
-                    exists = fs.exists(norm_path, **kwargs) if norm_path else True
-
+                exists = await fs._exists(norm_path, **kwargs) if norm_path else True
                 if not exists:
                     continue
 
-                # Get detailed listings
-                if isinstance(fs, AsyncFileSystem):
-                    listing = await fs._ls(norm_path, detail=True, **kwargs)
-                else:
-                    listing = fs.ls(norm_path, detail=True, **kwargs)
-
+                listing = await fs._ls(norm_path, detail=True, **kwargs)  # Get detailed listings
                 # Process each entry
                 for entry in listing:
                     name = entry["name"]
@@ -330,11 +312,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
             for i, fs in enumerate(self.filesystems):
                 try:
                     # List the root to see if any entries start with our path
-                    if isinstance(fs, AsyncFileSystem):
-                        root_listing = await fs._ls("/", detail=True, **kwargs)
-                    else:
-                        root_listing = fs.ls("/", detail=True, **kwargs)
-
+                    root_listing = await fs._ls("/", detail=True, **kwargs)
                     for entry in root_listing:
                         entry_path = entry.get("name", "").lstrip("/")
 
@@ -377,12 +355,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         # Check if the exact path exists as a directory in any filesystem
         for fs in self.filesystems:
             try:
-                if isinstance(fs, AsyncFileSystem):
-                    if await fs._exists(norm_path, **kwargs) and await fs._isdir(
-                        norm_path, **kwargs
-                    ):
-                        return True
-                elif fs.exists(norm_path, **kwargs) and fs.isdir(norm_path, **kwargs):
+                if await fs._exists(norm_path, **kwargs) and await fs._isdir(norm_path, **kwargs):
                     return True
             except Exception:  # noqa: BLE001
                 pass
@@ -391,11 +364,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         prefix = f"{norm_path}/"
         for fs in self.filesystems:
             try:
-                if isinstance(fs, AsyncFileSystem):
-                    root_listing = await fs._ls("/", detail=False, **kwargs)
-                else:
-                    root_listing = fs.ls("/", detail=False, **kwargs)
-
+                root_listing = await fs._ls("/", detail=False, **kwargs)
                 for entry in root_listing:
                     entry_path = entry.lstrip("/")
                     if entry_path.startswith(prefix):
@@ -413,9 +382,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
                 return False
 
             norm_path = path.lstrip("/")
-            if isinstance(fs, AsyncFileSystem):
-                return await fs._isfile(norm_path, **kwargs)
-            return fs.isfile(norm_path, **kwargs)
+            return await fs._isfile(norm_path, **kwargs)
         except FileNotFoundError:
             return False
 
@@ -428,11 +395,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
 
         fs = self.filesystems[0]
         norm_path = path.lstrip("/")
-
-        if isinstance(fs, AsyncFileSystem):
-            await fs._makedirs(norm_path, exist_ok=exist_ok, **kwargs)
-        else:
-            fs.makedirs(norm_path, exist_ok=exist_ok, **kwargs)
+        await fs._makedirs(norm_path, exist_ok=exist_ok, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file from any filesystem that contains it."""
@@ -448,10 +411,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
             raise IsADirectoryError(msg)
 
         norm_path = path.lstrip("/")
-        if isinstance(fs, AsyncFileSystem):
-            await fs._rm_file(norm_path, **kwargs)
-        else:
-            fs.rm_file(norm_path, **kwargs)
+        await fs._rm_file(norm_path, **kwargs)
 
     async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
         """Remove files or directories from any filesystem that contains them."""
@@ -472,71 +432,46 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
             # Special case: removing everything
             for fs_idx, fs in enumerate(self.filesystems):
                 try:
-                    if isinstance(fs, AsyncFileSystem):
-                        await fs._rm("/", recursive=True, **kwargs)
-                    else:
-                        fs.rm("/", recursive=True, **kwargs)
+                    await fs._rm("/", recursive=True, **kwargs)
                 except Exception:
-                    logger.exception(
-                        "Error removing content from filesystem %d",
-                        fs_idx,
-                    )
+                    msg = "Error removing content from filesystem %d"
+                    logger.exception(msg, fs_idx)
             return
 
         # Normal case: remove from specific filesystem
         norm_path = path.lstrip("/")
-        if isinstance(fs, AsyncFileSystem):
-            await fs._rm(norm_path, recursive=recursive, **kwargs)
-        else:
-            fs.rm(norm_path, recursive=recursive, **kwargs)
+        await fs._rm(norm_path, recursive=recursive, **kwargs)
 
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file, possibly between filesystems."""
         logger.debug("Copying %s to %s", path1, path2)
-
         # Find source filesystem
         src_fs, _src_idx = await self._get_matching_fs(path1, **kwargs)
-
         if src_fs is None:
             msg = f"Source file not found: {path1}"
             raise FileNotFoundError(msg)
-
         if src_fs is self:
             msg = f"Source is a directory: {path1}"
             raise IsADirectoryError(msg)
-
         # Normalize paths
         src_path = path1.lstrip("/")
         dst_path = path2.lstrip("/")
-
         # Check if destination exists
         dst_fs, _dst_idx = await self._get_matching_fs(path2, **kwargs)
-
         # If destination doesn't exist, use first filesystem
         if dst_fs is None:
             if not self.filesystems:
                 msg = "No filesystems available to copy to"
                 raise RuntimeError(msg)
             dst_fs = self.filesystems[0]
-
         # Handle copying between filesystems
         if src_fs is dst_fs:
             # Same filesystem
-            if isinstance(src_fs, AsyncFileSystem):
-                await src_fs._cp_file(src_path, dst_path, **kwargs)
-            else:
-                src_fs.cp_file(src_path, dst_path, **kwargs)
+            await src_fs._cp_file(src_path, dst_path, **kwargs)
         else:
             # Different filesystems - copy via stream
-            if isinstance(src_fs, AsyncFileSystem):
-                content = await src_fs._cat_file(src_path)
-            else:
-                content = src_fs.cat_file(src_path)
-
-            if isinstance(dst_fs, AsyncFileSystem):
-                await dst_fs._pipe_file(dst_path, content)
-            else:
-                dst_fs.pipe_file(dst_path, content)
+            content = await src_fs._cat_file(src_path)
+            await dst_fs._pipe_file(dst_path, content)
 
 
 def create_flat_union_path(paths: Sequence[JoinablePathLike]) -> UPath:
@@ -545,31 +480,14 @@ def create_flat_union_path(paths: Sequence[JoinablePathLike]) -> UPath:
     This function takes multiple paths, potentially from different filesystem types,
     and creates a flat union filesystem that presents their contents in a single
     merged view without protocol-specific directories.
+    - In case of filename conflicts, the first filesystem (in the order provided) wins
+    - Write operations default to the first filesystem in the list
 
     Args:
         paths: List of UPath objects or path-like objects
 
     Returns:
         UPath: A path object based on the FlatUnionFileSystem
-
-    Example:
-        ```python
-        # Merge contents from different directories
-        from upath import UPath
-
-        dir1 = UPath("~/Documents")
-        dir2 = UPath("~/Downloads")
-
-        # Create a union of these paths
-        flat_path = create_flat_union_path([dir1, dir2])
-
-        # Now you can list files from both directories as if they were in one place
-        print(list(flat_path.iterdir()))
-        ```
-
-    Notes:
-        - In case of filename conflicts, the first filesystem (in the order provided) wins
-        - Write operations default to the first filesystem in the list
     """
     flat_fs = FlatUnionFileSystem(filesystems=paths)
     p = UPath("flatunion://")
