@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import os
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, overload
 
 import fsspec
 
@@ -24,6 +24,8 @@ class TreeSitterInfo(TypedDict, total=False):
     size: int
     start_byte: int
     end_byte: int
+    start_line: int
+    end_line: int
     doc: str | None
 
 
@@ -36,6 +38,8 @@ class CodeNode:
         node_type: str,
         start_byte: int,
         end_byte: int,
+        start_line: int = 0,
+        end_line: int = 0,
         children: dict[str, CodeNode] | None = None,
         doc: str | None = None,
     ) -> None:
@@ -46,6 +50,8 @@ class CodeNode:
             node_type: Tree-sitter node type
             start_byte: Start position in source
             end_byte: End position in source
+            start_line: Start line number (1-based)
+            end_line: End line number (1-based)
             children: Child nodes (methods, nested classes, etc.)
             doc: Associated docstring if any
         """
@@ -53,6 +59,8 @@ class CodeNode:
         self.node_type = node_type
         self.start_byte = start_byte
         self.end_byte = end_byte
+        self.start_line = start_line
+        self.end_line = end_line
         self.children = children or {}
         self.doc = doc
 
@@ -83,7 +91,7 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
     upath_cls = TreeSitterPath
 
     # Language extensions mapping
-    LANGUAGE_MAP = {
+    LANGUAGE_MAP: ClassVar = {
         ".py": "python",
         ".js": "javascript",
         ".ts": "typescript",
@@ -129,14 +137,14 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         if language:
             self.language = language
         else:
-            ext = os.path.splitext(path)[1].lower()
+            ext = os.path.splitext(path)[1].lower()  # noqa: PTH122
             self.language = self.LANGUAGE_MAP.get(ext, "python")
 
         # Initialize state
         self._source: str | None = None
         self._root: CodeNode | None = None
-        self._parser = None
-        self._tree = None
+        self._parser: Any = None
+        self._tree: Any = None
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
@@ -164,25 +172,22 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             self._root = CodeNode("root", "module", 0, 0)
             return
 
-        try:
-            # Import tree-sitter dynamically
-            from tree_sitter import Language, Parser
+        # Import tree-sitter dynamically
+        from tree_sitter import Language, Parser
 
-            # Import the specific language
-            language_module = self._import_language_module()
-            language = Language(language_module.language())
+        # Import the specific language
+        language_module = self._import_language_module()
+        language = Language(language_module.language())
 
-            # Create parser
-            self._parser = Parser(language)
-            self._tree = self._parser.parse(self._source.encode())
+        # Create parser
+        self._parser = Parser(language)  # type: ignore
+        self._tree = self._parser.parse(self._source.encode())  # type: ignore
 
-            # Build node hierarchy
-            self._root = CodeNode("root", "module", 0, len(self._source.encode()))
-            self._extract_nodes(self._tree.root_node, self._root)
-
-        except ImportError as e:
-            msg = f"Tree-sitter support not available: {e}. Install with: pip install tree-sitter tree-sitter-{self.language}"
-            raise ImportError(msg) from e
+        # Build node hierarchy
+        source_bytes = self._source.encode()
+        total_lines = len(self._source.splitlines())
+        self._root = CodeNode("root", "module", 0, len(source_bytes), 1, total_lines)
+        self._extract_nodes(self._tree.root_node, self._root)  # type: ignore
 
     def _import_language_module(self):
         """Import the appropriate tree-sitter language module."""
@@ -207,144 +212,153 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         try:
             return __import__(module_name)
         except ImportError as e:
-            msg = f"Language module {module_name} not installed. Install with: pip install {module_name}"
+            msg = f"{module_name} not installed. Install with: pip install {module_name}"
             raise ImportError(msg) from e
 
     def _extract_nodes(self, ts_node, parent_node: CodeNode) -> None:
         """Extract named entities from tree-sitter node."""
-        # Language-specific node extraction
-        if self.language == "python":
-            self._extract_python_nodes(ts_node, parent_node)
-        elif self.language in ("javascript", "typescript"):
-            self._extract_js_nodes(ts_node, parent_node)
-        else:
-            self._extract_generic_nodes(ts_node, parent_node)
+        # Start with generic extraction that works for all languages
+        self._extract_generic_nodes(ts_node, parent_node)
 
-    def _extract_python_nodes(self, ts_node, parent_node: CodeNode) -> None:
-        """Extract Python-specific named entities."""
-        imports_node = None
+        # Apply language-specific enhancements
+        if self.language == "python":
+            self._apply_python_enhancements(ts_node, parent_node)
+        elif self.language in ("javascript", "typescript"):
+            self._apply_js_enhancements(ts_node, parent_node)
+
+    def _extract_generic_nodes(self, ts_node, parent_node: CodeNode) -> None:
+        """Generic extraction that works for all languages."""
+        imports_node: CodeNode | None = None
 
         for child in ts_node.children:
+            if not child.is_named:
+                continue
+
             node_type = child.type
 
-            if node_type in ("function_definition", "async_function_definition"):
-                name_node = child.child_by_field_name("name")
-                if name_node:
-                    name = self._get_node_text(name_node)
-                    doc = self._extract_python_docstring(child)
-                    func_node = CodeNode(name, node_type, child.start_byte, child.end_byte, doc=doc)
-                    parent_node.children[name] = func_node
+            # Skip noise nodes
+            if node_type in ("comment", "string", "number", "boolean", "null"):
+                continue
 
-            elif node_type == "class_definition":
-                name_node = child.child_by_field_name("name")
-                if name_node:
-                    name = self._get_node_text(name_node)
-                    doc = self._extract_python_docstring(child)
-                    class_node = CodeNode(
-                        name, node_type, child.start_byte, child.end_byte, doc=doc
-                    )
-                    parent_node.children[name] = class_node
-                    # Recursively extract methods and nested classes
-                    self._extract_nodes(child, class_node)
-
-            elif node_type == "assignment":
-                # Handle variable assignments
-                target = child.child_by_field_name("left")
-                if target and target.type == "identifier":
-                    name = self._get_node_text(target)
-                    var_node = CodeNode(name, node_type, child.start_byte, child.end_byte)
-                    parent_node.children[name] = var_node
-
-            elif node_type in ("import_statement", "import_from_statement"):
-                # Group all imports under a single "imports" directory
+            # Handle imports generically
+            if "import" in node_type.lower():
                 if imports_node is None:
                     imports_node = CodeNode("imports", "imports_group", 0, 0)
                     parent_node.children["imports"] = imports_node
 
                 import_text = self._get_node_text(child).strip()
-                # Use the actual import line as the name
-                import_node = CodeNode(import_text, node_type, child.start_byte, child.end_byte)
+                start_line = child.start_point[0] + 1
+                end_line = child.end_point[0] + 1 if child.end_point else start_line
+                import_node = CodeNode(
+                    import_text, node_type, child.start_byte, child.end_byte, start_line, end_line
+                )
                 imports_node.children[import_text] = import_node
+                continue
 
+            # Look for nodes that have identifiers (potential named entities)
+            name = self._find_identifier_name(child)
+            if name:
+                start_line = child.start_point[0] + 1  # Convert to 1-based
+                end_line = child.end_point[0] + 1 if child.end_point else start_line
+                entity_node = CodeNode(
+                    name, node_type, child.start_byte, child.end_byte, start_line, end_line
+                )
+
+                # Check if this node might have children (functions, classes, etc.)
+                if self._node_might_have_children(child):
+                    parent_node.children[name] = entity_node
+                    self._extract_nodes(child, entity_node)
+                else:
+                    parent_node.children[name] = entity_node
             else:
-                # Continue recursively for other nodes
+                # No identifier found, recurse into children
                 self._extract_nodes(child, parent_node)
 
-    def _extract_js_nodes(self, ts_node, parent_node: CodeNode) -> None:
-        """Extract JavaScript/TypeScript-specific named entities."""
-        imports_node = None
+    def _find_identifier_name(self, node) -> str | None:
+        """Find the identifier/name for a node using common patterns."""
+        # Try common field names for identifiers
+        for field_name in ("name", "identifier", "id", "key"):
+            name_node = node.child_by_field_name(field_name)
+            if name_node and name_node.type in ("identifier", "name"):
+                return self._get_node_text(name_node)
 
+        # Look for first identifier child
+        for child in node.children:
+            if child.type in ("identifier", "name") and child.is_named:
+                return self._get_node_text(child)
+
+        return None
+
+    def _node_might_have_children(self, node) -> bool:
+        """Check if a node type typically contains other named entities."""
+        node_type = node.type.lower()
+        container_patterns = [
+            "class",
+            "struct",
+            "interface",
+            "module",
+            "namespace",
+            "function",
+            "method",
+            "procedure",
+            "block",
+            "body",
+        ]
+        return any(pattern in node_type for pattern in container_patterns)
+
+    def _apply_python_enhancements(self, ts_node, parent_node: CodeNode) -> None:
+        """Apply Python-specific enhancements to generic extraction."""
+        for child in ts_node.children:
+            node_type = child.type
+            name_node = child.child_by_field_name("name")
+
+            if not name_node:
+                continue
+
+            name = self._get_node_text(name_node)
+
+            # Enhanced docstring extraction for Python
+            if (
+                node_type
+                in (
+                    "function_definition",
+                    "async_function_definition",
+                    "class_definition",
+                )
+                and name in parent_node.children
+            ):
+                doc = self._extract_python_docstring(child)
+                parent_node.children[name].doc = doc
+
+            # Continue recursively
+            if name in parent_node.children and parent_node.children[name].children:
+                self._apply_python_enhancements(child, parent_node.children[name])
+
+    def _apply_js_enhancements(self, ts_node, parent_node: CodeNode) -> None:
+        """Apply JavaScript/TypeScript-specific enhancements."""
         for child in ts_node.children:
             node_type = child.type
 
-            if node_type == "function_declaration":
-                name_node = child.child_by_field_name("name")
-                if name_node:
-                    name = self._get_node_text(name_node)
-                    func_node = CodeNode(name, node_type, child.start_byte, child.end_byte)
-                    parent_node.children[name] = func_node
-
-            elif node_type == "class_declaration":
-                name_node = child.child_by_field_name("name")
-                if name_node:
-                    name = self._get_node_text(name_node)
-                    class_node = CodeNode(name, node_type, child.start_byte, child.end_byte)
-                    parent_node.children[name] = class_node
-                    self._extract_nodes(child, class_node)
-
-            elif node_type == "method_definition":
-                name_node = child.child_by_field_name("name")
-                if name_node:
-                    name = self._get_node_text(name_node)
-                    method_node = CodeNode(name, node_type, child.start_byte, child.end_byte)
-                    parent_node.children[name] = method_node
-
-            elif node_type == "variable_declaration":
-                # Extract variable names
+            # Enhanced handling for JS/TS specific patterns
+            if node_type == "variable_declaration":
+                # Better variable extraction for JS/TS
                 for declarator in child.children:
                     if declarator.type == "variable_declarator":
                         name_node = declarator.child_by_field_name("name")
                         if name_node:
                             name = self._get_node_text(name_node)
-                            var_node = CodeNode(
-                                name, node_type, declarator.start_byte, declarator.end_byte
-                            )
-                            parent_node.children[name] = var_node
+                            if name in parent_node.children:
+                                # Update with more specific info
+                                parent_node.children[name].node_type = "variable_declaration"
 
-            elif node_type in ("import_statement", "import_declaration", "export_statement"):
-                # Group all imports/exports under a single "imports" directory
-                if imports_node is None:
-                    imports_node = CodeNode("imports", "imports_group", 0, 0)
-                    parent_node.children["imports"] = imports_node
-
-                import_text = self._get_node_text(child).strip()
-                # Use the actual import line as the name
-                import_node = CodeNode(import_text, node_type, child.start_byte, child.end_byte)
-                imports_node.children[import_text] = import_node
-
-            else:
-                self._extract_nodes(child, parent_node)
-
-    def _extract_generic_nodes(self, ts_node, parent_node: CodeNode) -> None:
-        """Generic extraction for other languages."""
-        for child in ts_node.children:
-            # Look for named nodes that might represent identifiable entities
-            if child.is_named and child.type not in ("comment", "string", "number"):
-                # Try to find a name/identifier child
-                name = None
-                for grandchild in child.children:
-                    if grandchild.type == "identifier":
-                        name = self._get_node_text(grandchild)
-                        break
-
-                if name:
-                    entity_node = CodeNode(name, child.type, child.start_byte, child.end_byte)
-                    parent_node.children[name] = entity_node
-                    self._extract_nodes(child, entity_node)
-                else:
-                    self._extract_nodes(child, parent_node)
-            else:
-                self._extract_nodes(child, parent_node)
+            # Continue recursively for nested structures
+            child_name = self._find_identifier_name(child)
+            if (
+                child_name
+                and child_name in parent_node.children
+                and parent_node.children[child_name].children
+            ):
+                self._apply_js_enhancements(child, parent_node.children[child_name])
 
     def _extract_python_docstring(self, node) -> str | None:
         """Extract docstring from Python function/class."""
@@ -420,6 +434,8 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
                 "node_type": child.node_type,
                 "start_byte": child.start_byte,
                 "end_byte": child.end_byte,
+                "start_line": child.start_line,
+                "end_line": child.end_line,
                 "doc": child.doc,
             }
             for name, child in node.children.items()
@@ -448,6 +464,8 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             node_type=node.node_type,
             start_byte=node.start_byte,
             end_byte=node.end_byte,
+            start_line=node.start_line,
+            end_line=node.end_line,
             doc=node.doc,
         )
 
