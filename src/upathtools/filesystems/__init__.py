@@ -3,6 +3,7 @@
 from .remote_filesystems.appwrite_fs import AppwriteFileSystem, AppwritePath
 from .remote_filesystems.gist_fs import GistFileSystem, GistPath
 from .remote_filesystems.mcp_fs import MCPFileSystem, MCPPath
+from .remote_filesystems.mcp_tools_fs import MCPToolsFileSystem, MCPToolsPath
 from .remote_filesystems.notion_fs import NotionFS, NotionPath
 from .remote_filesystems.wiki_fs import WikiFileSystem, WikiPath
 
@@ -51,6 +52,8 @@ __all__ = [
     "GistPath",
     "MCPFileSystem",
     "MCPPath",
+    "MCPToolsFileSystem",
+    "MCPToolsPath",
     "MarkdownFS",
     "MarkdownPath",
     "MicrosandboxFS",
