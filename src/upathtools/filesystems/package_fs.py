@@ -84,14 +84,12 @@ class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
         return module
 
     @overload
-    def ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = True, **kwargs: Any) -> list[PackageInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | PackageInfo]:
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
@@ -103,7 +101,7 @@ class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
 
         try:
             module = self._get_module(module_name)
-            contents: list[str | dict[str, Any]] = []
+            contents: list[str | PackageInfo] = []
 
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
@@ -113,13 +111,15 @@ class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
                     else:
                         sub_name = f"{module_name}.{item.name}"
                         sub_module = self._get_module(sub_name)
-                        contents.append({
-                            "name": item.name,
-                            "type": "package" if item.ispkg else "module",
-                            "size": 0 if item.ispkg else 1,
-                            "mtime": self._get_mtime(sub_module),
-                            "doc": sub_module.__doc__,
-                        })
+                        contents.append(
+                            PackageInfo(
+                                name=item.name,
+                                type="package" if item.ispkg else "module",
+                                size=0 if item.ispkg else 1,
+                                mtime=self._get_mtime(sub_module),
+                                doc=sub_module.__doc__,
+                            )
+                        )
         except ImportError as exc:
             msg = f"Cannot access {path}"
             raise FileNotFoundError(msg) from exc

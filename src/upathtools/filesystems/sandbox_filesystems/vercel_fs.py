@@ -314,7 +314,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         """Get file info (sync wrapper)."""
         return VercelInfo(
             name=path,
-            size=self.size(path) if self.isfile(path) else 0,
+            size=self.size(path) if self.isfile(path) else 0,  # pyright: ignore[reportArgumentType]
             type="directory" if self.isdir(path) else "file",
         )
 

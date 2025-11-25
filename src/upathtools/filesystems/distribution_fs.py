@@ -26,6 +26,7 @@ class DistributionInfo(TypedDict, total=False):
     size: int
     mtime: float | None
     doc: str | None
+    version: str | None
 
 
 def _get_mtime(module: ModuleType) -> float | None:
@@ -90,19 +91,12 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
         return module
 
     @overload
-    def ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[DistributionInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str,
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | DistributionInfo]:
         """List contents of a path."""
         norm_path = self._normalize_path(path)
 
@@ -113,7 +107,7 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
         module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
-            contents: list[str | dict[str, Any]] = []
+            contents: list[str | DistributionInfo] = []
 
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
@@ -123,20 +117,22 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
                         contents.append(item.name)
                     else:
                         sub_module = self._get_module(full_name)
-                        contents.append({
-                            "name": item.name,
-                            "type": "package" if item.ispkg else "module",
-                            "size": 0 if item.ispkg else 1,
-                            "mtime": _get_mtime(sub_module),
-                            "doc": sub_module.__doc__,
-                        })
+                        contents.append(
+                            DistributionInfo(
+                                name=item.name,
+                                type="package" if item.ispkg else "module",
+                                size=0 if item.ispkg else 1,
+                                mtime=_get_mtime(sub_module),
+                                doc=sub_module.__doc__,
+                            )
+                        )
         except ImportError as exc:
             msg = f"Cannot access {path}"
             raise FileNotFoundError(msg) from exc
         else:
             return contents
 
-    def _list_packages(self, detail: bool) -> list[dict[str, Any]] | list[str]:
+    def _list_packages(self, detail: bool) -> list[DistributionInfo] | list[str]:
         """List all installed packages."""
         packages = list(importlib.metadata.distributions())
 
@@ -144,13 +140,13 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
             return [pkg.metadata["Name"] for pkg in packages]
 
         return [
-            {
-                "name": pkg.metadata["Name"],
-                "type": "package",
-                "size": 0,
-                "version": pkg.version,
-                "mtime": None,
-            }
+            DistributionInfo(
+                name=pkg.metadata["Name"],
+                type="package",
+                size=0,
+                version=pkg.version,
+                mtime=None,
+            )
             for pkg in packages
         ]
 
@@ -206,7 +202,7 @@ if __name__ == "__main__":
     # List root
     print("Root level (installed packages):")
     for item in fs.ls("/", detail=True):
-        print(f"- {item['name']} ({item['type']})")
+        print(f"- {item.get('name')} ({item.get('type')})")
 
     # Explore a package
     print("\nContents of requests:")

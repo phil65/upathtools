@@ -20,7 +20,7 @@ class TypeAdapterInfo(TypedDict, total=False):
     """Info dict for TypeAdapter filesystem paths."""
 
     name: str
-    type: Literal["model", "nested_object", "field"]
+    type: Literal["model", "nested_object", "field", "special"]
     size: int
     title: str | None
     description: str | None
@@ -28,6 +28,9 @@ class TypeAdapterInfo(TypedDict, total=False):
     schema: dict[str, Any] | None
     field_type: str | None
     default: Any
+    required: bool
+    item: int
+    nested_model: bool
 
 
 class TypeAdapterPath(BaseUPath[TypeAdapterInfo]):
@@ -87,7 +90,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         return {"model": path}
 
     @classmethod
-    def _strip_protocol(cls, path):
+    def _strip_protocol(cls, path: str) -> str:
         """Override to handle model name in URL by treating it as root path."""
         stripped = super()._strip_protocol(path)
         # If the stripped path equals the model identifier, treat it as root
@@ -96,7 +99,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         if stripped and "/" not in stripped and "." in stripped:
             # This looks like a model identifier (e.g., "schemez.Schema")
             return ""
-        return stripped
+        return stripped  # pyright: ignore[reportReturnType]
 
     def _import_model(self, import_path: str) -> Any:
         """Import a model class from a string path."""
@@ -143,7 +146,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         return current_fields, parts[-1] if parts else ""
 
     @overload
-    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[TypeAdapterInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
@@ -153,7 +156,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[TypeAdapterInfo] | list[str]:
         """List model fields and special paths."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -179,50 +182,42 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         if not detail:
             return items
 
-        result = []
+        result: list[Any] = []
         for item in items:
             if item.startswith("__"):
-                result.append({
-                    "name": item,
-                    "type": "special",
-                    "size": 0,
-                    "description": f"Special path for {item[2:-2]} information",
-                })
-            else:
-                # It's a field
+                desc = f"Special path for {item[2:-2]} information"
+                result.append(TypeAdapterInfo(name=item, type="special", size=0, description=desc))
+            else:  # It's a field
                 field_schema = current_fields[item]
-
                 # Determine if field is nested (has properties or is array of objects)
                 is_nested = "properties" in field_schema or (
                     field_schema.get("type") == "array"
                     and field_schema.get("items", {}).get("properties")
                 )
-
-                result.append({
-                    "name": item,
-                    "type": "field",
-                    "field_type": field_schema.get("type", "unknown"),
-                    "required": item in current_fields,
-                    "default": field_schema.get("default"),
-                    "title": field_schema.get("title", item),
-                    "nested_model": is_nested,
-                    "item": 0,
-                    "description": field_schema.get("description"),
-                })
+                info = TypeAdapterInfo(
+                    name=item,
+                    type="field",
+                    field_type=field_schema.get("type", "unknown"),
+                    required=item in current_fields,
+                    default=field_schema.get("default"),
+                    title=field_schema.get("title", item),
+                    nested_model=is_nested,
+                    item=0,
+                    description=field_schema.get("description"),
+                )
+                result.append(info)
 
         return result
 
     def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
         """Get field definition, schema, or other information."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
         if not path:
             # Return full schema
             schema = self.type_adapter.json_schema()
             return json.dumps(schema, indent=2).encode()
 
         parts = path.split("/")
-
         # Handle special paths
         if parts[-1].startswith("__") and parts[-1].endswith("__"):
             special_path = parts[-1]
@@ -235,21 +230,18 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
                 raise FileNotFoundError(msg) from None
 
             match special_path:
-                case "__schema__" | "__json_schema__":
-                    if field_name:
-                        # Field schema
-                        if field_name not in current_fields:
-                            msg = f"Field {field_name} not found"
-                            raise FileNotFoundError(msg)
-                        field_schema = current_fields[field_name]
-                        return json.dumps(field_schema, indent=2, default=str).encode()
-                    # Full schema
+                case "__schema__" | "__json_schema__" if field_name:
+                    # Field schema
+                    if field_name not in current_fields:
+                        msg = f"Field {field_name} not found"
+                        raise FileNotFoundError(msg)
+                    field_schema = current_fields[field_name]
+                    return json.dumps(field_schema, indent=2, default=str).encode()
+                case "__schema__" | "__json_schema__" if field_name:
                     schema = self.type_adapter.json_schema()
                     return json.dumps(schema, indent=2).encode()
-
                 case "__examples__":
-                    # Generate example data
-                    try:
+                    try:  # Generate example data
                         # Try to create a simple example based on schema
                         schema = self.type_adapter.json_schema()
                         example = _generate_example_from_schema(schema)
@@ -277,13 +269,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
                         raise FileNotFoundError(msg)
                     field_schema = current_fields[field_name]
                     constraints = {}
-                    for key in [
-                        "minimum",
-                        "maximum",
-                        "minLength",
-                        "maxLength",
-                        "pattern",
-                    ]:
+                    for key in ["minimum", "maximum", "minLength", "maxLength", "pattern"]:
                         if key in field_schema:
                             constraints[key] = field_schema[key]
                     return json.dumps(constraints, indent=2).encode()
@@ -339,8 +325,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         """Check if path is a directory (model or nested model)."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
-        if not path:
-            # Root is always a directory
+        if not path:  # Root is always a directory
             return True
 
         try:
@@ -352,7 +337,6 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
     def info(self, path: str, **kwargs: Any) -> TypeAdapterInfo:
         """Get detailed info about a model or field."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
         if not path:
             # Root model info
             schema = self.type_adapter.json_schema()
