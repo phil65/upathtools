@@ -86,7 +86,7 @@ microsandbox = ["microsandbox"]
 modal = ["modal"]
 notion-client = ["notion-client"]
 openapi3 = ["openapi3"]
-sqlite = ["aiosqlite>=0.21.0", "sqlalchemy>=2.0.44"]
+sqlite = ["sqlalchemy[aiosqlite]"]
 vercel = ["vercel"]
 
 [dependency-groups]
