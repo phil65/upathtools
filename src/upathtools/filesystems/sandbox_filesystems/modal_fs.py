@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -18,11 +18,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ModalPath(BaseUPath):
+class ModalInfo(FileInfo, total=False):
+    """Info dict for Modal filesystem paths."""
+
+    size: int
+    mtime: float
+
+
+class ModalPath(BaseUPath[ModalInfo]):
     """Modal-specific UPath implementation."""
 
+    __slots__ = ()
 
-class ModalFS(BaseAsyncFileSystem[ModalPath]):
+
+class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
     """Async filesystem for Modal sandbox environments.
 
     This filesystem provides access to files within a Modal sandbox environment,
@@ -163,14 +172,14 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[ModalInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[ModalInfo] | list[str]:
         """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -211,12 +220,14 @@ class ModalFS(BaseAsyncFileSystem[ModalPath]):
             except Exception:  # noqa: BLE001
                 pass  # If ls fails, assume it's a file
 
-            result.append({
-                "name": item,
-                "size": 0,  # TODO: Get actual size when Modal provides metadata API
-                "type": "directory" if is_dir else "file",
-                "mtime": 0,  # TODO: Get actual mtime when Modal provides metadata API
-            })
+            result.append(
+                ModalInfo(
+                    name=item,
+                    size=0,  # TODO: Get actual size when Modal provides metadata API
+                    type="directory" if is_dir else "file",
+                    mtime=0,  # TODO: Get actual mtime when Modal provides metadata API
+                )
+            )
 
         return result
 

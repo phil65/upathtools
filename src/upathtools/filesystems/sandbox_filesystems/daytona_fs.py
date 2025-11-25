@@ -10,17 +10,30 @@ from typing import Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 logger = logging.getLogger(__name__)
 
 
-class DaytonaPath(BaseUPath):
+class DaytonaInfo(FileInfo, total=False):
+    """Info dict for Daytona filesystem paths."""
+
+    size: int
+    mtime: float
+    mode: int | None
+    permissions: str | None
+    owner: str | None
+    group: str | None
+
+
+class DaytonaPath(BaseUPath[DaytonaInfo]):
     """Daytona-specific UPath implementation."""
 
+    __slots__ = ()
 
-class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
+
+class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
     """Async filesystem for Daytona sandbox environments.
 
     This filesystem provides access to files within a Daytona sandbox environment,
@@ -93,16 +106,14 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
             self._session_started = False
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[True], **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[DaytonaInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[DaytonaInfo] | list[str]:
         """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -119,16 +130,16 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath]):
             return [info.name for info in file_infos]
 
         return [
-            {
-                "name": f"{path.rstrip('/')}/{info.name}",
-                "size": info.size,
-                "type": "directory" if info.is_dir else "file",
-                "mtime": info.mod_time if info.mod_time else 0,
-                "mode": info.mode,
-                "permissions": info.permissions,
-                "owner": info.owner,
-                "group": info.group,
-            }
+            DaytonaInfo(
+                name=f"{path.rstrip('/')}/{info.name}",
+                size=info.size,
+                type="directory" if info.is_dir else "file",
+                mtime=info.mod_time if info.mod_time else 0,
+                mode=info.mode,
+                permissions=info.permissions,
+                owner=info.owner,
+                group=info.group,
+            )
             for info in file_infos
         ]
 

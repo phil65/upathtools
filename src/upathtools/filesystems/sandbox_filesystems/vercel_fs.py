@@ -4,22 +4,20 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from vercel.sandbox import AsyncSandbox
 
 
-class VercelInfo(TypedDict, total=False):
+class VercelInfo(FileInfo, total=False):
     """Info dict for Vercel filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
 
 
@@ -28,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 class VercelPath(BaseUPath[VercelInfo]):
     """Vercel-specific UPath implementation."""
+
+    __slots__ = ()
 
 
 class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
@@ -126,9 +126,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
             self._sandbox = None
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[True], **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[VercelInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
@@ -138,7 +136,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | list[VercelInfo]:
         """List directory contents."""
         sandbox = await self._get_sandbox()
 
@@ -173,12 +171,13 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
 
             is_dir = permissions.startswith("d")
             full_path = f"{path.rstrip('/')}/{name}" if path != "/" else f"/{name}"
-            files.append({
-                "name": full_path,
-                "size": 0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
-                "type": "directory" if is_dir else "file",
-                "isdir": is_dir,
-            })
+            files.append(
+                VercelInfo(
+                    name=full_path,
+                    size=0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
+                    type="directory" if is_dir else "file",
+                )
+            )
         return files if detail else [f["name"] for f in files]  # type: ignore[misc]
 
     async def _cat_file(

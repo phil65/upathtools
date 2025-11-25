@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -22,11 +22,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BeamPath(BaseUPath):
+class BeamInfo(FileInfo, total=False):
+    """Info dict for Beam filesystem paths."""
+
+    size: int
+    mtime: float
+
+
+class BeamPath(BaseUPath[BeamInfo]):
     """Beam-specific UPath implementation."""
 
+    __slots__ = ()
 
-class BeamFS(BaseAsyncFileSystem[BeamPath]):
+
+class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
     """Async filesystem for Beam sandbox environments.
 
     This filesystem provides access to files within a Beam sandbox environment,
@@ -137,14 +146,14 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[BeamInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[BeamInfo] | list[str]:
         """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -165,12 +174,12 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
             return [item.name for item in items]
 
         return [
-            {
-                "name": item.name,
-                "size": item.size,
-                "type": "directory" if item.is_dir else "file",
-                "mtime": item.mod_time if hasattr(item, "mod_time") else 0,
-            }
+            BeamInfo(
+                name=item.name,
+                size=item.size,
+                type="directory" if item.is_dir else "file",
+                mtime=item.mod_time if hasattr(item, "mod_time") else 0,
+            )
             for item in items
         ]
 

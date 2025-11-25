@@ -9,17 +9,26 @@ from typing import Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 logger = logging.getLogger(__name__)
 
 
-class E2BPath(BaseUPath):
+class E2BInfo(FileInfo, total=False):
+    """Info dict for E2B filesystem paths."""
+
+    size: int
+    mtime: float
+
+
+class E2BPath(BaseUPath[E2BInfo]):
     """E2B-specific UPath implementation."""
 
+    __slots__ = ()
 
-class E2BFS(BaseAsyncFileSystem[E2BPath]):
+
+class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
     """Async filesystem for E2B sandbox environments.
 
     This filesystem provides access to files within an E2B sandbox environment,
@@ -107,14 +116,12 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[E2BInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
-    async def _ls(
-        self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
+    async def _ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[E2BInfo] | list[str]:
         """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -136,20 +143,24 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
                 info = await sandbox.files.get_info(item.path)
                 from e2b.sandbox.filesystem.filesystem import FileType
 
-                result.append({
-                    "name": item.path,
-                    "size": info.size,
-                    "type": "directory" if info.type == FileType.DIR else "file",
-                    "mtime": info.modified_time.timestamp() if info.modified_time else 0,
-                })
+                result.append(
+                    E2BInfo(
+                        name=item.path,
+                        size=info.size,
+                        type="directory" if info.type == FileType.DIR else "file",
+                        mtime=info.modified_time.timestamp() if info.modified_time else 0,
+                    )
+                )
             except Exception:  # noqa: BLE001
                 # Fallback if get_info fails - use item.is_dir
-                result.append({
-                    "name": item.path,
-                    "size": 0,
-                    "type": "directory" if item.type == FileType.DIR else "file",
-                    "mtime": 0,
-                })
+                result.append(
+                    E2BInfo(
+                        name=item.path,
+                        size=0,
+                        type="directory" if item.type == FileType.DIR else "file",
+                        mtime=0,
+                    )
+                )
 
         return result
 

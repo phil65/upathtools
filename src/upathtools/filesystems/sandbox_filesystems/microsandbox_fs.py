@@ -4,22 +4,20 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from microsandbox import BaseSandbox
 
 
-class MicrosandboxInfo(TypedDict, total=False):
+class MicrosandboxInfo(FileInfo, total=False):
     """Info dict for Microsandbox filesystem paths."""
 
-    name: str
-    type: Literal["file", "directory"]
     size: int
 
 
@@ -28,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 class MicrosandboxPath(BaseUPath[MicrosandboxInfo]):
     """Microsandbox-specific UPath implementation."""
+
+    __slots__ = ()
 
 
 class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
@@ -106,7 +106,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         path: str,
         detail: Literal[True],
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[MicrosandboxInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
@@ -116,7 +116,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | list[MicrosandboxInfo]:
         """List directory contents."""
         sandbox = await self._get_sandbox()
         # Use ls -la to get detailed directory listing
@@ -150,13 +150,14 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
             is_dir = permissions.startswith("d")
             full_path = f"{path.rstrip('/')}/{name}" if path != "/" else f"/{name}"
 
-            files.append({
-                "name": full_path,
-                "size": 0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
-                "type": "directory" if is_dir else "file",
-                "isdir": is_dir,
-            })
-        return files if detail else [f["name"] for f in files]
+            files.append(
+                MicrosandboxInfo(
+                    name=full_path,
+                    size=0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
+                    type="directory" if is_dir else "file",
+                )
+            )
+        return files if detail else [f["name"] for f in files]  # type: ignore[misc]
 
     async def _cat_file(
         self,
