@@ -133,9 +133,9 @@ def test_openapi_fs_paths_listing(spec_file):
 
     # Get detailed operation info
     detailed_ops = fs.ls("/paths/users", detail=True)
-    get_op = next(op for op in detailed_ops if op["name"] == "GET")
-    assert get_op["summary"] == "List users"
-    assert get_op["operation_id"] == "listUsers"
+    get_op = next(op for op in detailed_ops if op.get("name") == "GET")
+    assert get_op.get("summary") == "List users"
+    assert get_op.get("operation_id") == "listUsers"
 
 
 def test_openapi_fs_operation_details(spec_file):

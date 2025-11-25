@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
 
 import fsspec
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 class OpenApiInfo(TypedDict, total=False):
     """Info dict for OpenAPI filesystem paths."""
 
-    name: str
-    type: str
+    name: Required[str]
+    type: Required[str]
     size: int
     version: str
     url: str
@@ -31,15 +31,15 @@ class OpenApiInfo(TypedDict, total=False):
     components_count: int
     spec_url: str
     operations: list[str]
-    component_type: str | None
+    component_type: str
     method: str | None
     operation_id: str | None
     summary: str | None
-    parameters: list[str] | None
-    responses: list[str] | None
-    request_body: bool | None
-    deprecated: bool | None
-    tags: list[str] | None
+    parameters: list[str]
+    responses: list[str]
+    request_body: bool
+    deprecated: bool
+    tags: list[str]
 
 
 class OpenAPIPath(BaseUPath[OpenApiInfo]):

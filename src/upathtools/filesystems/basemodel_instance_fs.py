@@ -62,38 +62,6 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
         super().__init__(**kwargs)
         self.instance = instance
 
-    def _get_nested_value_at_path(self, path: str) -> tuple[Any, str]:
-        """Get the object and field name at a given path."""
-        if not path:
-            return self.instance, ""
-
-        parts = path.strip("/").split("/")
-        current_obj = self.instance
-
-        for i, part in enumerate(parts[:-1]):
-            if part.startswith("__") and part.endswith("__"):
-                # Skip special paths like __json__, __dict__
-                continue
-
-            if not hasattr(current_obj, part):
-                msg = f"Field {part} not found in {type(current_obj).__name__}"
-                raise FileNotFoundError(msg)
-
-            current_obj = getattr(current_obj, part)
-
-            # Handle list/dict access with numeric indices
-            if isinstance(current_obj, (list, tuple)) and i + 1 < len(parts) - 1:
-                next_part = parts[i + 1]
-                if next_part.isdigit():
-                    idx = int(next_part)
-                    if idx >= len(current_obj):
-                        msg = f"Index {idx} out of range for {part}"
-                        raise FileNotFoundError(msg)
-                    current_obj = current_obj[idx]
-                    parts.pop(i + 1)  # Remove the index from parts
-
-        return current_obj, parts[-1] if parts else ""
-
     @overload
     def ls(
         self,
@@ -115,7 +83,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         try:
-            current_obj, field_name = self._get_nested_value_at_path(path)
+            current_obj, field_name = _get_nested_value_at_path(self.instance, path)
         except FileNotFoundError:
             return []
 
@@ -223,7 +191,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
             field_path = "/".join(parts[:-1])
 
             try:
-                current_obj, field_name = self._get_nested_value_at_path(field_path)
+                current_obj, field_name = _get_nested_value_at_path(self.instance, field_path)
             except FileNotFoundError:
                 msg = f"Path {field_path} not found"
                 raise FileNotFoundError(msg) from None
@@ -291,7 +259,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
 
         # Regular field/item path
         try:
-            current_obj, field_name = self._get_nested_value_at_path(path)
+            current_obj, field_name = _get_nested_value_at_path(self.instance, path)
         except FileNotFoundError:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from None
@@ -349,7 +317,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
             )
 
         try:
-            current_obj, field_name = self._get_nested_value_at_path(path)
+            current_obj, field_name = _get_nested_value_at_path(self.instance, path)
         except FileNotFoundError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
@@ -416,6 +384,39 @@ def _is_list_like(obj: Any) -> bool:
 def _is_dict_like(obj: Any) -> bool:
     """Check if object is dict-like."""
     return isinstance(obj, dict)
+
+
+def _get_nested_value_at_path(instance: BaseModel, path: str) -> tuple[Any, str]:
+    """Get the object and field name at a given path."""
+    if not path:
+        return instance, ""
+
+    parts = path.strip("/").split("/")
+    current_obj = instance
+
+    for i, part in enumerate(parts[:-1]):
+        if part.startswith("__") and part.endswith("__"):
+            # Skip special paths like __json__, __dict__
+            continue
+
+        if not hasattr(current_obj, part):
+            msg = f"Field {part} not found in {type(current_obj).__name__}"
+            raise FileNotFoundError(msg)
+
+        current_obj = getattr(current_obj, part)
+
+        # Handle list/dict access with numeric indices
+        if isinstance(current_obj, (list, tuple)) and i + 1 < len(parts) - 1:
+            next_part = parts[i + 1]
+            if next_part.isdigit():
+                idx = int(next_part)
+                if idx >= len(current_obj):
+                    msg = f"Index {idx} out of range for {part}"
+                    raise FileNotFoundError(msg)
+                current_obj = current_obj[idx]
+                parts.pop(i + 1)  # Remove the index from parts
+
+    return current_obj, parts[-1] if parts else ""
 
 
 if __name__ == "__main__":
