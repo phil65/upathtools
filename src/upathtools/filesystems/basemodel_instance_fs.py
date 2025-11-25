@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class BaseModelInstanceInfo(TypedDict, total=False):
     """Info dict for BaseModel instance paths."""
 
-    name: str
+    name: Required[str]
     type: Literal["instance", "nested_object", "value", "special", "key", "item", "field"]
     class_name: str
     is_basemodel: bool

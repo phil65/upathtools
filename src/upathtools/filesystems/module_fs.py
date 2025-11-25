@@ -9,7 +9,7 @@ from io import BytesIO
 import os
 import sys
 from types import ModuleType
-from typing import Any, Literal, TypedDict, overload
+from typing import Any, Literal, Required, TypedDict, overload
 
 import fsspec
 
@@ -31,10 +31,10 @@ class ModuleMember:
 class ModuleInfo(TypedDict, total=False):
     """Info dict for module paths and members."""
 
-    name: str
-    type: Literal["module", "function", "class"]
-    size: int
-    doc: str | None
+    name: Required[str]
+    type: Required[Literal["module", "function", "class"]]
+    size: Required[int]
+    doc: Required[str | None]
     mtime: float | None
 
 

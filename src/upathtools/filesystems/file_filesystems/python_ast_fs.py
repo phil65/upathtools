@@ -16,7 +16,7 @@ from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 NodeType = Literal["function", "class", "import", "assign"]
 
 
-class PythonAstInfo(TypedDict, total=False):
+class PythonAstInfo(TypedDict):
     """Info dict for Python AST filesystem paths."""
 
     name: str

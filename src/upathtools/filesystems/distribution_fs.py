@@ -6,7 +6,7 @@ import importlib.metadata
 import importlib.util
 import os
 import pkgutil
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
 import fsspec
 
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 class DistributionInfo(TypedDict, total=False):
     """Info dict for distribution paths."""
 
-    name: str
-    type: Literal["directory", "package", "module"]
+    name: Required[str]
+    type: Required[Literal["directory", "package", "module"]]
     size: int
     mtime: float | None
     doc: str | None
