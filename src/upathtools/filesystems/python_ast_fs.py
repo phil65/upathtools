@@ -74,8 +74,6 @@ class PythonAstFS(BaseFileSystem[PythonAstPath, PythonAstInfo]):
         self.path = path if path.endswith(".py") else path + ".py"
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
-
-        # Initialize empty state
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
 
@@ -223,8 +221,10 @@ if __name__ == "__main__":
     fs = fsspec.filesystem("ast", python_file="duties.py")
     print(fs.ls("/"))
     print(fs.cat("build"))
-    from prettyqt import widgets
-    from prettyqt.itemmodels.fsspecmodel import FSSpecTreeModel
+    from prettyqt import widgets  # pyright: ignore[reportMissingImports]
+    from prettyqt.itemmodels.fsspecmodel import (  # pyright: ignore[reportMissingImports]
+        FSSpecTreeModel,
+    )
 
     app = widgets.app()
     model = FSSpecTreeModel("basemodel", model="schemez.Schema")

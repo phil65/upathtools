@@ -190,20 +190,10 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
         return await self._enhance_with_skill_info(info)
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[SkillsInfo]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[SkillsInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[False],
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(self, path: str, detail=True, **kwargs: Any) -> list[SkillsInfo] | list[str]:
         """List directory contents with skill metadata enhancement."""
