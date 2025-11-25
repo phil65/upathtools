@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
@@ -12,6 +13,12 @@ from upathtools.helpers import upath_to_fs
 
 if TYPE_CHECKING:
     from upath.types import JoinablePathLike
+
+
+def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
+    if not isinstance(filesystem, AsyncFileSystem):
+        return AsyncFileSystemWrapper(filesystem)
+    return filesystem
 
 
 class UnionInfo(FileInfo, total=False):
@@ -64,14 +71,14 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         super().__init__()
 
         # Convert paths to filesystems
-        resolved_filesystems = {}
+        resolved_filesystems: dict[str, AsyncFileSystem] = {}
 
         # Handle filesystems dict
         if filesystems:
             for protocol, fs_or_path in filesystems.items():
                 if isinstance(fs_or_path, AbstractFileSystem):
                     # It's already a filesystem
-                    resolved_filesystems[protocol] = fs_or_path
+                    resolved_filesystems[protocol] = to_async(fs_or_path)
                 else:
                     # It's a path - convert to filesystem
                     resolved_filesystems[protocol] = upath_to_fs(fs_or_path, asynchronous=True)
@@ -94,8 +101,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         # Remove protocol prefix first
         path_without_protocol = path.removeprefix("union://")
         filesystem_paths = {}
-        # Check if using query parameter format
-        if "?" in path_without_protocol:
+        if "?" in path_without_protocol:  # Check if using query parameter format
             import urllib.parse
 
             _, query_part = path_without_protocol.split("?", 1)
@@ -103,8 +109,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
             for protocol, path_list in query_params.items():
                 if path_list:
                     filesystem_paths[protocol] = path_list[0]
-        # Default: protocol=path pairs separated by commas
-        elif path_without_protocol:
+        elif path_without_protocol:  # Default: protocol=path pairs separated by commas
             pairs = [p.strip() for p in path_without_protocol.split(",") if p.strip()]
             for pair in pairs:
                 if "=" in pair:
@@ -113,7 +118,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
 
         return filesystem_paths if filesystem_paths else {}
 
-    def _get_fs_and_path(self, path: str) -> tuple[AbstractFileSystem, str]:
+    def _get_fs_and_path(self, path: str) -> tuple[AsyncFileSystem, str]:
         """Get filesystem and normalized path."""
         if not path or path == self.root_marker:
             return self, self.root_marker
@@ -140,18 +145,13 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         """Get file contents."""
         logger.debug("Reading from path: %s", path)
         fs, path = self._get_fs_and_path(path)
-        if isinstance(fs, AsyncFileSystem):
-            return await fs._cat_file(path, start=start, end=end, **kwargs)
-        return fs.cat_file(path, start=start, end=end, **kwargs)
+        return await fs._cat_file(path, start=start, end=end, **kwargs)
 
     async def _pipe_file(self, path: str, value, **kwargs: Any) -> None:
         """Write file contents."""
         logger.debug("Writing to path: %s", path)
         fs, path = self._get_fs_and_path(path)
-        if isinstance(fs, AsyncFileSystem):
-            await fs._pipe_file(path, value, **kwargs)
-        else:
-            fs.pipe_file(path, value, **kwargs)
+        await fs._pipe_file(path, value, **kwargs)
 
     async def _info(self, path: str, **kwargs: Any) -> UnionInfo:
         """Get info about a path."""
@@ -161,32 +161,21 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
             protos = list(self.filesystems)
             return UnionInfo(name="", size=0, type="directory", protocols=protos)
 
-        if isinstance(fs, AsyncFileSystem):
-            out = await fs._info(norm_path, **kwargs)
-        else:
-            out = fs.info(norm_path, **kwargs)
-
+        out = await fs._info(norm_path, **kwargs)
         # Only try to get protocol if we're not dealing with self
         protocol = next(p for p, f in self.filesystems.items() if f is fs)
         name = out.get("name", "")
         if "://" in name:
             name = name.split("://", 1)[1]
-
-        return UnionInfo(
-            name=self._normalize_path(protocol, name),
-            type=out.get("type", "file"),
-            size=out.get("size", 0),
-        )
+        name = self._normalize_path(protocol, name)
+        return UnionInfo(name=name, type=out.get("type", "file"), size=out.get("size", 0))
 
     def _normalize_path(self, protocol: str, path: str) -> str:
         """Normalize path to handle protocol and slashes correctly."""
-        # Strip protocol if present
-        if "://" in path:
+        if "://" in path:  # Strip protocol if present
             path = path.split("://", 1)[1]
-        # Strip leading slashes
-        path = path.lstrip("/")
-        # Add protocol back
-        return f"{protocol}://{path}"
+        path = path.lstrip("/")  # Strip leading slashes
+        return f"{protocol}://{path}"  # Add protocol back
 
     @overload
     async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[UnionInfo]: ...
@@ -212,14 +201,8 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
             return [f"{protocol}://" for protocol in self.filesystems]
 
         logger.debug("Using filesystem %s for path %s", fs, norm_path)
-
-        if isinstance(fs, AsyncFileSystem):
-            out = await fs._ls(norm_path, detail=True, **kwargs)
-        else:
-            out = fs.ls(norm_path, detail=True, **kwargs)
-
+        out = await fs._ls(norm_path, detail=True, **kwargs)
         logger.debug("Raw listing: %s", out)
-
         # Add protocol back to paths
         protocol = next(p for p, f in self.filesystems.items() if f is fs)
         out = [o.copy() for o in out]
@@ -233,28 +216,19 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         """Create a directory and parents."""
         logger.debug("Making directories: %s", path)
         fs, path = self._get_fs_and_path(path)
-        if isinstance(fs, AsyncFileSystem):
-            await fs._makedirs(path, exist_ok=exist_ok)
-        else:
-            fs.makedirs(path, exist_ok=exist_ok)
+        await fs._makedirs(path, exist_ok=exist_ok)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
         logger.debug("Removing file: %s", path)
         fs, path = self._get_fs_and_path(path)
-        if isinstance(fs, AsyncFileSystem):
-            await fs._rm_file(path, **kwargs)
-        else:
-            fs.rm_file(path, **kwargs)
+        await fs._rm_file(path, **kwargs)
 
     async def _rm(self, path: str, recursive=False, **kwargs: Any) -> None:
         """Remove a file or directory."""
         logger.debug("Removing path: %s (recursive=%s)", path, recursive)
         fs, path = self._get_fs_and_path(path)
-        if isinstance(fs, AsyncFileSystem):
-            await fs._rm(path, recursive=recursive, **kwargs)
-        else:
-            fs.rm(path, recursive=recursive, **kwargs)
+        await fs._rm(path, recursive=recursive, **kwargs)
 
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file, possibly between filesystems."""
@@ -263,19 +237,9 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         fs2, path2 = self._get_fs_and_path(path2)
 
         if fs1 is fs2:
-            if isinstance(fs1, AsyncFileSystem):
-                await fs1._cp_file(path1, path2, **kwargs)
-            else:
-                fs1.cp_file(path1, path2, **kwargs)
+            await fs1._cp_file(path1, path2, **kwargs)
             return
 
         # Cross-filesystem copy via streaming
-        if isinstance(fs1, AsyncFileSystem):
-            content = await fs1._cat_file(path1)
-        else:
-            content = fs1.cat_file(path1)
-
-        if isinstance(fs2, AsyncFileSystem):
-            await fs2._pipe_file(path2, content)
-        else:
-            fs2.pipe_file(path2, content)
+        content = await fs1._cat_file(path1)
+        await fs2._pipe_file(path2, content)
