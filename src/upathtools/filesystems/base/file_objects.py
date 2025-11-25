@@ -17,7 +17,7 @@ class FileInfo(TypedDict):
     """Info dict for Markdown filesystem paths."""
 
     name: Required[str]
-    type: Required[Literal["file", "directory"]]
+    type: Required[Literal["file", "directory", "other"]]
 
 
 class AsyncFile:
