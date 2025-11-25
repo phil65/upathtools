@@ -59,11 +59,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
     protocol = "typeadapter"
     upath_cls = TypeAdapterPath
 
-    def __init__(
-        self,
-        model: Any | str,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, model: Any | str, **kwargs: Any) -> None:
         """Initialize the filesystem.
 
         Args:
@@ -147,24 +143,14 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         return current_fields, parts[-1] if parts else ""
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[dict[str, Any]]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     def ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[dict[str, Any]] | list[str]:
@@ -266,7 +252,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
                     try:
                         # Try to create a simple example based on schema
                         schema = self.type_adapter.json_schema()
-                        example = self._generate_example_from_schema(schema)
+                        example = _generate_example_from_schema(schema)
                         return json.dumps(example, indent=2, default=str).encode()
                     except Exception:  # noqa: BLE001
                         return b'{"note": "No examples available"}'
@@ -349,30 +335,6 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         field_schema = current_fields[field_name]
         return json.dumps(field_schema, indent=2, default=str).encode()
 
-    def _generate_example_from_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
-        """Generate a simple example from JSON schema."""
-        if schema.get("type") != "object" or "properties" not in schema:
-            return {}
-
-        example: dict[str, Any] = {}
-        for field_name, field_schema in schema["properties"].items():
-            if field_schema.get("type") == "string":
-                example[field_name] = f"example_{field_name}"
-            elif field_schema.get("type") == "integer":
-                example[field_name] = 42
-            elif field_schema.get("type") == "number":
-                example[field_name] = 3.14
-            elif field_schema.get("type") == "boolean":
-                example[field_name] = True
-            elif field_schema.get("type") == "array":
-                example[field_name] = []
-            elif field_schema.get("type") == "object":
-                example[field_name] = {}
-            else:
-                example[field_name] = None
-
-        return example
-
     def isdir(self, path: str) -> bool:
         """Check if path is a directory (model or nested model)."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
@@ -434,6 +396,31 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
             default=field_schema.get("default"),
             size=len(json.dumps(field_schema)),
         )
+
+
+def _generate_example_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Generate a simple example from JSON schema."""
+    if schema.get("type") != "object" or "properties" not in schema:
+        return {}
+
+    example: dict[str, Any] = {}
+    for field_name, field_schema in schema["properties"].items():
+        if field_schema.get("type") == "string":
+            example[field_name] = f"example_{field_name}"
+        elif field_schema.get("type") == "integer":
+            example[field_name] = 42
+        elif field_schema.get("type") == "number":
+            example[field_name] = 3.14
+        elif field_schema.get("type") == "boolean":
+            example[field_name] = True
+        elif field_schema.get("type") == "array":
+            example[field_name] = []
+        elif field_schema.get("type") == "object":
+            example[field_name] = {}
+        else:
+            example[field_name] = None
+
+    return example
 
 
 if __name__ == "__main__":

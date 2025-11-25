@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class UnionInfo(TypedDict, total=False):
     """Info dict for union filesystem paths."""
 
-    name: str
+    name: Required[str]
     type: str
     size: int
     protocols: list[str]
@@ -95,9 +95,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         """
         # Remove protocol prefix first
         path_without_protocol = path.removeprefix("union://")
-
         filesystem_paths = {}
-
         # Check if using query parameter format
         if "?" in path_without_protocol:
             import urllib.parse
@@ -160,16 +158,10 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
     async def _info(self, path: str, **kwargs: Any) -> UnionInfo:
         """Get info about a path."""
         logger.debug("Getting info for path: %s", path)
-
         fs, norm_path = self._get_fs_and_path(path)
-
         if fs is self:
-            return UnionInfo(
-                name="",
-                size=0,
-                type="directory",
-                protocols=list(self.filesystems),
-            )
+            protos = list(self.filesystems)
+            return UnionInfo(name="", size=0, type="directory", protocols=protos)
 
         if isinstance(fs, AsyncFileSystem):
             out = await fs._info(norm_path, **kwargs)
@@ -199,39 +191,27 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         return f"{protocol}://{path}"
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[UnionInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[False],
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | list[UnionInfo]:
         """List contents of a path."""
         logger.debug("Listing path: %s", path)
-
         fs, norm_path = self._get_fs_and_path(path)
-
         if fs is self:
-            # Root shows available protocols
-            out: list[dict[str, Any]] = [
-                {"name": f"{protocol}://", "type": "directory", "size": 0}
-                for protocol in self.filesystems
-            ]
-            return out if detail else [o["name"] for o in out]
+            if detail:
+                return [
+                    UnionInfo(name=f"{protocol}://", type="directory", size=0)
+                    for protocol in self.filesystems
+                ]
+            return [f"{protocol}://" for protocol in self.filesystems]
 
         logger.debug("Using filesystem %s for path %s", fs, norm_path)
 
