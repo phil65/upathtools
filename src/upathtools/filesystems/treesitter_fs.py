@@ -452,12 +452,7 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             doc=node.doc,
         )
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to entity source code."""
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"
@@ -474,9 +469,9 @@ if __name__ == "__main__":
 
         print("Code entities:")
         for item in fs.ls("/", detail=True):
-            print(f"- {item['name']} ({item['node_type']}) - {item['type']}")
+            print(f"- {item['name']} ({item.get('node_type')}) - {item['type']}")
             if item.get("doc"):
-                print(f"  Doc: {item['doc']}")
+                print(f"  Doc: {item.get('doc')}")
 
     except ImportError as e:
         print(f"Tree-sitter not available: {e}")

@@ -322,13 +322,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
 class VercelFile:
     """File-like object for Vercel filesystem operations."""
 
-    def __init__(
-        self,
-        fs: VercelFS,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, fs: VercelFS, path: str, mode: str = "rb", **kwargs: Any) -> None:
         """Initialize Vercel file.
 
         Args:

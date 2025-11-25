@@ -109,22 +109,22 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
     @overload
     def ls(
         self,
-        path: str = "",
-        detail: Literal[True] = True,
+        path: str,
+        detail: Literal[True],
         **kwargs: Any,
     ) -> list[BaseModelInstanceInfo]: ...
 
     @overload
     def ls(
         self,
-        path: str = "",
-        detail: Literal[False] = False,
+        path: str,
+        detail: Literal[False],
         **kwargs: Any,
     ) -> list[str]: ...
 
     def ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[BaseModelInstanceInfo] | list[str]:

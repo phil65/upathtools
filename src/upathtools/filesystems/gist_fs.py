@@ -309,7 +309,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
 
     async def _ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[GistInfo] | list[str]:
@@ -395,7 +395,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
             msg = f"File not found: {path}"
             raise FileNotFoundError(msg)
 
-        raw_url = matches[0]["raw_url"]
+        raw_url = matches[0].get("raw_url")
         if not raw_url:
             msg = f"No raw URL for file: {path}"
             raise FileNotFoundError(msg)

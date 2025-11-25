@@ -215,13 +215,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath]):
 
         return content
 
-    async def _put_file(
-        self,
-        lpath: str,
-        rpath: str,
-        callback=None,
-        **kwargs: Any,
-    ) -> None:
+    async def _put_file(self, lpath: str, rpath: str, callback=None, **kwargs: Any) -> None:
         """Upload a local file to the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()

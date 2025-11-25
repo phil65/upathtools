@@ -207,12 +207,7 @@ class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | MarkdownInfo]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | MarkdownInfo]:
         """List contents of a path."""
         node = self._get_node(path)
 
@@ -260,12 +255,7 @@ class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
             level=node.level,
         )
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to section content."""
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"

@@ -115,12 +115,12 @@ class CliFS(BaseFileSystem[CliPath, CliInfo]):
         return commands
 
     @overload
-    def ls(self, path: str = "", detail: Literal[True] = True, **kwargs: Any) -> list[CliInfo]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[CliInfo]: ...
 
     @overload
-    def ls(self, path: str = "", detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str = "", detail: bool = True, **kwargs: Any) -> list[CliInfo] | list[str]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[CliInfo] | list[str]:
         """List available commands.
 
         Only lists root-level commands for now.
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
     # List available commands
     print("\nAvailable commands:")
-    for cmd in fs.ls(detail=True):
+    for cmd in fs.ls("", detail=True):
         print(f"- {cmd['name']}: {cmd.get('executable')}")
 
     # Execute a command

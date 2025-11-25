@@ -146,22 +146,17 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
     @overload
     async def _ls(
         self,
-        path: str = "",
-        detail: Literal[True] = True,
+        path: str,
+        detail: Literal[True],
         **kwargs: Any,
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
-        path: str = "/",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[str] | list[dict[str, Any]]:
@@ -313,7 +308,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         """Get file info (sync wrapper)."""
         return MicrosandboxInfo(
             name=path,
-            size=self.size(path) if self.isfile(path) else 0,
+            size=self.size(path) if self.isfile(path) else 0,  # pyright: ignore[reportArgumentType]
             type="directory" if self.isdir(path) else "file",
         )
 
