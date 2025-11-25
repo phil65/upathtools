@@ -139,14 +139,10 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
             min_parts = 9
             if len(parts) < min_parts:
                 continue
-
             permissions = parts[0]
             name = parts[-1]
-
-            # Skip . and .. entries
             if name in (".", ".."):
                 continue
-
             is_dir = permissions.startswith("d")
             full_path = f"{path.rstrip('/')}/{name}" if path != "/" else f"/{name}"
 

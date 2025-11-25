@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any
+from typing import Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -57,6 +57,25 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
+    @overload
+    async def list_root_async(self, detail: Literal[False]) -> list[str]: ...
+
+    @overload
+    async def list_root_async(self, detail: Literal[True]) -> list[TInfoDict]: ...
+
+    async def list_root_async(self, detail: bool = False) -> list[str] | list[TInfoDict]:
+        """List the contents of the root directory.
+
+        Args:
+            detail: Whether to return detailed information about each item
+
+        Returns:
+            List of filenames or detailed information about each item
+        """
+        if detail:
+            return await self._ls(self.root_marker, detail=True)
+        return await self._ls(self.root_marker)
+
 
 class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSystem):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
@@ -72,3 +91,22 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
         path_obj = self.upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
         return path_obj
+
+    @overload
+    def list_root(self, detail: Literal[False]) -> list[str]: ...
+
+    @overload
+    def list_root(self, detail: Literal[True]) -> list[TInfoDict]: ...
+
+    def list_root(self, detail: bool = False) -> list[str] | list[TInfoDict]:
+        """List the contents of the root directory.
+
+        Args:
+            detail: Whether to return detailed information about each item
+
+        Returns:
+            List of filenames or detailed information about each item
+        """
+        if detail:
+            return self.ls(self.root_marker, detail=True)
+        return self.ls(self.root_marker)
