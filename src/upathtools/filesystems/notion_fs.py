@@ -15,6 +15,8 @@ class NotionInfo(FileInfo, total=False):
     """Info dict for Notion filesystem paths."""
 
     size: int
+    created: str
+    modified: str
 
 
 class NotionPath(BaseUPath[NotionInfo]):
@@ -199,9 +201,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
         return current_id
 
-    def ls(
-        self, path: str, detail: bool = False, **kwargs: Any
-    ) -> list[str] | list[dict[str, Any]]:
+    def ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str] | list[NotionInfo]:
         """List contents of a path."""
         path = self._strip_protocol(path)  # type: ignore
 
@@ -215,13 +215,13 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
             if detail:
                 return [
-                    {
-                        "name": self._get_block_title(result),
-                        "size": len(json.dumps(result)),
-                        "type": result["type"],
-                        "created": result.get("created_time"),
-                        "modified": result.get("last_edited_time"),
-                    }
+                    NotionInfo(
+                        name=self._get_block_title(result),
+                        size=len(json.dumps(result)),
+                        type=result["type"],
+                        created=result.get("created_time"),
+                        modified=result.get("last_edited_time"),
+                    )
                     for result in results
                     if result["type"] == "child_page"
                 ]
@@ -243,13 +243,13 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
         if detail:
             return [
-                {
-                    "name": self._get_block_title(block),
-                    "size": len(json.dumps(block)),
-                    "type": block["type"],
-                    "created": block.get("created_time"),
-                    "modified": block.get("last_edited_time"),
-                }
+                NotionInfo(
+                    name=self._get_block_title(block),
+                    size=len(json.dumps(block)),
+                    type=block["type"],
+                    created=block.get("created_time"),
+                    modified=block.get("last_edited_time"),
+                )
                 for block in results
                 if block["type"] == "child_page"
             ]

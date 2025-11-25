@@ -23,6 +23,8 @@ class OpenApiInfo(TypedDict, total=False):
     type: str
     size: int
     version: str
+    url: str
+    value: str
     api_version: str
     description: str | None
     paths_count: int
@@ -168,33 +170,16 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
         }
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[OpenApiInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(  # noqa: PLR0911
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[OpenApiInfo] | list[str]:  # noqa: PLR0911
         """List OpenAPI specification contents."""
         self._load_spec()
         assert self._spec is not None
-
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
         if not path:
             # Root - show main sections
             items = [
@@ -210,29 +195,13 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                 return items
 
             return [
-                {"name": "info", "type": "section", "description": "API information"},
-                {
-                    "name": "servers",
-                    "type": "section",
-                    "description": "Server configurations",
-                },
-                {"name": "paths", "type": "section", "description": "API endpoints"},
-                {
-                    "name": "components",
-                    "type": "section",
-                    "description": "Reusable components",
-                },
-                {"name": "tags", "type": "section", "description": "Endpoint tags"},
-                {
-                    "name": "__openapi__",
-                    "type": "special",
-                    "description": "OpenAPI version info",
-                },
-                {
-                    "name": "__raw__",
-                    "type": "special",
-                    "description": "Raw specification",
-                },
+                OpenApiInfo(name="info", type="section", description="API information"),
+                OpenApiInfo(name="servers", type="section", description="Server configurations"),
+                OpenApiInfo(name="paths", type="section", description="API endpoints"),
+                OpenApiInfo(name="components", type="section", description="Reusable components"),
+                OpenApiInfo(name="tags", type="section", description="Endpoint tags"),
+                OpenApiInfo(name="__openapi__", type="special", description="OpenAPI version info"),
+                OpenApiInfo(name="__raw__", type="special", description="Raw specification"),
             ]
 
         parts = path.split("/")
@@ -249,11 +218,11 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                         ]
 
                     return [
-                        {
-                            "name": item,
-                            "type": "info_field",
-                            "value": str(getattr(self._spec.info, item))[:100],
-                        }
+                        OpenApiInfo(
+                            name=item,
+                            type="info_field",
+                            value=str(getattr(self._spec.info, item))[:100],
+                        )
                         for item in items
                         if hasattr(self._spec.info, item) and getattr(self._spec.info, item)
                     ]
@@ -268,12 +237,12 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                         return items
 
                     return [
-                        {
-                            "name": str(i),
-                            "type": "server",
-                            "url": server.url,
-                            "description": server.description or "",
-                        }
+                        OpenApiInfo(
+                            name=str(i),
+                            type="server",
+                            url=server.url,
+                            description=server.description or "",
+                        )
                         for i, server in enumerate(self._spec.servers)
                     ]
 
@@ -302,12 +271,14 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                             if hasattr(path_obj, method) and getattr(path_obj, method)
                         ]
 
-                        result.append({
-                            "name": path_key,
-                            "type": "api_path",
-                            "operations": operations,
-                            "description": getattr(path_obj, "description", "") or "",
-                        })
+                        result.append(
+                            OpenApiInfo(
+                                name=path_key,
+                                type="api_path",
+                                operations=operations,
+                                description=getattr(path_obj, "description", "") or "",
+                            )
+                        )
                     return result
 
                 # Check if the last part is an HTTP method
@@ -350,31 +321,31 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                         return list(items)
 
                     return [
-                        {
-                            "name": "parameters",
-                            "type": "section",
-                            "description": "Request parameters",
-                        },
-                        {
-                            "name": "responses",
-                            "type": "section",
-                            "description": "Response definitions",
-                        },
-                        {
-                            "name": "requestBody",
-                            "type": "section",
-                            "description": "Request body schema",
-                        },
-                        {
-                            "name": "__curl__",
-                            "type": "special",
-                            "description": "Generated curl command",
-                        },
-                        {
-                            "name": "__summary__",
-                            "type": "special",
-                            "description": "Operation summary",
-                        },
+                        OpenApiInfo(
+                            name="parameters",
+                            type="section",
+                            description="Request parameters",
+                        ),
+                        OpenApiInfo(
+                            name="responses",
+                            type="section",
+                            description="Response definitions",
+                        ),
+                        OpenApiInfo(
+                            name="requestBody",
+                            type="section",
+                            description="Request body schema",
+                        ),
+                        OpenApiInfo(
+                            name="__curl__",
+                            type="special",
+                            description="Generated curl command",
+                        ),
+                        OpenApiInfo(
+                            name="__summary__",
+                            type="special",
+                            description="Operation summary",
+                        ),
                     ]
                 # List operations for a specific path
                 # Reconstruct path from parts, handling {id} parameters
@@ -403,15 +374,17 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                 if not detail:
                     return items
 
-                result = []
+                detail_result: list[OpenApiInfo] = []
                 for method in items:
                     operation = getattr(path_obj, method.lower())
-                    result.append({
-                        "name": method,
-                        "type": "operation",
-                        **self._get_operation_info(operation, method, path_key),
-                    })
-                return result
+                    detail_result.append(
+                        OpenApiInfo(
+                            name=method,
+                            type="operation",
+                            **self._get_operation_info(operation, method, path_key),  # type: ignore[typeddict-item]
+                        )
+                    )
+                return detail_result
 
             case "components":
                 if len(parts) == 1:
@@ -431,7 +404,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                     if not detail:
                         return items
 
-                    return [{"name": item, "type": "component_section"} for item in items]
+                    return [OpenApiInfo(name=item, type="component_section") for item in items]
 
                 if len(parts) == 2 and self._spec.components:  # noqa: PLR2004
                     component_type = parts[1]
@@ -445,7 +418,8 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                         return items
 
                     return [
-                        {"name": item, "type": f"component_{component_type[:-1]}"} for item in items
+                        OpenApiInfo(name=item, type=f"component_{component_type[:-1]}")
+                        for item in items
                     ]
 
             case "tags":
@@ -455,11 +429,11 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                         return items
 
                     return [
-                        {
-                            "name": tag.name,
-                            "type": "tag",
-                            "description": tag.description or "",
-                        }
+                        OpenApiInfo(
+                            name=tag.name,
+                            type="tag",
+                            description=tag.description or "",
+                        )
                         for tag in self._spec.tags
                     ]
 
