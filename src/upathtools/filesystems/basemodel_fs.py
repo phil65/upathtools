@@ -65,7 +65,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         super().__init__(**kwargs)
 
         if isinstance(model, str):
-            self.model_class = self._import_model(model)
+            self.model_class = _import_model(model)
             self.model_path = model
         else:
             self.model_class = model
@@ -87,24 +87,6 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
             # This looks like a model identifier (e.g., "schemez.Schema")
             return ""
         return stripped
-
-    def _import_model(self, import_path: str) -> type[BaseModel]:
-        """Import a BaseModel class from a string path."""
-        try:
-            module_path, class_name = import_path.rsplit(".", 1)
-            module = importlib.import_module(module_path)
-            model_class = getattr(module, class_name)
-
-            # Basic check if it's a BaseModel subclass
-            if not hasattr(model_class, "model_fields"):
-                msg = f"{import_path} is not a Pydantic BaseModel"
-                raise ValueError(msg)  # noqa: TRY301
-
-        except (ImportError, AttributeError, ValueError) as exc:
-            msg = f"Could not import BaseModel from {import_path}"
-            raise FileNotFoundError(msg) from exc
-        else:
-            return model_class
 
     def _get_nested_model_at_path(self, path: str) -> tuple[type[BaseModel], str]:
         """Get the model class and field name at a given path."""
@@ -183,19 +165,12 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         result = []
         for item in items:
             if item.startswith("__"):
-                result.append(
-                    BaseModelInfo(
-                        name=item,
-                        type="special",
-                        size=0,
-                        description=f"Special path for {item[2:-2]} information",
-                    )
-                )
+                desc = f"Special path for {item[2:-2]} information"
+                result.append(BaseModelInfo(name=item, type="special", size=0, description=desc))
             else:
                 # It's a field
                 field_info = current_model.model_fields[item]
                 field_type = field_info.annotation
-
                 # Determine if field is a nested model
                 is_nested = False
                 origin = get_origin(field_type)
@@ -419,6 +394,25 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
             size=0,
             constraints=[str(c) for c in field_info.metadata] if field_info.metadata else None,
         )
+
+
+def _import_model(import_path: str) -> type[BaseModel]:
+    """Import a BaseModel class from a string path."""
+    try:
+        module_path, class_name = import_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        model_class = getattr(module, class_name)
+
+        # Basic check if it's a BaseModel subclass
+        if not hasattr(model_class, "model_fields"):
+            msg = f"{import_path} is not a Pydantic BaseModel"
+            raise ValueError(msg)  # noqa: TRY301
+
+    except (ImportError, AttributeError, ValueError) as exc:
+        msg = f"Could not import BaseModel from {import_path}"
+        raise FileNotFoundError(msg) from exc
+    else:
+        return model_class
 
 
 if __name__ == "__main__":
