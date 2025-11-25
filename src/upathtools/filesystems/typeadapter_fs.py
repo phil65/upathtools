@@ -237,7 +237,7 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
                         raise FileNotFoundError(msg)
                     field_schema = current_fields[field_name]
                     return json.dumps(field_schema, indent=2, default=str).encode()
-                case "__schema__" | "__json_schema__" if field_name:
+                case "__schema__" | "__json_schema__":
                     schema = self.type_adapter.json_schema()
                     return json.dumps(schema, indent=2).encode()
                 case "__examples__":

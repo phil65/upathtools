@@ -109,7 +109,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
 
             self.client = FastMCPClient(StdioTransport(server_cmd[0], server_cmd[1:]))
 
-        self._resource_cache: dict[str, dict[str, Any]] = {}
+        self._resource_cache: dict[str, McpInfo] = {}
         self._cache_valid = False
 
     @staticmethod
@@ -188,7 +188,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         path: str = "",
         detail: Literal[True] = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[McpInfo]: ...
 
     @overload
     async def _ls(
@@ -203,7 +203,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | list[McpInfo]:
         """List directory contents asynchronously."""
         if not self._cache_valid:
             await self._refresh_resources()
@@ -294,11 +294,11 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
             return McpInfo(
                 name=resource["name"],
                 type=resource["type"],
-                size=resource["size"],
-                uri=resource["uri"],
-                mime_type=resource["mimeType"],
-                description=resource["description"],
-                title=resource["title"],
+                size=resource.get("size"),
+                uri=resource.get("uri"),
+                mime_type=resource.get("mime_type"),
+                description=resource.get("description"),
+                title=resource.get("title"),
             )
         msg = f"Path not found: {path}"
         raise FileNotFoundError(msg)

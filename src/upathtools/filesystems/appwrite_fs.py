@@ -171,24 +171,14 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         return parts[0], parts[1]
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[AppwriteInfo]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[AppwriteInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(  # noqa: PLR0911
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[AppwriteInfo] | list[str]:
@@ -245,11 +235,9 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         try:
             # Simulate directory structure
             prefix = file_path if file_path.endswith("/") else file_path + "/" if file_path else ""
-
             # List all files in bucket
             response = self.storage.list_files(bucket_id=bucket_id)
             files = response.get("files", [])
-
             # Apply prefix filtering to simulate directories
             if prefix:
                 files = [f for f in files if f["name"].startswith(prefix) or f["name"] == file_path]
@@ -257,10 +245,8 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
             # Extract virtual directories from paths
             result: list[Any] = []
             virtual_dirs = set()
-
             for file in files:
                 name = file["name"]
-
                 if prefix and name.startswith(prefix):
                     # Get relative path
                     rel_name = name[len(prefix) :]

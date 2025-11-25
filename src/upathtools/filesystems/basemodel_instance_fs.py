@@ -16,15 +16,18 @@ class BaseModelInstanceInfo(TypedDict, total=False):
     """Info dict for BaseModel instance paths."""
 
     name: str
-    type: Literal["instance", "nested_object", "value"]
-    class_name: str | None
-    is_basemodel: bool | None
-    field_count: int | None
-    data: str | None
-    is_collection: bool | None
+    type: Literal["instance", "nested_object", "value", "special", "key", "item", "field"]
+    class_name: str
+    is_basemodel: bool
+    field_count: int
+    data: str
+    is_collection: bool
     size: int | None
-    value_type: str | None
-    value: str | None
+    value_type: str
+    value: str
+    description: str
+    is_nested: bool
+    index: int
 
 
 class BaseModelInstancePath(BaseUPath[BaseModelInstanceInfo]):
@@ -109,7 +112,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
         path: str = "",
         detail: Literal[True] = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[BaseModelInstanceInfo]: ...
 
     @overload
     def ls(
@@ -124,7 +127,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[BaseModelInstanceInfo] | list[str]:
         """List instance fields and values."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -174,12 +177,14 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
         result = []
         for item in items:
             if item.startswith("__"):
-                result.append({
-                    "name": item,
-                    "type": "special",
-                    "size": 0,
-                    "description": f"Special path for {item[2:-2]} information",
-                })
+                result.append(
+                    BaseModelInstanceInfo(
+                        name=item,
+                        type="special",
+                        size=0,
+                        description=f"Special path for {item[2:-2]} information",
+                    )
+                )
             # It's a field or item
             elif self._is_basemodel_instance(current_obj):
                 field_value = getattr(current_obj, item)
@@ -209,15 +214,17 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
                 })
             elif self._is_dict_like(current_obj):
                 dict_value = current_obj[item]
-                result.append({
-                    "name": item,
-                    "type": "key",
-                    "value_type": type(dict_value).__name__,
-                    "value": str(dict_value)[:100] + "..."
-                    if len(str(dict_value)) > 100  # noqa: PLR2004
-                    else str(dict_value),
-                    "is_nested": self._is_basemodel_instance(dict_value),
-                })
+                result.append(
+                    BaseModelInstanceInfo(
+                        name=item,
+                        type="key",
+                        value_type=type(dict_value).__name__,
+                        value=str(dict_value)[:100] + "..."
+                        if len(str(dict_value)) > 100  # noqa: PLR2004
+                        else str(dict_value),
+                        is_nested=self._is_basemodel_instance(dict_value),
+                    )
+                )
 
         return result
 

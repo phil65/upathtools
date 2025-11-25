@@ -17,7 +17,7 @@ class BaseModelInfo(TypedDict, total=False):
     """Info dict for BaseModel paths."""
 
     name: str
-    type: Literal["model", "nested_model", "field"]
+    type: Literal["model", "nested_model", "field", "special"]
     size: int
     module: str | None
     doc: str | None
@@ -29,6 +29,8 @@ class BaseModelInfo(TypedDict, total=False):
     alias: str | None
     description: str | None
     constraints: list[str] | None
+    field_type: str
+    nested_model: bool
 
 
 class BaseModelPath(BaseUPath[BaseModelInfo]):
@@ -53,11 +55,7 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
     protocol = "basemodel"
     upath_cls = BaseModelPath
 
-    def __init__(
-        self,
-        model: type[BaseModel] | str,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, model: type[BaseModel] | str, **kwargs: Any) -> None:
         """Initialize the filesystem.
 
         Args:
@@ -151,27 +149,12 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         return current_model, parts[-1] if parts else ""
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = True, **kwargs: Any) -> list[BaseModelInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[BaseModelInfo] | list[str]:
         """List model fields and special paths."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -200,12 +183,14 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         result = []
         for item in items:
             if item.startswith("__"):
-                result.append({
-                    "name": item,
-                    "type": "special",
-                    "size": 0,
-                    "description": f"Special path for {item[2:-2]} information",
-                })
+                result.append(
+                    BaseModelInfo(
+                        name=item,
+                        type="special",
+                        size=0,
+                        description=f"Special path for {item[2:-2]} information",
+                    )
+                )
             else:
                 # It's a field
                 field_info = current_model.model_fields[item]
@@ -227,16 +212,18 @@ class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
                 else:
                     is_nested = hasattr(field_type, "model_fields")
 
-                result.append({
-                    "name": item,
-                    "type": "field",
-                    "field_type": str(field_type),
-                    "required": field_info.is_required(),
-                    "default": str(field_info.default) if field_info.default is not ... else None,
-                    "alias": field_info.alias,
-                    "nested_model": is_nested,
-                    "description": field_info.description,
-                })
+                result.append(
+                    BaseModelInfo(
+                        name=item,
+                        type="field",
+                        field_type=str(field_type),
+                        required=field_info.is_required(),
+                        default=str(field_info.default) if field_info.default is not ... else None,
+                        alias=field_info.alias,
+                        nested_model=is_nested,
+                        description=field_info.description,
+                    )
+                )
 
         return result
 

@@ -127,24 +127,14 @@ class ModuleFS(BaseFileSystem[ModulePath, ModuleInfo]):
         self._module = module
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[ModuleInfo]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[ModuleInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     def ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
     ) -> list[ModuleInfo] | list[str]:
