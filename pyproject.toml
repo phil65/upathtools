@@ -55,7 +55,8 @@ mcp = "upathtools.filesystems:MCPFileSystem"
 openapi = "upathtools.filesystems:OpenAPIFS"
 basemodel = "upathtools.filesystems:BaseModelFS"
 typeadapter = "upathtools.filesystems:TypeAdapterFS"
-sqlite = "upathtools.filesystems:SQLiteFS"
+sqlite = "upathtools.filesystems:SqliteFS"
+ts = "upathtools.filesystems:TreeSitterFS"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems:GistPath"
@@ -73,7 +74,8 @@ mcp = "upathtools.filesystems:MCPPath"
 basemodel = "upathtools.filesystems:BaseModelPath"
 typeadapter = "upathtools.filesystems:TypeAdapterPath"
 openapi = "upathtools.filesystems:OpenAPIPath"
-sqlite = "upathtools.filesystems:SQLitePath"
+sqlite = "upathtools.filesystems:SqlitePath"
+ts = "upathtools.filesystems:TreeSitterPath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
@@ -87,6 +89,7 @@ modal = ["modal"]
 notion-client = ["notion-client"]
 openapi3 = ["openapi3"]
 sqlite = ["sqlalchemy[aiosqlite]"]
+tree-sitter = ["tree-sitter>=0.25.2", "tree-sitter-python>=0.25.0"]
 vercel = ["vercel"]
 
 [dependency-groups]

@@ -16,6 +16,7 @@ from .openapi_fs import OpenAPIFS, OpenAPIPath
 from .package_fs import PackageFS, PackagePath
 from .python_ast_fs import PythonAstFS, PythonAstPath
 from .sqlite_fs import SqliteFS, SqlitePath
+from .treesitter_fs import TreeSitterFS, TreeSitterPath
 from .wiki_fs import WikiFileSystem, WikiPath
 from .sandbox_filesystems.beam_fs import BeamFS, BeamPath
 from .sandbox_filesystems.daytona_fs import DaytonaFS, DaytonaPath
@@ -65,6 +66,8 @@ __all__ = [
     "PythonAstPath",
     "SqliteFS",
     "SqlitePath",
+    "TreeSitterFS",
+    "TreeSitterPath",
     "TypeAdapterFS",
     "TypeAdapterPath",
     "VercelFS",
