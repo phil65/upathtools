@@ -174,7 +174,7 @@ def test_typeadapter_fs_string_import():
 
 def test_typeadapter_fs_url_parsing():
     """Test URL parsing functionality."""
-    from upathtools.filesystems.typeadapter_fs import TypeAdapterFS
+    from upathtools.filesystems import TypeAdapterFS
 
     kwargs = TypeAdapterFS._get_kwargs_from_urls("typeadapter://mypackage.MyModel")
     assert kwargs == {"model": "mypackage.MyModel"}

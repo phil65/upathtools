@@ -5,7 +5,7 @@ from pathlib import Path
 from fastmcp.client import StdioTransport
 import pytest
 
-from upathtools.filesystems.mcp_fs import MCPFileSystem
+from upathtools.filesystems import MCPFileSystem
 
 
 async def test_mcp_fs():

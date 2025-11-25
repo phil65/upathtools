@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from upathtools.filesystems.notion_fs import NotionFS
+from upathtools.filesystems import NotionFS
 
 
 pytestmark = pytest.mark.integration

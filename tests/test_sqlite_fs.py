@@ -9,7 +9,7 @@ import tempfile
 import pytest
 import sqlalchemy.exc
 
-from upathtools.filesystems.sqlite_fs import SqliteFS
+from upathtools.filesystems import SqliteFS
 
 
 # Skip all tests in this file on Windows due to SQLite file locking issues

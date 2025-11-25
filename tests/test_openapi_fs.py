@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from upathtools.filesystems.openapi_fs import OpenAPIFS
+from upathtools.filesystems import OpenAPIFS
 
 
 openapi3 = pytest.importorskip("openapi3")
