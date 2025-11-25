@@ -104,7 +104,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
     async def _ls(
         self,
         path: str,
-        detail: Literal[True],
+        detail: Literal[True] = ...,
         **kwargs: Any,
     ) -> list[MicrosandboxInfo]: ...
 

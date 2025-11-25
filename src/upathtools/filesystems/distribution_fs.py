@@ -91,7 +91,9 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
         return module
 
     @overload
-    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[DistributionInfo]: ...
+    def ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[DistributionInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

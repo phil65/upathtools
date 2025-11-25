@@ -171,7 +171,9 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         return parts[0], parts[1]
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[AppwriteInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[AppwriteInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

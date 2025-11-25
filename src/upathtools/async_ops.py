@@ -224,7 +224,7 @@ async def list_files(
     include_dirs: bool = False,
     exclude: list[str] | None = None,
     max_depth: int | None = None,
-    detail: Literal[True],
+    detail: Literal[True] = ...,
 ) -> list[dict[str, Any]]: ...
 
 

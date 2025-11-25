@@ -66,7 +66,7 @@ class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanc
     def ls(
         self,
         path: str,
-        detail: Literal[True],
+        detail: Literal[True] = ...,
         **kwargs: Any,
     ) -> list[BaseModelInstanceInfo]: ...
 

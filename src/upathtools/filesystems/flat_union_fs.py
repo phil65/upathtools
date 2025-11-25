@@ -261,7 +261,9 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         )
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[FlatUnionInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[FlatUnionInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

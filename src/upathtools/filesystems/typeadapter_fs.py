@@ -146,7 +146,9 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
         return current_fields, parts[-1] if parts else ""
 
     @overload
-    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[TypeAdapterInfo]: ...
+    def ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[TypeAdapterInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

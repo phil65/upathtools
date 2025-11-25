@@ -178,7 +178,9 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         return f"{protocol}://{path}"  # Add protocol back
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[UnionInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[UnionInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

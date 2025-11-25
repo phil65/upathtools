@@ -106,7 +106,9 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             self._session_started = False
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[DaytonaInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[DaytonaInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

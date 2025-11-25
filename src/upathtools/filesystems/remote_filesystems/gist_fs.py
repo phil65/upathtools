@@ -302,7 +302,9 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         return out
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[GistInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[GistInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...

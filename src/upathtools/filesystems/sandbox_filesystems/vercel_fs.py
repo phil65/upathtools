@@ -126,7 +126,9 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
             self._sandbox = None
 
     @overload
-    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[VercelInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[VercelInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
