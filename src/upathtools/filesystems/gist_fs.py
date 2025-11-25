@@ -30,6 +30,8 @@ class GistInfo(FileInfo, total=False):
     html_url: str | None
     git_pull_url: str | None
     git_push_url: str | None
+    gist_id: str
+    mime_type: str
     comments: int | None
     public: bool | None
     owner: str | None
@@ -226,7 +228,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         response.raise_for_status()
         return response.json()
 
-    async def _get_gist_file_list(self, gist_id: str) -> list[dict[str, Any]]:
+    async def _get_gist_file_list(self, gist_id: str) -> list[GistInfo]:
         """Get list of files in a specific gist.
 
         Args:
@@ -241,28 +243,28 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         # Fetch the specific gist metadata
         meta = await self._fetch_gist_metadata(gist_id)
         out = [
-            {
-                "name": fname,
-                "type": "file",
-                "size": finfo.get("size", 0),
-                "raw_url": finfo.get("raw_url"),
-                "language": finfo.get("language"),
-                "mime_type": finfo.get("type", "text/plain"),
-                "gist_id": gist_id,
-                "gist_description": meta.get("description", ""),
-                "gist_html_url": meta.get("html_url"),
-                "created_at": meta.get("created_at"),
-                "updated_at": meta.get("updated_at"),
-                "public": meta.get("public", False),
-                "truncated": finfo.get("truncated", False),
-            }
+            GistInfo(
+                name=fname,
+                type="file",
+                size=finfo.get("size", 0),
+                raw_url=finfo.get("raw_url"),
+                language=finfo.get("language"),
+                mime_type=finfo.get("type", "text/plain"),
+                gist_id=gist_id,
+                description=meta.get("description", ""),
+                html_url=meta.get("html_url"),
+                created_at=meta.get("created_at"),
+                updated_at=meta.get("updated_at"),
+                public=meta.get("public", False),
+                truncated=finfo.get("truncated", False),
+            )
             for fname, finfo in meta.get("files", {}).items()
             if finfo is not None
         ]
         self.dircache[gist_id] = out
         return out
 
-    async def _get_all_gists(self) -> list[dict[str, Any]]:
+    async def _get_all_gists(self) -> list[GistInfo]:
         """Get metadata for all gists of the user."""
         if "" in self.dircache:
             return self.dircache[""]
@@ -275,23 +277,24 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
             all_gists.extend(gists)
             page += 1
         out = [
-            {
-                "name": gist["id"],
-                "type": "directory",
-                "description": gist.get("description", ""),
-                "created_at": gist.get("created_at"),
-                "updated_at": gist.get("updated_at"),
-                "html_url": gist.get("html_url"),
-                "git_pull_url": gist.get("git_pull_url"),
-                "git_push_url": gist.get("git_push_url"),
-                "comments": gist.get("comments", 0),
-                "public": gist.get("public", False),
-                "owner": gist.get("owner", {}).get("login") if gist.get("owner") else None,
-                "files_count": len(gist.get("files", {})),
+            GistInfo(
+                gist_id=gist["id"],
+                name=gist["id"],
+                type="directory",
+                description=gist.get("description", ""),
+                created_at=gist.get("created_at"),
+                updated_at=gist.get("updated_at"),
+                html_url=gist.get("html_url"),
+                git_pull_url=gist.get("git_pull_url"),
+                git_push_url=gist.get("git_push_url"),
+                comments=gist.get("comments", 0),
+                public=gist.get("public", False),
+                owner=gist.get("owner", {}).get("login") if gist.get("owner") else None,
+                files_count=len(gist.get("files", {})),
                 # Include truncated file names as a preview
-                "files_preview": list(gist.get("files", {}).keys()),
-                "size": sum(f.get("size", 0) for f in gist.get("files", {}).values()),
-            }
+                files_preview=list(gist.get("files", {}).keys()),
+                size=sum(f.get("size", 0) for f in gist.get("files", {}).values()),
+            )
             for gist in all_gists
         ]
 
@@ -299,27 +302,17 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         return out
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[GistInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
         path: str = "",
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[GistInfo] | list[str]:
         """List contents of path.
 
         Args:

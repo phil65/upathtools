@@ -397,27 +397,12 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         return current
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[TreeSitterInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | TreeSitterInfo]:
         """List code entities at path."""
         node = self._get_node(path)
 
@@ -425,17 +410,17 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             return list(node.children)
 
         return [
-            {
-                "name": name,
-                "size": child.get_size(),
-                "type": "directory" if child.is_dir() else "file",
-                "node_type": child.node_type,
-                "start_byte": child.start_byte,
-                "end_byte": child.end_byte,
-                "start_line": child.start_line,
-                "end_line": child.end_line,
-                "doc": child.doc,
-            }
+            TreeSitterInfo(
+                name=name,
+                size=child.get_size(),
+                type="directory" if child.is_dir() else "file",
+                node_type=child.node_type,
+                start_byte=child.start_byte,
+                end_byte=child.end_byte,
+                start_line=child.start_line,
+                end_line=child.end_line,
+                doc=child.doc,
+            )
             for name, child in node.children.items()
         ]
 

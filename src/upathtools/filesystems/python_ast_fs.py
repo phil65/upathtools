@@ -126,27 +126,17 @@ class PythonAstFS(BaseFileSystem[PythonAstPath, PythonAstInfo]):
                     )
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[PythonAstInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     def ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[PythonAstInfo] | list[str]:
         """List module contents."""
         self._load()
 
@@ -154,12 +144,12 @@ class PythonAstFS(BaseFileSystem[PythonAstPath, PythonAstInfo]):
             return list(self._members)
 
         return [
-            {
-                "name": member.name,
-                "type": member.type,
-                "size": member.end_line - member.start_line,
-                "doc": member.doc,
-            }
+            PythonAstInfo(
+                name=member.name,
+                type=member.type,
+                size=member.end_line - member.start_line,
+                doc=member.doc,
+            )
             for member in self._members.values()
         ]
 

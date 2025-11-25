@@ -269,35 +269,23 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         )
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[FlatUnionInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[False],
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[FlatUnionInfo] | list[str]:
         """List contents of a path."""
         logger.debug("Listing path: %s", path)
         norm_path = path.rstrip("/").lstrip("/")
-
         # Find all filesystems that have contents at this path
         results = []
         seen_names = set()
-
         # Try listing this path in each filesystem
         for i, fs in enumerate(self.filesystems):
             try:
@@ -331,12 +319,8 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
                         results.append(entry_copy)
 
             except Exception as e:  # noqa: BLE001
-                logger.debug(
-                    "Error listing path %s in filesystem %d: %s",
-                    norm_path,
-                    i,
-                    e,
-                )
+                msg = "Error listing path %s in filesystem %d: %s"
+                logger.debug(msg, norm_path, i, e)
 
         # Special case for subdirectories of non-existent paths
         if not results and norm_path:
@@ -359,11 +343,13 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
                             next_part = entry_path[len(prefix) :].split("/", 1)[0]
                             if next_part and next_part not in seen_names:
                                 seen_names.add(next_part)
-                                results.append({
-                                    "name": next_part,
-                                    "type": "directory",
-                                    "size": 0,
-                                })
+                                results.append(
+                                    FlatUnionInfo(
+                                        name=next_part,
+                                        type="directory",
+                                        size=0,
+                                    )
+                                )
                 except Exception as e:  # noqa: BLE001
                     logger.debug("Error checking subpaths in filesystem %d: %s", i, e)
 

@@ -183,27 +183,12 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
             raise
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[McpInfo]: ...
+    async def _ls(self, path: str, detail: Literal[True], **kwargs: Any) -> list[McpInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    async def _ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[str] | list[McpInfo]:
+    async def _ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[str] | list[McpInfo]:
         """List directory contents asynchronously."""
         if not self._cache_valid:
             await self._refresh_resources()
