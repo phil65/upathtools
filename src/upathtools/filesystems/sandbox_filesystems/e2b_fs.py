@@ -104,10 +104,18 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
             self._sandbox = None
             self._session_started = False
 
-    async def _ls_real(
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
+
+    async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[dict[str, Any]] | list[str]:
-        """List directory contents."""
+        """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
 
@@ -144,20 +152,6 @@ class E2BFS(BaseAsyncFileSystem[E2BPath]):
                 })
 
         return result
-
-    @overload
-    async def _ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
-
-    @overload
-    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
-
-    async def _ls(
-        self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
-        """List directory contents with caching."""
-        return await self._ls_real(path, detail, **kwargs)
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any

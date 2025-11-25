@@ -125,7 +125,20 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
             await self._sandbox.stop()
             self._sandbox = None
 
-    async def _ls_real(self, path: str = "/", detail: bool = True) -> list[dict[str, Any]]:
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[True], **kwargs: Any
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+
+    async def _ls(
+        self,
+        path: str,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
         """List directory contents."""
         sandbox = await self._get_sandbox()
 
@@ -160,41 +173,13 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
 
             is_dir = permissions.startswith("d")
             full_path = f"{path.rstrip('/')}/{name}" if path != "/" else f"/{name}"
-
             files.append({
                 "name": full_path,
                 "size": 0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
                 "type": "directory" if is_dir else "file",
                 "isdir": is_dir,
             })
-
-        return files
-
-    @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
-
-    @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
-
-    async def _ls(
-        self,
-        path: str = "/",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
-        """List directory contents."""
-        files = await self._ls_real(path, detail=detail)
-        return files if detail else [f["name"] for f in files]
+        return files if detail else [f["name"] for f in files]  # type: ignore[misc]
 
     async def _cat_file(
         self,

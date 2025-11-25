@@ -100,8 +100,24 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
             await self._sandbox.stop()
             logger.info("Stopped Microsandbox: %s", self._sandbox._name)
 
-    async def _ls_real(self, path: str = "/", detail: bool = True) -> list[dict[str, Any]]:
-        """List directory contents using ls command."""
+    @overload
+    async def _ls(
+        self,
+        path: str,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+
+    async def _ls(
+        self,
+        path: str,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
+        """List directory contents."""
         sandbox = await self._get_sandbox()
         # Use ls -la to get detailed directory listing
         result = await sandbox.command.run("ls", ["-la", path])
@@ -140,28 +156,6 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
                 "type": "directory" if is_dir else "file",
                 "isdir": is_dir,
             })
-
-        return files
-
-    @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[True],
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
-
-    @overload
-    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
-
-    async def _ls(
-        self,
-        path: str,
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
-        """List directory contents."""
-        files = await self._ls_real(path, detail=detail)
         return files if detail else [f["name"] for f in files]
 
     async def _cat_file(
