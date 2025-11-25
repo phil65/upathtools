@@ -92,12 +92,6 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         Supports URL formats:
         - union://protocol1=path1,protocol2=path2  (protocol=path pairs)
         - union://?s3=s3://bucket&file=/tmp/dir  (query parameters)
-
-        Args:
-            path: Union URL path
-
-        Returns:
-            Dictionary with filesystem_paths containing protocol=path mappings
         """
         # Remove protocol prefix first
         path_without_protocol = path.removeprefix("union://")

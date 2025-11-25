@@ -56,28 +56,13 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
     cachable = False
 
     @overload
-    def __init__(
-        self,
-        *,
-        client: FastMCPClient[Any],
-        **kwargs: Any,
-    ) -> None: ...
+    def __init__(self, *, client: FastMCPClient[Any], **kwargs: Any) -> None: ...
 
     @overload
-    def __init__(
-        self,
-        *,
-        url: str,
-        **kwargs: Any,
-    ) -> None: ...
+    def __init__(self, *, url: str, **kwargs: Any) -> None: ...
 
     @overload
-    def __init__(
-        self,
-        *,
-        server_cmd: list[str],
-        **kwargs: Any,
-    ) -> None: ...
+    def __init__(self, *, server_cmd: list[str], **kwargs: Any) -> None: ...
 
     def __init__(
         self,
@@ -131,14 +116,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
-        """Parse MCP URL and return constructor kwargs.
-
-        Args:
-            path: MCP URL path
-
-        Returns:
-            Dictionary with either 'url' or 'server_cmd' key
-        """
+        """Parse MCP URL and return constructor kwargs."""
         path = path.removeprefix("mcp://")
 
         if path.startswith("http"):

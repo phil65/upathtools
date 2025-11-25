@@ -50,11 +50,7 @@ class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
     protocol = "pkg"
     upath_cls = PackagePath
 
-    def __init__(
-        self,
-        package: str | types.ModuleType = "",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, package: str | types.ModuleType = "", **kwargs: Any) -> None:
         """Initialize the filesystem.
 
         Args:
@@ -95,12 +91,7 @@ class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str,
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | dict[str, Any]]:
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
