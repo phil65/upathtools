@@ -246,14 +246,14 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[HttpInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[HttpInfo] | list[str]:
         """List directory contents."""
         if self.use_listings_cache and path in self.dircache:
             out = self.dircache[path]
@@ -269,7 +269,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
 
         if detail:
             return out
-        return sorted(out)
+        return sorted(out)  # pyright: ignore[reportArgumentType]
 
     ls = sync_wrapper(_ls)
 
