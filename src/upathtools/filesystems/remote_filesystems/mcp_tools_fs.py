@@ -241,58 +241,6 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
             logger.exception("Failed to refresh MCP tools")
             raise
 
-    def _generate_tool_code(self, tool: MCPTool) -> str:
-        """Generate Python code for a single tool."""
-        properties = tool.inputSchema.get("properties", {})
-        required = set(tool.inputSchema.get("required", []))
-
-        # Build signature parts
-        sig_parts: list[str] = []
-        arguments_parts: list[str] = []
-
-        for param_name, param_info in properties.items():
-            param_type = self._json_type_to_python(param_info.get("type", "Any"))
-            is_required = param_name in required
-
-            if is_required:
-                sig_parts.append(f"{param_name}: {param_type}")
-            else:
-                sig_parts.append(f"{param_name}: {param_type} | None = None")
-
-            arguments_parts.append(f'"{param_name}": {param_name}')
-
-        signature = ", ".join(sig_parts) if sig_parts else ""
-        arguments_dict = "{" + ", ".join(arguments_parts) + "}" if arguments_parts else "{}"
-
-        template = TOOL_STUB_TEMPLATE if self.stubs_only else TOOL_CODE_TEMPLATE
-
-        return template.format(
-            tool_name=tool.name,
-            description=tool.description or f"Call the {tool.name} tool",
-            signature=signature,
-            arguments_dict=arguments_dict,
-            model_code="",  # Could add Pydantic models here if needed
-            client_module="_client",
-        )
-
-    @staticmethod
-    def _json_type_to_python(json_type: str | list[str]) -> str:
-        """Convert JSON schema type to Python type annotation."""
-        if isinstance(json_type, list):
-            types = [MCPToolsFileSystem._json_type_to_python(t) for t in json_type]
-            return " | ".join(types)
-
-        type_map = {
-            "string": "str",
-            "integer": "int",
-            "number": "float",
-            "boolean": "bool",
-            "array": "list[Any]",
-            "object": "dict[str, Any]",
-            "null": "None",
-        }
-        return type_map.get(json_type, "Any")
-
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = ..., **kwargs: Any
@@ -390,8 +338,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
                 raise FileNotFoundError(msg)
 
             tool = self._tools_cache[tool_name]
-            content = self._generate_tool_code(tool)
-
+            content = _generate_tool_code(tool, stubs_only=self.stubs_only)
         content_bytes = content.encode("utf-8")
 
         if start is not None or end is not None:
@@ -518,6 +465,59 @@ def _filename_to_tool(filename: str) -> str | None:
     if filename.endswith(".py") and not filename.startswith("_"):
         return filename[:-3]
     return None
+
+
+def _generate_tool_code(tool: MCPTool, stubs_only: bool) -> str:
+    """Generate Python code for a single tool."""
+    properties = tool.inputSchema.get("properties", {})
+    required = set(tool.inputSchema.get("required", []))
+
+    # Build signature parts
+    sig_parts: list[str] = []
+    arguments_parts: list[str] = []
+
+    for param_name, param_info in properties.items():
+        param_type = _json_type_to_python(param_info.get("type", "Any"))
+        is_required = param_name in required
+
+        if is_required:
+            sig_parts.append(f"{param_name}: {param_type}")
+        else:
+            sig_parts.append(f"{param_name}: {param_type} | None = None")
+
+        arguments_parts.append(f'"{param_name}": {param_name}')
+
+    signature = ", ".join(sig_parts) if sig_parts else ""
+    arguments_dict = "{" + ", ".join(arguments_parts) + "}" if arguments_parts else "{}"
+
+    template = TOOL_STUB_TEMPLATE if stubs_only else TOOL_CODE_TEMPLATE
+
+    return template.format(
+        tool_name=tool.name,
+        description=tool.description or f"Call the {tool.name} tool",
+        signature=signature,
+        arguments_dict=arguments_dict,
+        model_code="",  # Could add Pydantic models here if needed
+        client_module="_client",
+    )
+
+
+def _json_type_to_python(json_type: str | list[str]) -> str:
+    """Convert JSON schema type to Python type annotation."""
+    if isinstance(json_type, list):
+        types = [_json_type_to_python(t) for t in json_type]
+        return " | ".join(types)
+
+    type_map = {
+        "string": "str",
+        "integer": "int",
+        "number": "float",
+        "boolean": "bool",
+        "array": "list[Any]",
+        "object": "dict[str, Any]",
+        "null": "None",
+    }
+    return type_map.get(json_type, "Any")
 
 
 if __name__ == "__main__":
