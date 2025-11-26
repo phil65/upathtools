@@ -241,17 +241,6 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
             logger.exception("Failed to refresh MCP tools")
             raise
 
-    def _tool_to_filename(self, tool_name: str) -> str:
-        """Convert tool name to filename."""
-        return f"/{tool_name}.py"
-
-    def _filename_to_tool(self, filename: str) -> str | None:
-        """Extract tool name from filename."""
-        filename = filename.lstrip("/")
-        if filename.endswith(".py") and not filename.startswith("_"):
-            return filename[:-3]
-        return None
-
     def _generate_tool_code(self, tool: MCPTool) -> str:
         """Generate Python code for a single tool."""
         properties = tool.inputSchema.get("properties", {})
@@ -338,7 +327,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
             for tool_name, tool in self._tools_cache.items():
                 items.append(
                     McpToolInfo(
-                        name=self._tool_to_filename(tool_name),
+                        name=_tool_to_filename(tool_name),
                         type="file",
                         size=None,
                         tool_name=tool_name,
@@ -362,7 +351,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
             )
             return [info] if detail else ["/_client.py"]  # type: ignore[list-item]
 
-        t_name = self._filename_to_tool(path)
+        t_name = _filename_to_tool(path)
         if t_name and t_name in self._tools_cache:
             tool = self._tools_cache[t_name]
             info = McpToolInfo(
@@ -395,7 +384,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         if path == "_client.py":
             content = CLIENT_CODE_TEMPLATE
         else:
-            tool_name = self._filename_to_tool("/" + path)
+            tool_name = _filename_to_tool("/" + path)
             if tool_name is None or tool_name not in self._tools_cache:
                 msg = f"Tool not found: {path}"
                 raise FileNotFoundError(msg)
@@ -432,7 +421,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
                 description="FastMCP client utilities",
             )
 
-        tool_name = self._filename_to_tool(path)
+        tool_name = _filename_to_tool(path)
         if tool_name and tool_name in self._tools_cache:
             tool = self._tools_cache[tool_name]
             return McpToolInfo(
@@ -516,6 +505,19 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         raise NotImplementedError(msg)
 
     touch = sync_wrapper(_touch)
+
+
+def _tool_to_filename(tool_name: str) -> str:
+    """Convert tool name to filename."""
+    return f"/{tool_name}.py"
+
+
+def _filename_to_tool(filename: str) -> str | None:
+    """Extract tool name from filename."""
+    filename = filename.lstrip("/")
+    if filename.endswith(".py") and not filename.startswith("_"):
+        return filename[:-3]
+    return None
 
 
 if __name__ == "__main__":
