@@ -168,7 +168,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
 
         # Ensure we have bytes
         if isinstance(content, str):
-            content = content.encode("utf-8")
+            content = content.encode()
 
         # Handle byte ranges if specified
         if start is not None or end is not None:

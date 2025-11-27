@@ -111,13 +111,13 @@ class HttpFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "base"
 
-    simple_links: bool = True
+    simple_links: bool = Field(default=True, title="Simple Links")
     """Whether to extract links using simpler regex patterns"""
 
     block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for reading files in chunks"""
 
-    same_scheme: bool = True
+    same_scheme: bool = Field(default=True, title="Same Scheme")
     """Whether to keep the same scheme (http/https) when following links"""
 
     size_policy: str | None = Field(default=None, title="Size Policy", examples=["head", "get"])
@@ -128,7 +128,7 @@ class HttpFilesystemConfig(FileSystemConfig):
     )
     """Type of cache to use for file contents"""
 
-    encoded: bool = False
+    encoded: bool = Field(default=False, title="Encoded URLs")
     """Whether URLs are already encoded"""
 
 
@@ -290,7 +290,7 @@ class AppwriteFilesystemConfig(FileSystemConfig):
     )
     """Default bucket ID for operations"""
 
-    self_signed: bool = False
+    self_signed: bool = Field(default=False, title="Allow Self-Signed Certificates")
     """Whether to allow self-signed certificates"""
 
 
@@ -319,13 +319,13 @@ class HttpxFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "base"
 
-    simple_links: bool = True
+    simple_links: bool = Field(default=True, title="Simple Links")
     """Whether to extract links using simpler regex patterns"""
 
     block_size: int | None = Field(default=None, gt=0, title="Block Size", examples=[8192, 65536])
     """Block size for reading files in chunks"""
 
-    same_scheme: bool = True
+    same_scheme: bool = Field(default=True, title="Same Scheme")
     """Whether to keep the same scheme (http/https) when following links"""
 
     size_policy: str | None = Field(default=None, title="Size Policy", examples=["head", "get"])
@@ -336,7 +336,7 @@ class HttpxFilesystemConfig(FileSystemConfig):
     )
     """Type of cache to use for file contents"""
 
-    encoded: bool = False
+    encoded: bool = Field(default=False, title="Encoded URLs")
     """Whether URLs are already encoded"""
 
     timeout: int | None = Field(default=None, ge=0, title="Request Timeout", examples=[30, 60, 120])

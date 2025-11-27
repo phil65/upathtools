@@ -106,7 +106,7 @@ class FTPFilesystemConfig(FileSystemConfig):
     )
     """Encoding for filenames and directories"""
 
-    tls: bool = False
+    tls: bool = Field(default=False, title="FTP over TLS")
     """Whether to use FTP over TLS"""
 
 
@@ -281,7 +281,7 @@ class LocalFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "base"
 
-    auto_mkdir: bool = False
+    auto_mkdir: bool = Field(default=False, title="Auto Make Directories")
     """Whether to automatically make directories"""
 
     dir_policy: Literal["auto", "try_then_fail", "try_then_noop"] = Field(
@@ -360,7 +360,7 @@ class SMBFilesystemConfig(FileSystemConfig):
     password: SecretStr | None = Field(default=None, title="Password")
     """Password for authentication"""
 
-    auto_mkdir: bool = False
+    auto_mkdir: bool = Field(default=False, title="Auto Make Directories")
     """Whether to automatically make directories"""
 
     register_session_retries: int | None = Field(
@@ -426,7 +426,7 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
     )
     """Username for authentication"""
 
-    kerb: bool = False
+    kerb: bool = Field(default=False, title="Kerberos Authentication")
     """Whether to use Kerberos authentication"""
 
     proxy_to: str | None = Field(
@@ -437,7 +437,7 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
     data_proxy: dict[str, str] | None = Field(default=None, title="Data Proxy Map")
     """Map of data nodes to proxies"""
 
-    ssl_verify: bool = True
+    ssl_verify: bool = Field(default=False, title="Verify SSL Certificates")
     """Verify SSL certificates"""
 
 
