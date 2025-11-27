@@ -6,11 +6,15 @@ import asyncio
 import io
 import logging
 import os
-from typing import Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+
+
+if TYPE_CHECKING:
+    from fsspec.asyn import AsyncFileSystem
 
 
 logger = logging.getLogger(__name__)
@@ -134,9 +138,9 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         return [
             DaytonaInfo(
                 name=f"{path.rstrip('/')}/{info.name}",
-                size=info.size,
+                size=int(info.size),
                 type="directory" if info.is_dir else "file",
-                mtime=info.mod_time if info.mod_time else 0,
+                mtime=float(info.mod_time) if info.mod_time else 0,
                 mode=info.mode,
                 permissions=info.permissions,
                 owner=info.owner,
@@ -415,13 +419,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
 class DaytonaFile:
     """File-like object for Daytona files."""
 
-    def __init__(
-        self,
-        fs: DaytonaFS,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, fs: AsyncFileSystem, path: str, mode: str = "rb", **kwargs: Any) -> None:
         """Initialize Daytona file object.
 
         Args:
@@ -530,7 +528,6 @@ class DaytonaFile:
 
 
 if __name__ == "__main__":
-    import asyncio
 
     async def main() -> None:
         fs = DaytonaFS()

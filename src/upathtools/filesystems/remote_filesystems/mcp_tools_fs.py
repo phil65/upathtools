@@ -182,8 +182,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         """
         from fastmcp.client import SSETransport, StdioTransport, StreamableHttpTransport
 
-        provided = sum(x is not None for x in [client, url, server_cmd])
-        if provided != 1:
+        if sum(x is not None for x in [client, url, server_cmd]) != 1:
             msg = "Exactly one of client, url, or server_cmd must be provided"
             raise ValueError(msg)
 

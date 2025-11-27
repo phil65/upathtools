@@ -4,12 +4,32 @@ from __future__ import annotations
 
 import io
 import os
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
 
+
+LANGUAGE_MAP = {
+    ".py": "python",
+    ".js": "javascript",
+    ".ts": "typescript",
+    ".jsx": "javascript",
+    ".tsx": "typescript",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".h": "c",
+    ".hpp": "cpp",
+    ".java": "java",
+    ".rs": "rust",
+    ".go": "go",
+    ".rb": "ruby",
+    ".php": "php",
+    ".cs": "c_sharp",
+}
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -88,27 +108,6 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
     protocol = "ts"
     upath_cls = TreeSitterPath
 
-    # Language extensions mapping
-    LANGUAGE_MAP: ClassVar = {
-        ".py": "python",
-        ".js": "javascript",
-        ".ts": "typescript",
-        ".jsx": "javascript",
-        ".tsx": "typescript",
-        ".c": "c",
-        ".cpp": "cpp",
-        ".cc": "cpp",
-        ".cxx": "cpp",
-        ".h": "c",
-        ".hpp": "cpp",
-        ".java": "java",
-        ".rs": "rust",
-        ".go": "go",
-        ".rb": "ruby",
-        ".php": "php",
-        ".cs": "c_sharp",
-    }
-
     def __init__(
         self,
         source_file: str = "",
@@ -118,7 +117,6 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-
         # Handle both direct usage and chaining
         fo = kwargs.pop("fo", "")
         path = source_file or fo
@@ -136,7 +134,7 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             self.language = language
         else:
             ext = os.path.splitext(path)[1].lower()  # noqa: PTH122
-            self.language = self.LANGUAGE_MAP.get(ext, "python")
+            self.language = LANGUAGE_MAP.get(ext, "python")
 
         # Initialize state
         self._source: str | None = None
@@ -170,48 +168,19 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
             self._root = CodeNode("root", "module", 0, 0)
             return
 
-        # Import tree-sitter dynamically
         from tree_sitter import Language, Parser
 
         # Import the specific language
-        language_module = self._import_language_module()
+        language_module = _import_language_module(self.language)
         language = Language(language_module.language())
-
         # Create parser
         self._parser = Parser(language)  # type: ignore
         self._tree = self._parser.parse(self._source.encode())  # type: ignore
-
         # Build node hierarchy
         source_bytes = self._source.encode()
         total_lines = len(self._source.splitlines())
         self._root = CodeNode("root", "module", 0, len(source_bytes), 1, total_lines)
         self._extract_nodes(self._tree.root_node, self._root)  # type: ignore
-
-    def _import_language_module(self):
-        """Import the appropriate tree-sitter language module."""
-        language_modules = {
-            "python": "tree_sitter_python",
-            "javascript": "tree_sitter_javascript",
-            "typescript": "tree_sitter_typescript",
-            "c": "tree_sitter_c",
-            "cpp": "tree_sitter_cpp",
-            "java": "tree_sitter_java",
-            "rust": "tree_sitter_rust",
-            "go": "tree_sitter_go",
-            "ruby": "tree_sitter_ruby",
-            "php": "tree_sitter_php",
-        }
-
-        module_name = language_modules.get(self.language)
-        if not module_name:
-            msg = f"Language {self.language} not supported"
-            raise ValueError(msg)
-
-        try:
-            return __import__(module_name)
-        except ImportError as e:
-            msg = f"{module_name} not installed. Install with: pip install {module_name}"
-            raise ImportError(msg) from e
 
     def _extract_nodes(self, ts_node, parent_node: CodeNode) -> None:
         """Extract named entities from tree-sitter node."""
@@ -233,11 +202,9 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
                 continue
 
             node_type = child.type
-
             # Skip noise nodes
             if node_type in ("comment", "string", "number", "boolean", "null"):
                 continue
-
             # Handle imports generically
             if "import" in node_type.lower():
                 if imports_node is None:
@@ -248,7 +215,12 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
                 start_line = child.start_point[0] + 1
                 end_line = child.end_point[0] + 1 if child.end_point else start_line
                 import_node = CodeNode(
-                    import_text, node_type, child.start_byte, child.end_byte, start_line, end_line
+                    import_text,
+                    node_type,
+                    child.start_byte,
+                    child.end_byte,
+                    start_line,
+                    end_line,
                 )
                 imports_node.children[import_text] = import_node
                 continue
@@ -259,7 +231,12 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
                 start_line = child.start_point[0] + 1  # Convert to 1-based
                 end_line = child.end_point[0] + 1 if child.end_point else start_line
                 entity_node = CodeNode(
-                    name, node_type, child.start_byte, child.end_byte, start_line, end_line
+                    name,
+                    node_type,
+                    child.start_byte,
+                    child.end_byte,
+                    start_line,
+                    end_line,
                 )
 
                 # Check if this node might have children (functions, classes, etc.)
@@ -462,8 +439,34 @@ class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         return io.BytesIO(content)
 
 
+def _import_language_module(language: Any):
+    """Import the appropriate tree-sitter language module."""
+    language_modules = {
+        "python": "tree_sitter_python",
+        "javascript": "tree_sitter_javascript",
+        "typescript": "tree_sitter_typescript",
+        "c": "tree_sitter_c",
+        "cpp": "tree_sitter_cpp",
+        "java": "tree_sitter_java",
+        "rust": "tree_sitter_rust",
+        "go": "tree_sitter_go",
+        "ruby": "tree_sitter_ruby",
+        "php": "tree_sitter_php",
+    }
+
+    module_name = language_modules.get(language)
+    if not module_name:
+        msg = f"Language {language} not supported"
+        raise ValueError(msg)
+
+    try:
+        return __import__(module_name)
+    except ImportError as e:
+        msg = f"{module_name} not installed. Install with: pip install {module_name}"
+        raise ImportError(msg) from e
+
+
 if __name__ == "__main__":
-    # Example usage
     try:
         fs = TreeSitterFS(__file__, language="python")
 

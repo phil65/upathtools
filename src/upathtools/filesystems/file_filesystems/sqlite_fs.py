@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 import fsspec
 from fsspec.asyn import sync_wrapper
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 class SqliteInfo(FileInfo, total=False):
     """Info dict for SQLite filesystem paths."""
 
-    size: int
+    size: Required[int]
     table_type: str
 
 
@@ -99,25 +100,20 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
     @overload
     async def _ls(
         self,
-        path: str = "",
-        detail: Literal[True] = True,
+        path: str,
+        detail: Literal[True] = ...,
         **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[SqliteInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    ) -> Sequence[str | SqliteInfo]:
         """List database tables and views."""
         from sqlalchemy import text
 
@@ -136,12 +132,9 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
             items = []
             for row in result:  # type: ignore[reportAttributeAccessIssue]
                 if detail:
-                    items.append({
-                        "name": row.name,  # type: ignore[reportAttributeAccessIssue]
-                        "type": "file",
-                        "size": 0,  # Could add COUNT(*) query if needed
-                        "table_type": row.type,  # type: ignore[reportAttributeAccessIssue]
-                    })
+                    # Could add COUNT(*) query if needed
+                    item = SqliteInfo(name=row.name, type="file", size=0, table_type=row.type)  # type: ignore[reportAttributeAccessIssue]
+                    items.append(item)
                 else:
                     items.append(row.name)  # type: ignore[reportAttributeAccessIssue]
 
@@ -271,7 +264,8 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
         async with engine.begin() as conn:
             # Check if table exists
             result = await conn.execute(
-                text("SELECT type FROM sqlite_master WHERE name = :name"), {"name": path}
+                text("SELECT type FROM sqlite_master WHERE name = :name"),
+                {"name": path},
             )
             row = result.fetchone()
 
@@ -321,10 +315,6 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"
             raise NotImplementedError(msg)
-
-        # For now, use synchronous approach by fetching all data
-        import asyncio
-
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -345,7 +335,6 @@ class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
 
 
 if __name__ == "__main__":
-    import asyncio
     import sqlite3
     import tempfile
 
@@ -389,7 +378,7 @@ if __name__ == "__main__":
         print("\nTables:")
         tables = await fs._ls("/", detail=True)
         for table in tables:
-            print(f"- {table['name']} ({table['table_type']})")
+            print(f"- {table['name']} ({table.get('table_type')})")
 
         # Read table data
         print("\nUsers table:")
