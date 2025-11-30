@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
 import io
 import logging
-import os
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
@@ -14,6 +12,9 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+    import os
+
     import modal
 
 
@@ -167,22 +168,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[ModalInfo] | list[str]:
         """List directory contents with caching."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
-            # Get client and task_id from sandbox
-            # NOTE: This is accessing internal attributes - may need adjustment
-            # based on actual Modal API structure
-            client = sandbox._client  # TODO: Verify correct way to get client
-            task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-            assert client
-            assert task_id
-            items = FileIO.ls(path, client, task_id)
+            items = await sandbox.ls.aio(path)
         except Exception as exc:
-            # Map Modal exceptions to standard Python exceptions
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
             if "not a directory" in str(exc).lower():
@@ -198,14 +189,13 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         result = []
         for item in items:
             # Try to determine if it's a directory by attempting to list it
-            # This is a heuristic and could be improved with better Modal API support
             is_dir = False
             try:
-                FileIO.ls(item, client, task_id)
+                await sandbox.ls.aio(item)
                 is_dir = True
             except Exception:  # noqa: BLE001
                 pass  # If ls fails, assume it's a file
-            # TODO: Get actual size /mtime when Modal provides metadata API
+            # TODO: Get actual size/mtime when Modal provides metadata API
             info = ModalInfo(name=item, size=0, type="directory" if is_dir else "file", mtime=0)
             result.append(info)
 
@@ -261,32 +251,20 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            client = sandbox._client  # TODO: Verify correct way to get client
-            task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-            assert client
-            assert task_id
-            FileIO.mkdir(path, client, task_id, parents=create_parents)
+            await sandbox.mkdir.aio(path, parents=create_parents)
         except Exception as exc:
             msg = f"Failed to create directory {path}: {exc}"
             raise OSError(msg) from exc
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            client = sandbox._client  # TODO: Verify correct way to get client
-            task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-            assert client
-            assert task_id
-            FileIO.rm(path, client, task_id, recursive=False)
+            await sandbox.rm.aio(path, recursive=False)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -297,17 +275,10 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            client = sandbox._client  # TODO: Verify correct way to get client
-            task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-            assert client
-            assert task_id
-            FileIO.rm(path, client, task_id, recursive=True)
+            await sandbox.rm.aio(path, recursive=True)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -318,25 +289,17 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
             # Try to open the file/directory to check existence
-            # TODO: This could be optimized with a dedicated exists() API
-            # if Modal provides one
             f = await sandbox.open.aio(path, "r")
             await f.close.aio()
         except Exception:  # noqa: BLE001
-            # If open fails, try ls on parent to see if path exists as directory
+            # If open fails, try ls to see if path exists as directory
             try:
-                client = sandbox._client  # TODO: Verify correct way to get client
-                task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-                assert client
-                assert task_id
-                FileIO.ls(path, client, task_id)
+                await sandbox.ls.aio(path)
             except Exception:  # noqa: BLE001
                 return False
             else:
@@ -359,18 +322,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
-        from modal.file_io import FileIO
-
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
-            client = sandbox._client  # TODO: Verify correct way to get client
-            task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-            assert client
-            assert task_id
             # Try to list the path - if it works, it's a directory
-            FileIO.ls(path, client, task_id)
+            await sandbox.ls.aio(path)
         except Exception:  # noqa: BLE001
             return False
         else:
