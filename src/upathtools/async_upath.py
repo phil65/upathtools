@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import IO, TYPE_CHECKING, Any, Self, overload
 
 from upath.extensions import ProxyUPath
 
@@ -225,46 +225,6 @@ class AsyncUPath(ProxyUPath):
 
         return UPathStatResult.from_info(info)
 
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["r", "rt"] = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["rb"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["w", "wt", "x", "xt", "a", "at"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
-    @overload
-    async def aopen(
-        self,
-        mode: Literal["wb", "xb", "ab"],
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> None: ...
-
     async def aopen(
         self,
         mode: str = "r",
@@ -273,7 +233,7 @@ class AsyncUPath(ProxyUPath):
         errors: str | None = None,
         newline: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> IO:
         """Asynchronously open file."""
         try:
             fs = await self.afs()

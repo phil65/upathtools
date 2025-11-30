@@ -339,9 +339,12 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         sandbox = await self._get_sandbox()
         try:
             info = await sandbox.fs.get_file_info(path)
-            mtime = _parse_daytona_time(info.mod_time)
-            typ = "directory" if info.is_dir else "file"
-            return DaytonaInfo(name=path, size=int(info.size), type=typ, mtime=mtime)
+            return DaytonaInfo(
+                name=path,
+                size=int(info.size),
+                type="directory" if info.is_dir else "file",
+                mtime=_parse_daytona_time(info.mod_time),
+            )
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
