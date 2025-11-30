@@ -116,30 +116,12 @@ class AsyncUPath(ProxyUPath):
         newline: str | None = None,
     ) -> int:
         """Asynchronously write text to file."""
+        fs = await self.afs()
         try:
-            fs = await self.afs()
-
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-
-                async_file = await open_method(
-                    self.path, "wt", encoding=encoding, errors=errors, newline=newline
-                )
-                async with async_file:
-                    return await async_file.write(data)
-            else:
-                return await asyncio.to_thread(
-                    self.write_text,
-                    data,
-                    encoding=encoding,
-                    errors=errors,
-                    newline=newline,
-                )
-
+            file = await fs.open_async(self.path, encoding=encoding, errors=errors, newline=newline)
+            return await file.read()
         except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(
-                self.write_text, data, encoding=encoding, errors=errors, newline=newline
-            )
+            return await fs._pipe_file(self.path, data)
 
     async def aexists(self) -> bool:
         """Asynchronously check if path exists."""
@@ -181,7 +163,7 @@ class AsyncUPath(ProxyUPath):
         try:
             fs = await self.afs()
             if hasattr(fs, "_rmdir"):
-                await fs._rmdir(self.path)
+                await fs._rmdir(self.path)  # pyright: ignore[reportAttributeAccessIssue]
             else:
                 await asyncio.to_thread(self.rmdir)
         except Exception:  # noqa: BLE001
@@ -296,20 +278,8 @@ class AsyncUPath(ProxyUPath):
         try:
             fs = await self.afs()
 
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-                return await open_method(
-                    self.path,
-                    mode=mode,
-                    buffering=buffering,
-                    encoding=encoding,
-                    errors=errors,
-                    newline=newline,
-                    **kwargs,
-                )
-            # Note: This returns a sync file object wrapped to work in async context
-            return await asyncio.to_thread(
-                self.open,
+            return await fs.open_async(
+                self.path,
                 mode=mode,
                 buffering=buffering,
                 encoding=encoding,
