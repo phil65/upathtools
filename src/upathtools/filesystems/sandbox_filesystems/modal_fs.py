@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 class ModalInfo(FileInfo, total=False):
     """Info dict for Modal filesystem paths."""
 
-    size: int
-    mtime: float
+    size: Required[int]
+    mtime: Required[float]
 
 
 class ModalPath(BaseUPath[ModalInfo]):
@@ -108,29 +108,21 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         app_name, sandbox_id = path.split(":")
         return {"sandbox_id": sandbox_id, "app_name": app_name}
 
-    async def _get_app(self) -> modal.App:
-        """Get or create Modal app."""
-        import modal
-
-        if self._app is not None:
-            return self._app
-        self._app = await modal.App.lookup.aio(self._app_name, create_if_missing=True)
-        return self._app
-
     async def _get_sandbox(self) -> modal.Sandbox:
         """Get or create Modal sandbox instance."""
         import modal
 
         if self._sandbox is not None:
             return self._sandbox
-        app = await self._get_app()
+        if self._app is None:
+            self._app = await modal.App.lookup.aio(self._app_name, create_if_missing=True)
         if self._sandbox_id:  # Connect to existing sandbox by ID
             self._sandbox = await modal.Sandbox.from_id.aio(self._sandbox_id)
         elif self._sandbox_name:  # Connect to named sandbox
             self._sandbox = await modal.Sandbox.from_name.aio(self._app_name, self._sandbox_name)
         else:
             self._sandbox = await modal.Sandbox.create.aio(
-                app=app,
+                app=self._app,
                 image=self._image,
                 timeout=self._timeout,
                 workdir=self._workdir,
@@ -411,12 +403,13 @@ class ModalFile:
         self._modal_file: FileIO | None = None
         self._closed = False
 
-    async def _ensure_opened(self) -> None:
+    async def _ensure_opened(self) -> FileIO:
         """Ensure Modal file is opened."""
         if self._modal_file is None:
             await self.fs.set_session()
             sandbox = await self.fs._get_sandbox()
             self._modal_file = await sandbox.open.aio(self.path, self.mode)
+        return self._modal_file
 
     def readable(self) -> bool:
         """Check if file is readable."""
@@ -444,10 +437,10 @@ class ModalFile:
             msg = "not readable"
             raise io.UnsupportedOperation(msg)
 
-        await self._ensure_opened()
+        file = await self._ensure_opened()
         if size == -1:
-            return await self._modal_file.read()
-        return await self._modal_file.read(size)
+            return await file.read()
+        return await file.read(size)
 
     async def write(self, data: bytes) -> int:
         """Write data to file."""
@@ -458,8 +451,8 @@ class ModalFile:
             msg = "not writable"
             raise io.UnsupportedOperation(msg)
 
-        await self._ensure_opened()
-        await self._modal_file.write(data)
+        file = await self._ensure_opened()
+        await file.write.aio(data)
         return len(data)
 
     async def flush(self) -> None:
@@ -467,7 +460,7 @@ class ModalFile:
         if self._closed:
             return
         if self._modal_file and self.writable():
-            await self._modal_file.flush()
+            await self._modal_file.flush.aio()
 
     async def seek(self, offset: int, whence: int = 0) -> int:
         """Seek to position."""
@@ -475,15 +468,15 @@ class ModalFile:
             msg = "I/O operation on closed file"
             raise ValueError(msg)
 
-        await self._ensure_opened()
-        await self._modal_file.seek(offset, whence)
+        file = await self._ensure_opened()
+        await file.seek.aio(offset, whence)
         return offset  # TODO: Modal should return actual position
 
     async def close(self) -> None:
         """Close file."""
         if not self._closed:
             if self._modal_file:
-                await self._modal_file.close()
+                await self._modal_file.close.aio()
             self._closed = True
 
     async def __aenter__(self) -> Self:
