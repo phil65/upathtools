@@ -34,17 +34,8 @@ class AsyncUPath(ProxyUPath):
 
     async def aread_bytes(self) -> bytes:
         """Asynchronously read file content as bytes."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_cat_file"):
-                return await fs._cat_file(self.path)
-            if hasattr(fs, "cat_file"):
-                return await asyncio.to_thread(fs.cat_file, self.path)
-            # Final fallback to sync method
-            return await asyncio.to_thread(self.read_bytes)
-        except Exception:  # noqa: BLE001
-            # If all else fails, use sync method in thread
-            return await asyncio.to_thread(self.read_bytes)
+        fs = await self.afs()
+        return await fs._cat_file(self.path)
 
     @overload
     async def aread_text(
@@ -95,17 +86,9 @@ class AsyncUPath(ProxyUPath):
 
     async def awrite_bytes(self, data: bytes) -> int:
         """Asynchronously write bytes to file."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_pipe_file"):
-                await fs._pipe_file(self.path, data)
-                return len(data)
-            if hasattr(fs, "pipe_file"):
-                await asyncio.to_thread(fs.pipe_file, self.path, data)
-                return len(data)
-            return await asyncio.to_thread(self.write_bytes, data)
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(self.write_bytes, data)
+        fs = await self.afs()
+        await fs._pipe_file(self.path, data)
+        return len(data)
 
     @overload
     async def awrite_text(
@@ -160,56 +143,32 @@ class AsyncUPath(ProxyUPath):
 
     async def aexists(self) -> bool:
         """Asynchronously check if path exists."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_exists"):
-                return await fs._exists(self.path)
-            return await asyncio.to_thread(fs.exists, self.path)
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(self.exists)
+        fs = await self.afs()
+        return await fs._exists(self.path)
 
     async def ais_file(self) -> bool:
         """Asynchronously check if path is a file."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_isfile"):
-                return await fs._isfile(self.path)
-            return await asyncio.to_thread(fs.isfile, self.path)
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(self.is_file)
+        fs = await self.afs()
+        return await fs._isfile(self.path)
 
     async def ais_dir(self) -> bool:
         """Asynchronously check if path is a directory."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_isdir"):
-                return await fs._isdir(self.path)
-            return await asyncio.to_thread(fs.isdir, self.path)
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(self.is_dir)
+        fs = await self.afs()
+        return await fs._isdir(self.path)
 
     async def amkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
         """Asynchronously create directory."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_makedirs"):
-                await fs._makedirs(self.path, exist_ok=exist_ok)
-            else:
-                await asyncio.to_thread(self.mkdir, mode, parents, exist_ok)
-        except Exception:  # noqa: BLE001
-            await asyncio.to_thread(self.mkdir, mode, parents, exist_ok)
+        fs = await self.afs()
+        await fs._makedirs(self.path, exist_ok=exist_ok)
 
     async def atouch(self, exist_ok: bool = True) -> None:
         """Asynchronously create empty file or update timestamp."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_touch"):
-                await fs._touch(self.path, exist_ok=exist_ok)  # type: ignore
-            else:
-                await asyncio.to_thread(self.touch, exist_ok=exist_ok)
-        except Exception:  # noqa: BLE001
+        fs = await self.afs()
+        if hasattr(fs, "_touch"):
+            await fs._touch(self.path, exist_ok=exist_ok)  # type: ignore
+        else:
             await asyncio.to_thread(self.touch, exist_ok=exist_ok)
 
     async def aunlink(self, missing_ok: bool = False) -> None:
@@ -242,31 +201,20 @@ class AsyncUPath(ProxyUPath):
 
     async def _aiterdir_impl(self) -> AsyncIterator[Self]:
         """Implementation of async directory iteration."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_ls"):
-                entries = await fs._ls(self.path, detail=False)
+        fs = await self.afs()
+        entries = await fs._ls(self.path, detail=False)
+        for entry in entries:
+            if isinstance(entry, dict):
+                entry_path = entry.get("name", entry.get("path", ""))
             else:
-                entries = await asyncio.to_thread(fs.ls, self.path, detail=False)
+                entry_path = str(entry)
 
-            for entry in entries:
-                if isinstance(entry, dict):
-                    entry_path = entry.get("name", entry.get("path", ""))
-                else:
-                    entry_path = str(entry)
-
-                if entry_path and entry_path != self.path:
-                    yield self._from_upath(
-                        type(self.__wrapped__)(
-                            entry_path, protocol=self.protocol, **self.storage_options
-                        )
+            if entry_path and entry_path != self.path:
+                yield self._from_upath(
+                    type(self.__wrapped__)(
+                        entry_path, protocol=self.protocol, **self.storage_options
                     )
-
-        except Exception:  # noqa: BLE001
-            # Fallback to sync iteration in thread
-            sync_iter = await asyncio.to_thread(lambda: list(self.iterdir()))
-            for item in sync_iter:
-                yield item
+                )
 
     def aglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously glob for paths matching pattern."""
@@ -280,18 +228,8 @@ class AsyncUPath(ProxyUPath):
         case_sensitive = case_sensitive or False
         try:
             fs = await self.afs()
-            if hasattr(fs, "_glob"):
-                full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
-                matches = await fs._glob(full_pattern)
-            else:
-                # Fallback to sync glob in thread
-                sync_matches = await asyncio.to_thread(
-                    lambda: list(self.glob(pattern, case_sensitive=case_sensitive))
-                )
-                for match in sync_matches:
-                    yield match
-                return
-
+            full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
+            matches = await fs._glob(full_pattern)
             for match_path in matches:
                 if isinstance(match_path, dict):
                     match_path = match_path.get("name", match_path.get("path", ""))
@@ -315,16 +253,11 @@ class AsyncUPath(ProxyUPath):
 
     async def astat(self, *, follow_symlinks: bool = True):
         """Asynchronously get file stats."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_info"):
-                info = await fs._info(self.path)
-                from upath._stat import UPathStatResult
+        fs = await self.afs()
+        info = await fs._info(self.path)
+        from upath._stat import UPathStatResult
 
-                return UPathStatResult.from_info(info)
-            return await asyncio.to_thread(self.stat, follow_symlinks=follow_symlinks)
-        except Exception:  # noqa: BLE001
-            return await asyncio.to_thread(self.stat, follow_symlinks=follow_symlinks)
+        return UPathStatResult.from_info(info)
 
     @overload
     async def aopen(

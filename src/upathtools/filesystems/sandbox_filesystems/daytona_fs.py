@@ -256,8 +256,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             if "not a directory" in str(exc).lower():
                 raise NotADirectoryError(path) from exc
             if "not empty" in str(exc).lower():
-                msg = f"Directory not empty: {path}"
-                raise OSError(msg) from exc
+                raise OSError(f"Directory not empty: {path}") from exc
             msg = f"Failed to remove directory {path}: {exc}"
             raise OSError(msg) from exc
 
