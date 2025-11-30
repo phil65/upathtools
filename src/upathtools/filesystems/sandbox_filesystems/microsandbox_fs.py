@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class MicrosandboxInfo(FileInfo, total=False):
     """Info dict for Microsandbox filesystem paths."""
 
-    size: int
+    size: Required[int]
 
 
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class VercelInfo(FileInfo, total=False):
     """Info dict for Vercel filesystem paths."""
 
-    size: int
+    size: Required[int]
 
 
 logger = logging.getLogger(__name__)
@@ -89,22 +89,18 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
 
     async def _get_sandbox(self) -> AsyncSandbox:
         """Get or create sandbox instance."""
-        if self._sandbox is not None:
-            return self._sandbox
-
-        # Import here to avoid circular imports
         from vercel.sandbox import AsyncSandbox
 
-        if self.sandbox_id:
-            # Connect to existing sandbox
+        if self._sandbox is not None:
+            return self._sandbox
+        if self.sandbox_id:  # Connect to existing sandbox
             self._sandbox = await AsyncSandbox.get(
                 sandbox_id=self.sandbox_id,
                 token=self.token,
                 project_id=self.project_id,
                 team_id=self.team_id,
             )
-        else:
-            # Create new sandbox
+        else:  # Create new sandbox
             self._sandbox = await AsyncSandbox.create(
                 source=self.source,
                 ports=self.ports,
@@ -141,10 +137,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
     ) -> list[str] | list[VercelInfo]:
         """List directory contents."""
         sandbox = await self._get_sandbox()
-
-        # Use ls command to get directory listing
         result = await sandbox.run_command("ls", ["-la", path], cwd="/")
-
         if result.exit_code != 0:
             stderr_str = await result.stderr() or ""
             if "No such file or directory" in stderr_str:
@@ -163,23 +156,15 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
             min_parts = 9
             if len(parts) < min_parts:
                 continue
-
             permissions = parts[0]
             name = parts[-1]
-
-            # Skip . and .. entries
-            if name in (".", ".."):
+            if name in (".", ".."):  # Skip . and .. entries
                 continue
-
             is_dir = permissions.startswith("d")
             full_path = f"{path.rstrip('/')}/{name}" if path != "/" else f"/{name}"
-            files.append(
-                VercelInfo(
-                    name=full_path,
-                    size=0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0,
-                    type="directory" if is_dir else "file",
-                )
-            )
+            size = 0 if is_dir else int(parts[4]) if parts[4].isdigit() else 0
+            info = VercelInfo(name=full_path, size=size, type="directory" if is_dir else "file")
+            files.append(info)
         return files if detail else [f["name"] for f in files]  # type: ignore[misc]
 
     async def _cat_file(
@@ -191,7 +176,6 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
     ) -> bytes:
         """Read file contents."""
         sandbox = await self._get_sandbox()
-
         content = await sandbox.read_file(path)
         if content is None:
             msg = f"File not found: {path}"
@@ -203,19 +187,13 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
 
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write file contents."""
-        sandbox = await self._get_sandbox()
-
-        # Import WriteFile from the models module based on your provided code
         from vercel.sandbox.models import WriteFile
 
-        # Create parent directories if needed
-        parent = path.rsplit("/", 1)[0]
+        sandbox = await self._get_sandbox()
+        parent = path.rsplit("/", 1)[0]  # Create parent directories if needed
         if parent and parent != path:
             await sandbox.mk_dir(parent)
-
-        # Write file
-        files = [WriteFile(path=path, content=value)]
-        await sandbox.write_files(files)
+        await sandbox.write_files([WriteFile(path=path, content=value)])
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create directory."""
@@ -292,9 +270,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
     def cat(self, path: str, **kwargs: Any) -> bytes:
         """Read file contents (sync wrapper)."""
         result = self.cat_file(path, **kwargs)
-        if isinstance(result, str):
-            return result.encode("utf-8")
-        return result
+        return result.encode("utf-8") if isinstance(result, str) else result
 
     def info(self, path: str, **kwargs: Any) -> VercelInfo:
         """Get file info (sync wrapper)."""

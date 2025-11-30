@@ -117,7 +117,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """List directory contents with caching."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             file_infos = await sandbox.fs.list_files(path)
         except Exception as exc:
@@ -149,7 +148,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Read file contents."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             content = await sandbox.fs.download_file(path)
         except Exception as exc:
@@ -159,8 +157,8 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 raise IsADirectoryError(path) from exc
             msg = f"Failed to read file {path}: {exc}"
             raise OSError(msg) from exc
-        # Ensure we have bytes
-        if isinstance(content, str):
+
+        if isinstance(content, str):  # Ensure we have bytes
             content = content.encode()
         # Handle byte ranges if specified
         if start is not None or end is not None:
@@ -179,7 +177,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Upload a local file to the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             await sandbox.fs.upload_file(lpath, rpath)
         except Exception as exc:
@@ -192,7 +189,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Write data to a file in the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             await sandbox.fs.upload_file(value, path)
         except Exception as exc:
@@ -203,7 +199,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Create a directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             # Daytona's create_folder uses octal permissions as string
             await sandbox.fs.create_folder(path, "755")
@@ -222,7 +217,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Remove a file."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             await sandbox.fs.delete_file(path)
         except Exception as exc:
@@ -237,7 +231,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Remove a directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             # doesnt have delete-dir, so workaround.
             await sandbox.fs.move_files(path, "tmp/upathools")
@@ -255,7 +248,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Check if path exists."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             await sandbox.fs.get_file_info(path)
         except Exception:  # noqa: BLE001
@@ -267,7 +259,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Check if path is a file."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             info = await sandbox.fs.get_file_info(path)
         except Exception:  # noqa: BLE001
@@ -279,7 +270,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Check if path is a directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             info = await sandbox.fs.get_file_info(path)
         except Exception:  # noqa: BLE001
@@ -291,7 +281,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Get file size."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             info = await sandbox.fs.get_file_info(path)
         except Exception as exc:
@@ -320,15 +309,11 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Get info about a file or directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             info = await sandbox.fs.get_file_info(path)
-            return DaytonaInfo(
-                name=path,
-                size=int(info.size),
-                type="directory" if info.is_dir else "file",
-                mtime=float(info.mod_time) if info.mod_time else 0.0,
-            )
+            mtime = float(info.mod_time) if info.mod_time else 0.0
+            typ = "directory" if info.is_dir else "file"
+            return DaytonaInfo(name=path, size=int(info.size), type=typ, mtime=mtime)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -339,7 +324,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Move/rename a file."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             await sandbox.fs.move_files(path1, path2)
         except Exception as exc:
@@ -358,10 +342,8 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Find files matching a pattern."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            # Use Daytona's search functionality
-            pattern = kwargs.get("pattern", "*")
+            pattern = kwargs.get("pattern", "*")  # Use Daytona's search functionality
             result = await sandbox.fs.search_files(path, pattern)
         except Exception as exc:
             msg = f"Failed to find files in {path}: {exc}"
@@ -373,18 +355,9 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Search for pattern in files."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             matches = await sandbox.fs.find_files(path, pattern)
-            result = [
-                {
-                    "file": match.file,
-                    "line": match.line,
-                    "content": match.content,
-                }
-                for match in matches
-            ]
-
+            result = [{"file": m.file, "line": m.line, "content": m.content} for m in matches]
         except Exception as exc:
             msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
             raise OSError(msg) from exc
@@ -395,7 +368,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """Change file permissions."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             # Convert integer mode to octal string
             mode_str = oct(mode)[2:]  # Remove '0o' prefix
