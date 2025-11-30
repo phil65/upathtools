@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 import io
 import logging
+import os
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from fsspec.asyn import sync_wrapper
@@ -56,8 +58,11 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         timeout: int = 300,
         idle_timeout: int | None = None,
         workdir: str | None = None,
-        volumes: dict[str, Any] | None = None,
-        secrets: list[Any] | None = None,
+        volumes: dict[
+            str | os.PathLike, modal.volume.Volume | modal.cloud_bucket_mount.CloudBucketMount
+        ]
+        | None = None,
+        secrets: Collection[modal.secret.Secret] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize Modal filesystem.
@@ -102,56 +107,37 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _get_app(self) -> modal.App:
         """Get or create Modal app."""
+        import modal
+
         if self._app is not None:
             return self._app
-
-        try:
-            # Import here to avoid requiring modal as a hard dependency
-            import modal
-        except ImportError as exc:
-            msg = "modal package is required for ModalFS"
-            raise ImportError(msg) from exc
-
-        self._app = modal.App.lookup(self._app_name, create_if_missing=True)
+        self._app = await modal.App.lookup.aio(self._app_name, create_if_missing=True)
         return self._app
 
     async def _get_sandbox(self) -> modal.Sandbox:
         """Get or create Modal sandbox instance."""
-        if self._sandbox is not None:
-            return self._sandbox
-
         import modal
 
+        if self._sandbox is not None:
+            return self._sandbox
         app = await self._get_app()
-
-        if self._sandbox_id:
-            # Connect to existing sandbox by ID
-            self._sandbox = modal.Sandbox.from_id(self._sandbox_id)
-        elif self._sandbox_name:
-            # Connect to named sandbox
-            self._sandbox = modal.Sandbox.from_name(self._app_name, self._sandbox_name)
+        if self._sandbox_id:  # Connect to existing sandbox by ID
+            self._sandbox = await modal.Sandbox.from_id.aio(self._sandbox_id)
+        elif self._sandbox_name:  # Connect to named sandbox
+            self._sandbox = await modal.Sandbox.from_name.aio(self._app_name, self._sandbox_name)
         else:
-            # Create new sandbox
-            create_kwargs: dict[str, Any] = {"app": app, "timeout": self._timeout}
-
-            if self._image is not None:
-                create_kwargs["image"] = self._image
-            if self._cpu is not None:
-                create_kwargs["cpu"] = self._cpu
-            if self._memory is not None:
-                create_kwargs["memory"] = self._memory
-            if self._gpu is not None:
-                create_kwargs["gpu"] = self._gpu
-            if self._idle_timeout is not None:
-                create_kwargs["idle_timeout"] = self._idle_timeout
-            if self._workdir is not None:
-                create_kwargs["workdir"] = self._workdir
-            if self._volumes:
-                create_kwargs["volumes"] = self._volumes
-            if self._secrets:
-                create_kwargs["secrets"] = self._secrets
-
-            self._sandbox = modal.Sandbox.create(**create_kwargs)
+            self._sandbox = await modal.Sandbox.create.aio(
+                app=app,
+                image=self._image,
+                timeout=self._timeout,
+                workdir=self._workdir,
+                volumes=self._volumes,
+                secrets=self._secrets,
+                cpu=self._cpu,
+                memory=self._memory,
+                gpu=self._gpu,
+                idle_timeout=self._idle_timeout,
+            )
             self._sandbox_id = self._sandbox.object_id
 
         return self._sandbox
@@ -181,12 +167,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[ModalInfo] | list[str]:
         """List directory contents with caching."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
-            from modal.file_io import FileIO
-
             # Get client and task_id from sandbox
             # NOTE: This is accessing internal attributes - may need adjustment
             # based on actual Modal API structure
@@ -219,15 +205,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 is_dir = True
             except Exception:  # noqa: BLE001
                 pass  # If ls fails, assume it's a file
-
-            result.append(
-                ModalInfo(
-                    name=item,
-                    size=0,  # TODO: Get actual size when Modal provides metadata API
-                    type="directory" if is_dir else "file",
-                    mtime=0,  # TODO: Get actual mtime when Modal provides metadata API
-                )
-            )
+            # TODO: Get actual size /mtime when Modal provides metadata API
+            info = ModalInfo(name=item, size=0, type="directory" if is_dir else "file", mtime=0)
+            result.append(info)
 
         return result
 
@@ -237,10 +217,8 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         """Read file contents."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            # Use Modal's file API to read the file
-            f = await sandbox.open.aio(path, "rb")
+            f = await sandbox.open.aio(path, "rb")  # Use Modal's file API to read the file
             try:
                 content = await f.read.aio()
             finally:
@@ -269,10 +247,8 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         """Write data to a file in the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            # Use Modal's file API to write the file
-            f = await sandbox.open.aio(path, "wb")
+            f = await sandbox.open.aio(path, "wb")  # Use Modal's file API to write the file
             try:
                 await f.write.aio(value)
                 await f.flush.aio()
@@ -285,12 +261,11 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            from modal.file_io import FileIO
-
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
             assert client
@@ -302,12 +277,11 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
-            from modal.file_io import FileIO
-
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
             assert client
@@ -323,15 +297,14 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
-            from modal.file_io import FileIO
-
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
-
             assert client
             assert task_id
             FileIO.rm(path, client, task_id, recursive=True)
@@ -345,6 +318,8 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
 
@@ -357,8 +332,6 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         except Exception:  # noqa: BLE001
             # If open fails, try ls on parent to see if path exists as directory
             try:
-                from modal.file_io import FileIO
-
                 client = sandbox._client  # TODO: Verify correct way to get client
                 task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
                 assert client
@@ -377,8 +350,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         sandbox = await self._get_sandbox()
 
         try:
-            # Try to open as file
-            f = await sandbox.open.aio(path, "r")
+            f = await sandbox.open.aio(path, "r")  # Try to open as file
             await f.close.aio()
         except Exception:  # noqa: BLE001
             return False
@@ -387,12 +359,12 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
+        from modal.file_io import FileIO
+
         await self.set_session()
         sandbox = await self._get_sandbox()
 
         try:
-            from modal.file_io import FileIO
-
             client = sandbox._client  # TODO: Verify correct way to get client
             task_id = sandbox._task_id  # TODO: Verify correct way to get task_id
             assert client
@@ -429,26 +401,17 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         # TODO: Modal doesn't provide modification time in current API
         # Return 0.0 as placeholder until Modal provides metadata API
         await self.set_session()
-
-        # Check if file exists first
         if not await self._exists(path):
             raise FileNotFoundError(path)
-
         return 0.0  # TODO: Get actual mtime when Modal provides metadata API
 
     async def _info(self, path: str, **kwargs: Any) -> ModalInfo:
         """Get info about a file or directory."""
         await self.set_session()
-
         is_dir = await self._isdir(path)
         size = 0 if is_dir else await self._size(path)
-
-        return ModalInfo(
-            name=path,
-            size=size,
-            type="directory" if is_dir else "file",
-            mtime=0.0,  # TODO: Get actual mtime when Modal provides metadata API
-        )
+        # TODO: Get actual mtime when Modal provides metadata API
+        return ModalInfo(name=path, size=size, type="directory" if is_dir else "file", mtime=0.0)
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
