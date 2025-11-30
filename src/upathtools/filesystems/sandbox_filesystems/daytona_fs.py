@@ -14,6 +14,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
+    from daytona import AsyncDaytona, AsyncSandbox
     from fsspec.asyn import AsyncFileSystem
 
 
@@ -92,8 +93,8 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         super().__init__(**kwargs)
         self._sandbox_id = sandbox_id
         self._api_key = api_key
-        self._sandbox = None
-        self._daytona = None
+        self._sandbox: AsyncSandbox | None = None
+        self._daytona: AsyncDaytona | None = None
         self._session_started = False
 
     @staticmethod
