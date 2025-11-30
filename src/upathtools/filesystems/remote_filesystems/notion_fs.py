@@ -1,14 +1,14 @@
+"""Notion async filesystem implementation for upathtools."""
+
 from __future__ import annotations
 
 import io
 import json
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from fsspec.asyn import sync_wrapper
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
-
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 class NotionInfo(FileInfo, total=False):
@@ -26,6 +26,13 @@ class NotionPath(BaseUPath[NotionInfo]):
 
 
 class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
+    """Async filesystem for Notion pages.
+
+    This filesystem provides access to Notion pages as files,
+    allowing you to read, write, and manage pages through the
+    Notion API.
+    """
+
     protocol = "notion"
     upath_cls = NotionPath
 
@@ -37,16 +44,11 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
             parent_page_id: ID of the parent page where new pages will be created
             kwargs: Keyword arguments passed to parent class
         """
-        from notion_client import Client
+        from notion_client import AsyncClient
 
         super().__init__(**kwargs)
-        try:
-            self.notion = Client(auth=token)
-            # Verify the token by making a test request
-            self.notion.users.me()
-        except Exception as e:
-            msg = f"Invalid Notion token: {e!s}"
-            raise ValueError(msg) from e
+        self.notion = AsyncClient(auth=token)
+        self._token = token
         self.parent_page_id = parent_page_id
         self._path_cache: dict[str, str] = {}
 
@@ -56,76 +58,71 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         token, parent_page_id = path.split(":")
         return {"token": token, "parent_page_id": parent_page_id}
 
-    def exists(self, path: str, **kwargs: Any) -> bool:
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if a path exists."""
         from notion_client import APIResponseError
 
         stripped = self._strip_protocol(path)
         assert isinstance(stripped, str)
         try:
-            return self._get_page_id_from_path(stripped) is not None
+            return await self._get_page_id_from_path(stripped) is not None
         except APIResponseError:
             return False
 
-    def mkdir(self, path: str, **kwargs: Any) -> None:
+    async def _mkdir(self, path: str, **kwargs: Any) -> None:
         """Create a new page (folder) in Notion."""
         stripped = self._strip_protocol(path)
         assert isinstance(stripped, str)
         parts = [p for p in stripped.split("/") if p]
 
-        # Get the parent page ID
         parent_id = self.parent_page_id
         current_path = ""
 
-        # Create pages hierarchically
         for part in parts:
             current_path += "/" + part
-            existing_id = self._get_page_id_from_path(current_path)
+            existing_id = await self._get_page_id_from_path(current_path)
 
             if existing_id:
                 parent_id = existing_id
                 continue
 
-            # Create new page under the parent
-            response = self.notion.pages.create(
+            response = await self.notion.pages.create(
                 parent={"type": "page_id", "page_id": parent_id},
                 properties={"title": {"title": [{"text": {"content": part}}]}},
             )
 
-            new_id = response["id"]  # type: ignore
+            new_id = response["id"]
             self._path_cache[current_path] = new_id
             parent_id = new_id
 
-    def makedirs(self, path: str, exist_ok: bool = False):
+    async def _makedirs(self, path: str, exist_ok: bool = False) -> None:
         """Create a directory and any parent directories."""
         path = self._strip_protocol(path)  # type: ignore
 
-        if self._get_page_id_from_path(path):
+        if await self._get_page_id_from_path(path):
             if not exist_ok:
                 msg = f"Path already exists: {path}"
                 raise OSError(msg)
             return
 
-        # Create parent directories
         parts = [p for p in path.split("/") if p]
         current_path = ""
         parent_id = self.parent_page_id
 
         for part in parts:
             current_path += "/" + part
-            existing_id = self._get_page_id_from_path(current_path)
+            existing_id = await self._get_page_id_from_path(current_path)
 
             if existing_id:
                 parent_id = existing_id
                 continue
 
-            # Create new page
             try:
-                response = self.notion.pages.create(
+                response = await self.notion.pages.create(
                     parent={"type": "page_id", "page_id": parent_id},
                     properties={"title": {"title": [{"text": {"content": part}}]}},
                 )
-                new_id = response["id"]  # type: ignore
+                new_id = response["id"]
                 self._path_cache[current_path] = new_id
                 parent_id = new_id
             except Exception as e:
@@ -133,37 +130,33 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
                     msg = f"Failed to create directory: {e!s}"
                     raise OSError(msg) from e
 
-    def rm(self, path: str, **kwargs: Any) -> None:
+    async def _rm(self, path: str, **kwargs: Any) -> None:
         """Remove (archive) a page and its children."""
-        page_id = self._get_page_id_from_path(self._strip_protocol(path))  # type: ignore
+        page_id = await self._get_page_id_from_path(self._strip_protocol(path))  # type: ignore
         if not page_id:
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
 
-        # Archive the page first to prevent further modifications
-        self.notion.pages.update(page_id=page_id, archived=True)
-
-        # Remove from cache
+        await self.notion.pages.update(page_id=page_id, archived=True)
         self._path_cache = {k: v for k, v in self._path_cache.items() if not k.startswith(path)}
 
-    def rm_file(self, path: str) -> None:
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file (alias for rm)."""
-        self.rm(path)
+        await self._rm(path, **kwargs)
 
-    def rmdir(self, path: str) -> None:
+    async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory (page that may contain other pages)."""
-        self.rm(path)
+        await self._rm(path, **kwargs)
 
-    def _get_page_id_from_path(self, path: str) -> str | None:
+    async def _get_page_id_from_path(self, path: str) -> str | None:
         """Convert a path to a Notion page ID."""
         if path in self._path_cache:
             return self._path_cache[path]
 
-        # Remove leading/trailing slashes
         path = path.strip("/")
 
         if not path:
-            return None  # Root directory
+            return None
 
         parts = path.split("/")
         current_id = self.parent_page_id
@@ -172,17 +165,16 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         for part in parts:
             current_path += "/" + part
 
-            # First try cache
             if current_path in self._path_cache:
                 current_id = self._path_cache[current_path]
                 continue
 
-            # Search for the page by title under current parent
             found = False
             _filter = {"property": "object", "value": "page"}
-            response = self.notion.search(query=part, filter=_filter).get("results", [])  # type: ignore
+            response = await self.notion.search(query=part, filter=_filter)
+            results = response.get("results", [])
 
-            for page in response:
+            for page in results:
                 page_title = (
                     page.get("properties", {})
                     .get("title", {})
@@ -201,14 +193,15 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
         return current_id
 
-    def ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str] | list[NotionInfo]:
+    async def _ls(
+        self, path: str, detail: bool = False, **kwargs: Any
+    ) -> list[str] | list[NotionInfo]:
         """List contents of a path."""
         path = self._strip_protocol(path)  # type: ignore
 
         if not path or path == "/":
-            # Root directory - list all pages under parent page
-            children = self.notion.blocks.children.list(block_id=self.parent_page_id)
-            results = children.get("results", [])  # type: ignore
+            children = await self.notion.blocks.children.list(block_id=self.parent_page_id)
+            results = children.get("results", [])
 
             if not results:
                 return []
@@ -231,12 +224,13 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
                 if result["type"] == "child_page"
             ]
 
-        page_id = self._get_page_id_from_path(path)
+        page_id = await self._get_page_id_from_path(path)
         if not page_id:
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
-        children = self.notion.blocks.children.list(block_id=page_id)
-        results = children.get("results", [])  # type: ignore
+
+        children = await self.notion.blocks.children.list(block_id=page_id)
+        results = children.get("results", [])
 
         if not results:
             return []
@@ -287,27 +281,27 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
             msg = "Only read/write modes supported"
             raise ValueError(msg)
 
+        return NotionFile(self, path, mode)
+
+    async def _cat_file(self, path: str, **kwargs: Any) -> bytes:
+        """Read file content."""
         path = self._strip_protocol(path)  # type: ignore
-        page_id = self._get_page_id_from_path(path)
-        is_binary = "b" in mode
+        page_id = await self._get_page_id_from_path(path)
+        if not page_id:
+            msg = f"Page not found: {path}"
+            raise FileNotFoundError(msg)
+        content = await self._read_page_content(page_id)
+        return content if isinstance(content, bytes) else content.encode("utf-8")
 
-        if "r" in mode:
-            if not page_id:
-                msg = f"Page not found: {path}"
-                raise FileNotFoundError(msg)
-            content = self._read_page_content(page_id, binary=is_binary)
-            return NotionFile(content, mode, binary=is_binary)
-        return NotionFile(
-            b"" if is_binary else "",
-            mode,
-            write_callback=lambda data: self._write_page_content(path, data),
-            binary=is_binary,
-        )
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
+        """Write content to a file."""
+        path = self._strip_protocol(path)  # type: ignore
+        await self._write_page_content(path, value)
 
-    def _read_page_content(self, page_id: str, binary: bool = False) -> str | bytes:
+    async def _read_page_content(self, page_id: str) -> str:
         """Read content from a Notion page."""
-        children = self.notion.blocks.children.list(block_id=page_id)
-        blocks = children.get("results", [])  # type: ignore
+        children = await self.notion.blocks.children.list(block_id=page_id)
+        blocks = children.get("results", [])
         content: list[str] = []
 
         for block in blocks:
@@ -316,49 +310,42 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
                     text = block["paragraph"].get("rich_text", [])
                     content.extend(t.get("plain_text", "") for t in text)
                 case "file":
-                    # Handle file blocks
                     file_url = block["file"].get("external", {}).get("url", "")
                     if file_url:
                         content.append(file_url)
                 case _:
                     pass
 
-        result = "\n".join(filter(None, content))
-        return result.encode("utf-8") if binary else result
+        return "\n".join(filter(None, content))
 
-    def _write_page_content(self, path: str, content: str | bytes) -> None:
+    async def _write_page_content(self, path: str, content: str | bytes) -> None:
         """Write content to a Notion page."""
         page_title = path.split("/")[-1]
         properties = {"title": {"title": [{"text": {"content": page_title}}]}}
 
-        page_id = self._get_page_id_from_path(path)
+        page_id = await self._get_page_id_from_path(path)
 
         try:
             if page_id:
-                # Update existing page
-                self.notion.pages.update(page_id=page_id, properties=properties)
-                # Clear existing content
-                children = self.notion.blocks.children.list(block_id=page_id)
-                for block in children.get("results", []):  # type: ignore
-                    self.notion.blocks.delete(block_id=block["id"])
+                await self.notion.pages.update(page_id=page_id, properties=properties)
+                children = await self.notion.blocks.children.list(block_id=page_id)
+                for block in children.get("results", []):
+                    await self.notion.blocks.delete(block_id=block["id"])
             else:
-                # Create new page
-                response = self.notion.pages.create(
+                response = await self.notion.pages.create(
                     parent={"type": "page_id", "page_id": self.parent_page_id},
                     properties=properties,
                 )
-                page_id = response["id"]  # type: ignore
+                page_id = response["id"]
                 assert page_id
                 self._path_cache[path] = page_id
 
-            # Convert content to string if it's bytes
             if isinstance(content, bytes):
                 content = content.decode("utf-8")
 
-            # Split content into chunks and create paragraph blocks
             chunks = [content[i : i + 2000] for i in range(0, len(content), 2000)]
             for chunk in chunks:
-                self.notion.blocks.children.append(
+                await self.notion.blocks.children.append(
                     block_id=page_id,
                     children=[
                         {
@@ -373,35 +360,74 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
             msg = f"Failed to write content: {e!s}"
             raise OSError(msg) from e
 
+    async def _info(self, path: str, **kwargs: Any) -> NotionInfo:
+        """Get info about a page."""
+        path = self._strip_protocol(path)  # type: ignore
+
+        if not path or path == "/":
+            return NotionInfo(name="/", size=0, type="directory")
+
+        page_id = await self._get_page_id_from_path(path)
+        if not page_id:
+            msg = f"Path not found: {path}"
+            raise FileNotFoundError(msg)
+
+        page = await self.notion.pages.retrieve(page_id=page_id)
+        return NotionInfo(
+            name=path.split("/")[-1],
+            size=len(json.dumps(page)),
+            type="file",
+            created=page.get("created_time"),
+            modified=page.get("last_edited_time"),
+        )
+
+    # Sync wrappers
+    ls = sync_wrapper(_ls)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
+    mkdir = sync_wrapper(_mkdir)
+    makedirs = sync_wrapper(_makedirs)
+    rm = sync_wrapper(_rm)
+    rm_file = sync_wrapper(_rm_file)
+    rmdir = sync_wrapper(_rmdir)
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
+    pipe_file = sync_wrapper(_pipe_file)
+    info = sync_wrapper(_info)
+
 
 class NotionFile:
-    def __init__(
-        self,
-        content: str | bytes,
-        mode: str,
-        write_callback: Callable[..., Any] | None = None,
-        binary: bool = False,
-    ) -> None:
-        self.content = (
-            content
-            if isinstance(content, bytes)
-            else content.encode("utf-8")
-            if binary
-            else content
-        )
+    """File-like object for Notion pages."""
+
+    def __init__(self, fs: NotionFS, path: str, mode: str) -> None:
+        self.fs = fs
+        stripped = fs._strip_protocol(path)
+        self.path = stripped if isinstance(stripped, str) else stripped[0]
         self.mode = mode
-        self.write_callback = write_callback
-        self.binary = binary
-        self.buffer = (
-            io.BytesIO(
-                self.content if isinstance(self.content, bytes) else self.content.encode("utf-8")
-            )
-            if binary
-            else io.StringIO(
-                self.content if isinstance(self.content, str) else self.content.decode("utf-8")
-            )
-        )
+        self.binary = "b" in mode
+        self._buffer: io.BytesIO | io.StringIO
         self._closed = False
+        self._loaded = False
+
+        if self.binary:
+            self._buffer = io.BytesIO()
+        else:
+            self._buffer = io.StringIO()
+
+    async def _ensure_loaded(self) -> None:
+        """Load content if reading and not yet loaded."""
+        if self._loaded or "w" in self.mode:
+            return
+
+        page_id = await self.fs._get_page_id_from_path(self.path)
+        if not page_id:
+            msg = f"Page not found: {self.path}"
+            raise FileNotFoundError(msg)
+
+        content = await self.fs._read_page_content(page_id)
+        if self.binary:
+            self._buffer = io.BytesIO(content.encode("utf-8"))
+        else:
+            self._buffer = io.StringIO(content)
+        self._loaded = True
 
     def readable(self) -> bool:
         return "r" in self.mode
@@ -420,24 +446,26 @@ class NotionFile:
         if self._closed:
             msg = "I/O operation on closed file."
             raise ValueError(msg)
-        return self.buffer.tell()
+        return self._buffer.tell()
 
     def seek(self, offset: int, whence: int = 0) -> int:
         if self._closed:
             msg = "I/O operation on closed file."
             raise ValueError(msg)
-        return self.buffer.seek(offset, whence)
+        return self._buffer.seek(offset, whence)
 
-    def read(self, size: int = -1) -> str | bytes:
+    async def read(self, size: int = -1) -> str | bytes:
         if self._closed:
             msg = "I/O operation on closed file."
             raise ValueError(msg)
         if not self.readable():
             msg = "File not open for reading"
             raise OSError(msg)
-        data = self.buffer.read(size)
-        # Ensure correct type is returned based on mode
-        if "b" in self.mode:
+
+        await self._ensure_loaded()
+        data = self._buffer.read(size)
+
+        if self.binary:
             return data if isinstance(data, bytes) else data.encode("utf-8")
         return data if isinstance(data, str) else data.decode("utf-8")
 
@@ -448,49 +476,50 @@ class NotionFile:
         if not self.writable():
             msg = "File not open for writing"
             raise OSError(msg)
+
         if self.binary and isinstance(data, str):
             data = data.encode("utf-8")
         elif not self.binary and isinstance(data, bytes):
             data = data.decode("utf-8")
-        return self.buffer.write(data)  # type: ignore[arg-type]
 
-    def flush(self) -> None:
+        return self._buffer.write(data)  # type: ignore[arg-type]
+
+    async def flush(self) -> None:
         if self._closed:
             msg = "I/O operation on closed file."
             raise ValueError(msg)
-        if self.writable() and self.write_callback:
-            value = self.buffer.getvalue()
-            self.write_callback(value)
-        self.buffer.flush()
+        if self.writable():
+            value = self._buffer.getvalue()
+            await self.fs._write_page_content(self.path, value)  # type: ignore
+        self._buffer.flush()
 
-    def close(self) -> None:
+    async def close(self) -> None:
         if not self._closed:
-            if self.writable() and self.write_callback:
-                value = self.buffer.getvalue()
-                self.write_callback(value)
-            self.buffer.close()
+            if self.writable():
+                value = self._buffer.getvalue()
+                await self.fs._write_page_content(self.path, value)  # type: ignore
+            self._buffer.close()
             self._closed = True
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.close()
 
 
 if __name__ == "__main__":
+    import asyncio
     import os
 
-    KEY = os.environ.get("NOTION_API_KEY")
-    PARENT_PAGE_ID = os.environ.get("NOTION_PARENT_PAGE_ID")
-    assert KEY
-    assert PARENT_PAGE_ID
+    async def main():
+        key = os.environ.get("NOTION_API_KEY")
+        parent_page_id = os.environ.get("NOTION_PARENT_PAGE_ID")
+        assert key
+        assert parent_page_id
 
-    fs = NotionFS(token=KEY, parent_page_id=PARENT_PAGE_ID)
-    print(fs.ls("/"))
-    with fs.open("/New Page", "w") as f:
-        f.write("Hello from NotionFS!")
-    # Read a page
-    with fs.open("/New Page", "rb") as f:
-        content = f.read()
-        print(content)
+        fs = NotionFS(token=key, parent_page_id=parent_page_id)
+        pages = await fs._ls("/")
+        print(pages)
+
+    asyncio.run(main())
