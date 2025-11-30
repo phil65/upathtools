@@ -8,7 +8,7 @@ import io
 import logging
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class BeamInfo(FileInfo, total=False):
     """Info dict for Beam filesystem paths."""
 
-    size: int
+    size: Required[int]
     mtime: float
 
 
@@ -390,6 +390,29 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             msg = f"Failed to get modification time for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _info(self, path: str, **kwargs: Any) -> BeamInfo:
+        """Get info about a file or directory."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        try:
+            stat = await asyncio.to_thread(sandbox.fs.stat_file, path)
+            return BeamInfo(
+                name=path,
+                size=stat.size,
+                type="directory" if stat.is_dir else "file",
+                mtime=float(stat.mod_time) if hasattr(stat, "mod_time") and stat.mod_time else 0.0,
+            )
+        except Exception as exc:
+            from beta9.exceptions import SandboxFileSystemError
+
+            if isinstance(exc, SandboxFileSystemError) and (
+                "not found" in str(exc).lower() or "no such file" in str(exc).lower()
+            ):
+                raise FileNotFoundError(path) from exc
+            msg = f"Failed to get info for {path}: {exc}"
+            raise OSError(msg) from exc
+
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
@@ -402,6 +425,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
+    info = sync_wrapper(_info)
 
 
 class BeamFile:

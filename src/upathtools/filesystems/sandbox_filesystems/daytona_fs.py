@@ -325,6 +325,25 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             msg = f"Failed to get modification time for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _info(self, path: str, **kwargs: Any) -> DaytonaInfo:
+        """Get info about a file or directory."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        try:
+            info = await asyncio.to_thread(sandbox.fs.get_file_info, path)
+            return DaytonaInfo(
+                name=path,
+                size=int(info.size),
+                type="directory" if info.is_dir else "file",
+                mtime=float(info.mod_time) if info.mod_time else 0.0,
+            )
+        except Exception as exc:
+            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+                raise FileNotFoundError(path) from exc
+            msg = f"Failed to get info for {path}: {exc}"
+            raise OSError(msg) from exc
+
     async def _mv_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Move/rename a file."""
         await self.set_session()
@@ -409,6 +428,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
+    info = sync_wrapper(_info)
     mv_file = sync_wrapper(_mv_file)
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
     grep = sync_wrapper(_grep)

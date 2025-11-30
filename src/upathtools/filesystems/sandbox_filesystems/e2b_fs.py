@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import logging
 import os
-from typing import Any, Literal, Self, overload
+from typing import Any, Literal, Required, Self, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class E2BInfo(FileInfo, total=False):
     """Info dict for E2B filesystem paths."""
 
-    size: int
+    size: Required[int]
     mtime: float
 
 
@@ -367,6 +367,27 @@ with open({path!r}, 'wb') as f:
             msg = f"Failed to get modification time for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _info(self, path: str, **kwargs: Any) -> E2BInfo:
+        """Get info about a file or directory."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        try:
+            info = await sandbox.files.get_info(path)
+            from e2b.sandbox.filesystem.filesystem import FileType
+
+            return E2BInfo(
+                name=path,
+                size=info.size,
+                type="directory" if info.type == FileType.DIR else "file",
+                mtime=info.modified_time.timestamp() if info.modified_time else 0.0,
+            )
+        except Exception as exc:
+            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+                raise FileNotFoundError(path) from exc
+            msg = f"Failed to get info for {path}: {exc}"
+            raise OSError(msg) from exc
+
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
@@ -379,6 +400,7 @@ with open({path!r}, 'wb') as f:
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
+    info = sync_wrapper(_info)
 
 
 class E2BFile:

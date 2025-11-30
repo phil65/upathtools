@@ -436,6 +436,20 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
         return 0.0  # TODO: Get actual mtime when Modal provides metadata API
 
+    async def _info(self, path: str, **kwargs: Any) -> ModalInfo:
+        """Get info about a file or directory."""
+        await self.set_session()
+
+        is_dir = await self._isdir(path)
+        size = 0 if is_dir else await self._size(path)
+
+        return ModalInfo(
+            name=path,
+            size=size,
+            type="directory" if is_dir else "file",
+            mtime=0.0,  # TODO: Get actual mtime when Modal provides metadata API
+        )
+
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
@@ -448,6 +462,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
     isdir = sync_wrapper(_isdir)
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
+    info = sync_wrapper(_info)
 
 
 class ModalFile:
