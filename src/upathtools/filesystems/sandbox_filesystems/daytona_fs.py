@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import io
 import logging
 import os
@@ -17,6 +18,32 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_daytona_time(time_str: str | None) -> float:
+    """Parse Daytona timestamp format to Unix timestamp.
+
+    Args:
+        time_str: Timestamp like '2025-11-30 18:14:39.486327786 +0000 UTC'
+    """
+    if not time_str:
+        return 0.0
+    try:
+        # Format: '2025-11-30 18:14:39.486327786 +0000 UTC'
+        # Truncate nanoseconds to microseconds and remove 'UTC' suffix
+        parts = time_str.rsplit(" ", 1)  # Split off 'UTC'
+        dt_str = parts[0]  # '2025-11-30 18:14:39.486327786 +0000'
+        # Truncate nanoseconds (9 digits) to microseconds (6 digits)
+        if "." in dt_str:
+            base, rest = dt_str.split(".")
+            frac_and_tz = rest.split(" ", 1)
+            frac = frac_and_tz[0][:6]  # Take only first 6 digits
+            tz = frac_and_tz[1] if len(frac_and_tz) > 1 else "+0000"
+            dt_str = f"{base}.{frac} {tz}"
+        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S.%f %z")
+        return dt.timestamp()
+    except (ValueError, IndexError):
+        return 0.0
 
 
 class DaytonaInfo(FileInfo, total=False):
@@ -133,8 +160,8 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 name=f"{path.rstrip('/')}/{info.name}",
                 size=int(info.size),
                 type="directory" if info.is_dir else "file",
-                mtime=float(info.mod_time) if info.mod_time else 0,
-                mode=info.mode,
+                mtime=_parse_daytona_time(info.mod_time),
+                mode=int(info.mode) if info.mode else 0,
                 permissions=info.permissions,
                 owner=info.owner,
                 group=info.group,
@@ -298,7 +325,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
 
         try:
             info = await sandbox.fs.get_file_info(path)
-            return float(info.mod_time) if info.mod_time else 0.0
+            return _parse_daytona_time(info.mod_time)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -311,7 +338,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         sandbox = await self._get_sandbox()
         try:
             info = await sandbox.fs.get_file_info(path)
-            mtime = float(info.mod_time) if info.mod_time else 0.0
+            mtime = _parse_daytona_time(info.mod_time)
             typ = "directory" if info.is_dir else "file"
             return DaytonaInfo(name=path, size=int(info.size), type=typ, mtime=mtime)
         except Exception as exc:
@@ -515,5 +542,8 @@ if __name__ == "__main__":
     async def main() -> None:
         fs = DaytonaFS()
         await fs._mkdir("test")
+        await fs._pipe_file("test/file.txt", b"Hello, Daytona!")
+        info = await fs._info("test/file.txt")
+        print(info)
 
     asyncio.run(main())
