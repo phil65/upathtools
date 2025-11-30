@@ -215,6 +215,8 @@ def upath_to_fs(
 
 
 if __name__ == "__main__":
+    import fsspec
+
     # Test cases showing different path types and behaviors
     test_paths = [
         "file:///tmp",  # Directory - no wrapping
@@ -226,25 +228,17 @@ if __name__ == "__main__":
 
     print("Testing upath_to_fs function:")
     print("=" * 50)
-
     for path in test_paths:
         try:
             print(f"\nTesting: {path}")
             upath = to_upath(path)
-
-            # Show what fsspec parses
-            import fsspec
-
             _, parsed_path = fsspec.core.url_to_fs(str(upath))
             print(f"  Parsed path: {parsed_path}")
-
             # Show our result
             result_fs = upath_to_fs(upath)
             print(f"  Result: {result_fs}")
-
             # Test async version
             async_fs = upath_to_fs(upath, asynchronous=True)
             print(f"  Async: {type(async_fs).__name__}")
-
         except (ImportError, AttributeError, ValueError, FileNotFoundError) as e:
             print(f"  ERROR: {e}")

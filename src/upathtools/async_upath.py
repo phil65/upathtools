@@ -195,12 +195,8 @@ class AsyncUPath(ProxyUPath):
         except Exception:  # noqa: BLE001
             await asyncio.to_thread(self.rmdir)
 
-    def aiterdir(self) -> AsyncIterator[Self]:
+    async def aiterdir(self) -> AsyncIterator[Self]:
         """Asynchronously iterate over directory contents."""
-        return self._aiterdir_impl()
-
-    async def _aiterdir_impl(self) -> AsyncIterator[Self]:
-        """Implementation of async directory iteration."""
         fs = await self.afs()
         entries = await fs._ls(self.path, detail=False)
         for entry in entries:
@@ -216,14 +212,10 @@ class AsyncUPath(ProxyUPath):
                     )
                 )
 
-    def aglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
-        """Asynchronously glob for paths matching pattern."""
-        return self._aglob_impl(pattern, case_sensitive=case_sensitive)
-
-    async def _aglob_impl(
+    async def aglob(
         self, pattern: str, *, case_sensitive: bool | None = None
     ) -> AsyncIterator[Self]:
-        """Implementation of async glob."""
+        """Asynchronously glob for paths matching pattern."""
         # TODO: deal with None
         case_sensitive = case_sensitive or False
         try:
