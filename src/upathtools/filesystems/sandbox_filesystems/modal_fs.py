@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     import os
 
+    from _typeshed import OpenTextMode
     import modal
+    from modal.file_io import FileIO
 
 
 logger = logging.getLogger(__name__)
@@ -392,7 +394,7 @@ class ModalFile:
         self,
         fs: ModalFS,
         path: str,
-        mode: str = "rb",
+        mode: OpenTextMode = "rt",
         **kwargs: Any,
     ) -> None:
         """Initialize Modal file object.
@@ -405,8 +407,8 @@ class ModalFile:
         """
         self.fs = fs
         self.path = path
-        self.mode = mode
-        self._modal_file: Any = None
+        self.mode: OpenTextMode = mode
+        self._modal_file: FileIO | None = None
         self._closed = False
 
     async def _ensure_opened(self) -> None:
@@ -414,7 +416,7 @@ class ModalFile:
         if self._modal_file is None:
             await self.fs.set_session()
             sandbox = await self.fs._get_sandbox()
-            self._modal_file = await sandbox.open.aio(self.path, self.mode)  # type: ignore[call-overload]
+            self._modal_file = await sandbox.open.aio(self.path, self.mode)
 
     def readable(self) -> bool:
         """Check if file is readable."""
