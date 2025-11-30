@@ -173,16 +173,8 @@ class AsyncUPath(ProxyUPath):
 
     async def aunlink(self, missing_ok: bool = False) -> None:
         """Asynchronously remove file."""
-        try:
-            fs = await self.afs()
-            if hasattr(fs, "_rm_file"):
-                await fs._rm_file(self.path)
-            elif hasattr(fs, "_rm"):
-                await fs._rm(self.path)
-            else:
-                await asyncio.to_thread(self.unlink, missing_ok=missing_ok)
-        except Exception:  # noqa: BLE001
-            await asyncio.to_thread(self.unlink, missing_ok=missing_ok)
+        fs = await self.afs()
+        await fs._rm_file(self.path)
 
     async def armdir(self) -> None:
         """Asynchronously remove directory."""
