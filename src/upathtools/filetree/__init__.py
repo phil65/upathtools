@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
-from upathtools.filetree.filetree import get_directory_tree, SortCriteria
+from upathtools.filetree.filetree import (
+    get_directory_tree,
+    SortCriteria,
+    DirectoryTree,
+    TreeOptions,
+)
 
-__all__ = ["SortCriteria", "get_directory_tree"]
+__all__ = ["DirectoryTree", "SortCriteria", "TreeOptions", "get_directory_tree"]
