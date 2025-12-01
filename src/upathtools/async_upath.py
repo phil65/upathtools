@@ -62,22 +62,11 @@ class AsyncUPath(ProxyUPath):
         """Asynchronously read file content as text."""
         try:
             fs = await self.afs()
-
-            # Try async open if available
-            if hasattr(fs, "_open") or hasattr(fs, "open_async"):
-                open_method = getattr(fs, "open_async", None) or fs._open
-
-                async_file = await open_method(
-                    self.path, "rt", encoding=encoding, errors=errors, newline=newline
-                )
-                async with async_file:
-                    return await async_file.read()
-            else:
-                # Fallback to sync method in thread
-                return await asyncio.to_thread(
-                    self.read_text, encoding=encoding, errors=errors, newline=newline
-                )
-
+            async_file = await fs.open_async(
+                self.path, "rt", encoding=encoding, errors=errors, newline=newline
+            )
+            async with async_file:
+                return await async_file.read()
         except Exception:  # noqa: BLE001
             # Final fallback
             return await asyncio.to_thread(
