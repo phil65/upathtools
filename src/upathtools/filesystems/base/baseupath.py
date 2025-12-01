@@ -19,6 +19,18 @@ if TYPE_CHECKING:
 class BaseUPath[TInfoDict = dict[str, Any]](UPath):
     """UPath implementation for browsing Pydantic BaseModel schemas."""
 
+    @property
+    def name(self) -> str:
+        """Return the final component of the path.
+
+        Workaround for upath's WrappedFileSystemFlavour.splitroot bug which
+        incorrectly treats the first character as a root marker for relative paths.
+        """
+        path = self.path
+        if not path or path == "/":
+            return ""
+        return path.rstrip("/").rsplit("/", 1)[-1]
+
     @classmethod
     def _fs_factory(
         cls,
