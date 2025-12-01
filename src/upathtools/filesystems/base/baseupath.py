@@ -10,10 +10,13 @@ from upath._stat import UPathStatResult
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Iterator
+    from re import Pattern
 
     from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
+
+    from upathtools.filetree import SortCriteria, TreeOptions
 
 
 class BaseUPath[TInfoDict = dict[str, Any]](UPath):
@@ -259,6 +262,172 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
         target_path = await self.acopy(target)
         await self.aunlink()
         return target_path
+
+    def get_tree(
+        self,
+        options: TreeOptions | None = None,
+        *,
+        show_hidden: bool = False,
+        show_size: bool = False,
+        show_date: bool = False,
+        show_permissions: bool = False,
+        show_icons: bool = True,
+        max_depth: int | None = None,
+        include_pattern: Pattern[str] | None = None,
+        exclude_pattern: Pattern[str] | None = None,
+        allowed_extensions: set[str] | None = None,
+        hide_empty: bool = True,
+        sort_criteria: SortCriteria = "name",
+        reverse_sort: bool = False,
+        date_format: str = "%Y-%m-%d %H:%M:%S",
+    ) -> str:
+        """Get a visual tree representation of this directory.
+
+        Args:
+            options: Pre-configured TreeOptions (overrides other kwargs if provided)
+            show_hidden: Whether to show hidden files/directories
+            show_size: Whether to show file sizes
+            show_date: Whether to show modification dates
+            show_permissions: Whether to show file permissions
+            show_icons: Whether to show icons for files/directories
+            max_depth: Maximum depth to traverse (None for unlimited)
+            include_pattern: Regex pattern for files/directories to include
+            exclude_pattern: Regex pattern for files/directories to exclude
+            allowed_extensions: Set of allowed file extensions
+            hide_empty: Whether to hide empty directories
+            sort_criteria: Criteria for sorting entries
+            reverse_sort: Whether to reverse the sort order
+            date_format: Format string for dates
+        """
+        from upathtools.filetree import DirectoryTree, TreeOptions as TreeOpts
+
+        if options is None:
+            options = TreeOpts(
+                show_hidden=show_hidden,
+                show_size=show_size,
+                show_date=show_date,
+                show_permissions=show_permissions,
+                show_icons=show_icons,
+                max_depth=max_depth,
+                include_pattern=include_pattern,
+                exclude_pattern=exclude_pattern,
+                allowed_extensions=allowed_extensions,
+                hide_empty=hide_empty,
+                sort_criteria=sort_criteria,
+                reverse_sort=reverse_sort,
+                date_format=date_format,
+            )
+        return DirectoryTree(self, options).get_tree_text()
+
+    def iter_tree(
+        self,
+        options: TreeOptions | None = None,
+        *,
+        show_hidden: bool = False,
+        show_size: bool = False,
+        show_date: bool = False,
+        show_permissions: bool = False,
+        show_icons: bool = True,
+        max_depth: int | None = None,
+        include_pattern: Pattern[str] | None = None,
+        exclude_pattern: Pattern[str] | None = None,
+        allowed_extensions: set[str] | None = None,
+        hide_empty: bool = True,
+        sort_criteria: SortCriteria = "name",
+        reverse_sort: bool = False,
+        date_format: str = "%Y-%m-%d %H:%M:%S",
+    ) -> Iterator[str]:
+        """Iterate over tree lines for this directory.
+
+        Args:
+            options: Pre-configured TreeOptions (overrides other kwargs if provided)
+            show_hidden: Whether to show hidden files/directories
+            show_size: Whether to show file sizes
+            show_date: Whether to show modification dates
+            show_permissions: Whether to show file permissions
+            show_icons: Whether to show icons for files/directories
+            max_depth: Maximum depth to traverse (None for unlimited)
+            include_pattern: Regex pattern for files/directories to include
+            exclude_pattern: Regex pattern for files/directories to exclude
+            allowed_extensions: Set of allowed file extensions
+            hide_empty: Whether to hide empty directories
+            sort_criteria: Criteria for sorting entries
+            reverse_sort: Whether to reverse the sort order
+            date_format: Format string for dates
+        """
+        from upathtools.filetree import DirectoryTree, TreeOptions as TreeOpts
+
+        if options is None:
+            options = TreeOpts(
+                show_hidden=show_hidden,
+                show_size=show_size,
+                show_date=show_date,
+                show_permissions=show_permissions,
+                show_icons=show_icons,
+                max_depth=max_depth,
+                include_pattern=include_pattern,
+                exclude_pattern=exclude_pattern,
+                allowed_extensions=allowed_extensions,
+                hide_empty=hide_empty,
+                sort_criteria=sort_criteria,
+                reverse_sort=reverse_sort,
+                date_format=date_format,
+            )
+        yield from DirectoryTree(self, options).iter_tree_lines()
+
+    async def aget_tree(
+        self,
+        options: TreeOptions | None = None,
+        *,
+        show_hidden: bool = False,
+        show_size: bool = False,
+        show_date: bool = False,
+        show_permissions: bool = False,
+        show_icons: bool = True,
+        max_depth: int | None = None,
+        include_pattern: Pattern[str] | None = None,
+        exclude_pattern: Pattern[str] | None = None,
+        allowed_extensions: set[str] | None = None,
+        hide_empty: bool = True,
+        sort_criteria: SortCriteria = "name",
+        reverse_sort: bool = False,
+        date_format: str = "%Y-%m-%d %H:%M:%S",
+    ) -> str:
+        """Asynchronously get a visual tree representation of this directory.
+
+        Args:
+            options: Pre-configured TreeOptions (overrides other kwargs if provided)
+            show_hidden: Whether to show hidden files/directories
+            show_size: Whether to show file sizes
+            show_date: Whether to show modification dates
+            show_permissions: Whether to show file permissions
+            show_icons: Whether to show icons for files/directories
+            max_depth: Maximum depth to traverse (None for unlimited)
+            include_pattern: Regex pattern for files/directories to include
+            exclude_pattern: Regex pattern for files/directories to exclude
+            allowed_extensions: Set of allowed file extensions
+            hide_empty: Whether to hide empty directories
+            sort_criteria: Criteria for sorting entries
+            reverse_sort: Whether to reverse the sort order
+            date_format: Format string for dates
+        """
+        return await asyncio.to_thread(
+            self.get_tree,
+            options,
+            show_hidden=show_hidden,
+            show_size=show_size,
+            show_date=show_date,
+            show_permissions=show_permissions,
+            show_icons=show_icons,
+            max_depth=max_depth,
+            include_pattern=include_pattern,
+            exclude_pattern=exclude_pattern,
+            allowed_extensions=allowed_extensions,
+            hide_empty=hide_empty,
+            sort_criteria=sort_criteria,
+            reverse_sort=reverse_sort,
+            date_format=date_format,
+        )
 
     def __repr__(self) -> str:
         return f"BaseUPath({self.path!r}, protocol={self.protocol!r})"

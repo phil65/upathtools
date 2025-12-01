@@ -77,6 +77,13 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
             return ""
         return clean_path.replace(".", "/")
 
+    def isdir(self, path):
+        """Is this entry directory-like?"""
+        try:
+            return self.info(path)["type"] in ("directory", "package")
+        except OSError:
+            return False
+
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
         if module_name in self._module_cache:
@@ -200,13 +207,4 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
 
 if __name__ == "__main__":
     fs = DistributionFS()
-
-    # List root
-    print("Root level (installed packages):")
-    for item in fs.ls("/", detail=True):
-        print(f"- {item.get('name')} ({item.get('type')})")
-
-    # Explore a package
-    print("\nContents of requests:")
-    for item in fs.ls("requests", detail=True):
-        print(f"- {item})")
+    print(fs.get_tree())

@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 def to_upath(path: JoinablePathLike | str) -> UPath:
+    if isinstance(path, UPath):
+        return path
     return UPath(os.fspath(path)) if isinstance(path, os.PathLike) else UPath(path)
 
 
