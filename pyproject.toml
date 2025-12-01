@@ -59,6 +59,7 @@ basemodel = "upathtools.filesystems:BaseModelFS"
 typeadapter = "upathtools.filesystems:TypeAdapterFS"
 sqlite = "upathtools.filesystems:SqliteFS"
 ts = "upathtools.filesystems:TreeSitterFS"
+gitlab = "upathtools.filesystems:GitLabFileSystem"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems:GistPath"
@@ -78,12 +79,14 @@ typeadapter = "upathtools.filesystems:TypeAdapterPath"
 openapi = "upathtools.filesystems:OpenAPIPath"
 sqlite = "upathtools.filesystems:SqlitePath"
 ts = "upathtools.filesystems:TreeSitterPath"
+gitlab = "upathtools.filesystems:GitLabPath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
 beam = ["beam-client>=0.2.187"]
 daytona = ["daytona"]
 e2b = ["e2b-code-interpreter"]
+gitlab = ["python-gitlab>=7.0.0"]
 httpx = ["httpx", "yarl"]
 mcp = ["fastmcp", "mcp"]
 microsandbox = ["microsandbox"]
