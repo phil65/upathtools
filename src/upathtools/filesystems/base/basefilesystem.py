@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-from re import Pattern
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
@@ -14,6 +13,8 @@ from upathtools.filesystems.base.file_objects import AsyncFile
 
 
 if TYPE_CHECKING:
+    from re import Pattern
+
     from upathtools.filetree import SortCriteria
 
 
