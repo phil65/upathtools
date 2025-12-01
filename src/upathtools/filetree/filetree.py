@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import datetime
 import re
 import stat
 from typing import TYPE_CHECKING, Any, Literal
 
-from jinja2 import filters
-from jinjarope import iconfilters, textfilters
+from upathtools import to_upath
+from upathtools.filetree import file_icons
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,44 @@ class TreeOptions:
     sort_criteria: SortCriteria = "name"
     reverse_sort: bool = False
     date_format: str = "%Y-%m-%d %H:%M:%S"
+
+
+def format_timestamp(timestamp: float, fmt: str) -> str:
+    return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
+
+
+def do_filesizeformat(value: str | float, binary: bool = False) -> str:
+    """Format the value like a 'human-readable' file size.
+
+    (i.e. 13 kB,
+    4.1 MB, 102 Bytes, etc).  Per default decimal prefixes are used (Mega,
+    Giga, etc.), if the second parameter is set to `True` the binary
+    prefixes are used (Mebi, Gibi).
+    """
+    bytes_ = float(value)
+    base = 1024 if binary else 1000
+    prefixes = [
+        ("KiB" if binary else "kB"),
+        ("MiB" if binary else "MB"),
+        ("GiB" if binary else "GB"),
+        ("TiB" if binary else "TB"),
+        ("PiB" if binary else "PB"),
+        ("EiB" if binary else "EB"),
+        ("ZiB" if binary else "ZB"),
+        ("YiB" if binary else "YB"),
+    ]
+
+    if bytes_ == 1:
+        return "1 Byte"
+    if bytes_ < base:
+        return f"{int(bytes_)} Bytes"
+    for i, prefix in enumerate(prefixes):
+        unit = base ** (i + 2)
+
+        if bytes_ < unit:
+            return f"{base * bytes_ / unit:.1f} {prefix}"
+
+    return f"{base * bytes_ / unit:.1f} {prefix}"
 
 
 def _get_path_info(path: upath.UPath) -> dict[str, Any]:
@@ -76,19 +115,13 @@ class DirectoryTree:
     TEE = "┣━━ "
     DIRECTORY = "📂"
 
-    def __init__(
-        self,
-        root_path: JoinablePathLike,
-        options: TreeOptions | None = None,
-    ) -> None:
+    def __init__(self, root_path: JoinablePathLike, options: TreeOptions | None = None) -> None:
         """A class to generate and print directory tree structure.
 
         Attributes:
             root_path: Root path of the directory tree.
             options: Options for directory tree printing.
         """
-        from upathtools import to_upath
-
         self.root_path = to_upath(root_path)
         self.options = options or TreeOptions()
 
@@ -150,28 +183,21 @@ class DirectoryTree:
         """
         if self.options.max_depth is not None and depth > self.options.max_depth:
             return True
-
         try:
             # Get all paths and apply filters
             paths = [p for p in directory.iterdir() if self._should_include(p)]
-
-            # If no paths remain after filtering, directory is considered empty
-            if not paths:
+            if not paths:  # If no paths remain after filtering, directory is considered empty
                 return True
-
-            # For directories, recursively check if they're empty
-            for path in paths:
+            for path in paths:  # For directories, recursively check if they're empty
                 if path.is_dir():
                     # If a directory is not empty, this directory is not empty
                     if not self._is_directory_empty_after_filters(path, depth + 1):
                         return False
-                else:
-                    # If we find any visible file, directory is not empty
+                else:  # If we find any visible file, directory is not empty
                     return False
             else:
                 # If we only found empty directories, this directory is empty
                 return True
-
         except (PermissionError, OSError):
             # Treat inaccessible directories as empty
             return True
@@ -191,17 +217,13 @@ class DirectoryTree:
             the last entry.
         """
         entries: list[tuple[str, upath.UPath, bool]] = []
-
         if self.options.max_depth is not None and depth > self.options.max_depth:
             return entries
 
         try:
             # Get all paths and apply sorting
-            paths = sorted(
-                directory.iterdir(),
-                key=self._get_sort_key,
-                reverse=self.options.reverse_sort,
-            )
+            items = list(directory.iterdir())
+            paths = sorted(items, key=self._get_sort_key, reverse=self.options.reverse_sort)
         except (PermissionError, OSError) as e:
             print(f"Error accessing {directory}: {e}")
             return entries
@@ -220,13 +242,10 @@ class DirectoryTree:
                 continue
             visible_paths.append(path)
 
-        # Process visible paths
         for i, path in enumerate(visible_paths):
             is_last = i == len(visible_paths) - 1
             connector = self.ELBOW if is_last else self.TEE
-
             entries.append((f"{prefix}{connector}", path, is_last))
-
             if path.is_dir():
                 new_prefix = f"{prefix}{self.PIPE}" if not is_last else f"{prefix}    "
                 entries.extend(self._get_tree_entries(path, new_prefix, depth + 1))
@@ -257,27 +276,21 @@ class DirectoryTree:
 
         for prefix, path, _is_last in self._get_tree_entries(self.root_path):
             info = _get_path_info(path)
-
-            # Prepare icon
             icon = ""
             if self.options.show_icons:
-                icon = self.DIRECTORY if info["is_dir"] else iconfilters.get_path_ascii_icon(path)
-
-            # Prepare additional information
+                icon = self.DIRECTORY if info["is_dir"] else file_icons.get_path_ascii_icon(path)
             details: list[str] = []
-
             if self.options.show_size and not info["is_dir"]:
-                details.append(f"{filters.do_filesizeformat(info['size'])}")
+                details.append(f"{do_filesizeformat(info['size'])}")
 
             if self.options.show_date:
-                s = textfilters.format_timestamp(info["mtime"], self.options.date_format)
+                s = format_timestamp(info["mtime"], self.options.date_format)
                 details.append(s)
             if self.options.show_permissions:
                 permissions = stat.filemode(info["mode"])
                 details.append(permissions)
 
             details_str = f" ({', '.join(details)})" if details else ""
-
             yield f"{prefix}{icon} {path.name}{details_str}"
 
 
