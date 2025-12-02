@@ -23,6 +23,47 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
 
     upath_cls: type[TPath]
 
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, TInfoDict]: ...
+
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, TInfoDict]:
+        """Glob for files matching a pattern.
+
+        Args:
+            path: Glob pattern to match
+            maxdepth: Maximum directory depth to search
+            detail: If True, return dict mapping paths to info dicts
+            **kwargs: Additional arguments passed to underlying implementation
+
+        Returns:
+            List of matching paths, or dict of path -> info if detail=True
+        """
+        return await super()._glob(path, maxdepth=maxdepth, detail=detail, **kwargs)  # pyright: ignore[reportReturnType]
+
     def get_upath(self, path: str | None = None) -> TPath:
         """Get a UPath object for the given path.
 
@@ -143,6 +184,47 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]
+
+    @overload
+    def glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    def glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, TInfoDict]: ...
+
+    def glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, TInfoDict]:
+        """Glob for files matching a pattern.
+
+        Args:
+            path: Glob pattern to match
+            maxdepth: Maximum directory depth to search
+            detail: If True, return dict mapping paths to info dicts
+            **kwargs: Additional arguments passed to underlying implementation
+
+        Returns:
+            List of matching paths, or dict of path -> info if detail=True
+        """
+        return super().glob(path, maxdepth=maxdepth, detail=detail, **kwargs)  # pyright: ignore[reportReturnType]
 
     def get_upath(self, path: str | None = None) -> TPath:
         """Get a UPath object for the given path.
