@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 import fsspec
 
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 class MarkdownInfo(FileInfo, total=False):
     """Info dict for Markdown filesystem paths."""
 
-    size: int
-    level: int
+    size: Required[int]
+    level: Required[int]
 
 
 class MarkdownNode:
