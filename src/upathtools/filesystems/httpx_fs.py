@@ -904,7 +904,7 @@ class AsyncStreamFile(AbstractAsyncStreamedFile):
         super().__init__(fs=fs, path=url, mode=mode, cache_type="none")
         self.size = size
 
-    async def read(self, num: int = -1) -> bytes:
+    async def read(self, length: int = -1) -> bytes:
         assert self.session
         if self.r is None:
             r = await self.session.get(str(self.fs.encode_url(self.url)), **self.kwargs)

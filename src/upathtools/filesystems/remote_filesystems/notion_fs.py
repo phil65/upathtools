@@ -69,7 +69,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         except APIResponseError:
             return False
 
-    async def _mkdir(self, path: str, **kwargs: Any) -> None:
+    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a new page (folder) in Notion."""
         stripped = self._strip_protocol(path)
         assert isinstance(stripped, str)
@@ -293,7 +293,13 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         content = await self._read_page_content(page_id)
         return content if isinstance(content, bytes) else content.encode("utf-8")
 
-    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
+    async def _pipe_file(
+        self,
+        path: str,
+        value: bytes,
+        mode: str = "overwrite",
+        **kwargs: Any,
+    ) -> None:
         """Write content to a file."""
         path = self._strip_protocol(path)  # type: ignore
         await self._write_page_content(path, value)

@@ -428,7 +428,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         msg = "MCPToolsFileSystem is read-only"
         raise NotImplementedError(msg)
 
-    async def _mkdir(self, path: str, **kwargs: Any) -> None:
+    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         msg = "MCPToolsFileSystem is read-only"
         raise NotImplementedError(msg)
 

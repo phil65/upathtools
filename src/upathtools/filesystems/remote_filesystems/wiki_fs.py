@@ -505,12 +505,23 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | BufferedWriter:
+    def _open(
+        self,
+        path: str,
+        mode: str = "rb",
+        block_size=None,
+        autocommit=True,
+        cache_options=None,
+        **kwargs: Any,
+    ) -> io.BytesIO | BufferedWriter:
         """Open a wiki page as a file.
 
         Args:
             path: Path to the wiki page
             mode: File mode ('rb' for reading, 'wb' for writing)
+            block_size: Block size for reading or writing
+            autocommit: Whether to automatically commit changes
+            cache_options: Cache options for reading or writing
             **kwargs: Additional arguments
 
         Returns:
