@@ -207,13 +207,19 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
         """Create directories."""
         await self._fs._makedirs(path, exist_ok=exist_ok)
 
-    async def _rm_file(self, path: str) -> None:
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
-        await self._fs._rm_file(path)
+        await self._fs._rm_file(path, **kwargs)
 
-    async def _rm(self, path: str, recursive: bool = False, maxdepth: int | None = None) -> None:
+    async def _rm(
+        self,
+        path: str,
+        recursive: bool = False,
+        batch_size: int | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Remove file or directory."""
-        await self._fs._rm(path, recursive=recursive, maxdepth=maxdepth)
+        await self._fs._rm(path, recursive=recursive, batch_size=batch_size, **kwargs)
 
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file."""

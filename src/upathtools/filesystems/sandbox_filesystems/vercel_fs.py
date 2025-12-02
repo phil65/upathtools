@@ -267,11 +267,6 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
 
-    def cat(self, path: str, **kwargs: Any) -> bytes:
-        """Read file contents (sync wrapper)."""
-        result = self.cat_file(path, **kwargs)
-        return result.encode("utf-8") if isinstance(result, str) else result
-
     def info(self, path: str, **kwargs: Any) -> VercelInfo:
         """Get file info (sync wrapper)."""
         return VercelInfo(

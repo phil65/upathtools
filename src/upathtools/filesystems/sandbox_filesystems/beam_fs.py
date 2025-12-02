@@ -79,7 +79,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         self._sandbox_id = sandbox_id
         self._cpu = cpu
         self._memory = memory
-        self._gpu = gpu
+        self._gpu: GpuTypeAlias | list[GpuTypeAlias] | None = gpu
         self._gpu_count = gpu_count
         self._image = image
         self._keep_warm_seconds = keep_warm_seconds
@@ -95,30 +95,21 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
 
     async def _get_sandbox(self):
         """Get or create Beam sandbox instance."""
+        from beta9 import GpuType, Image, PythonVersion, Sandbox
+
         if self._sandbox_instance is not None:
             return self._sandbox_instance
 
-        try:
-            # Import here to avoid requiring beta9 as a hard dependency
-            from beta9 import Image, PythonVersion, Sandbox
-        except ImportError as exc:
-            msg = "beta9 package is required for BeamFS"
-            raise ImportError(msg) from exc
-
-        # Set default image if none provided
-        if self._image is None:
+        if self._image is None:  # Set default image if none provided
             self._image = Image(python_version=PythonVersion.Python311)
-
-        if self._sandbox_id:
-            # Connect to existing sandbox
+        if self._sandbox_id:  # Connect to existing sandbox
             sandbox = Sandbox()
             self._sandbox_instance = sandbox.connect(self._sandbox_id)
-        else:
-            # Create new sandbox
+        else:  # Create new sandbox
             sandbox = Sandbox(
                 cpu=self._cpu,
                 memory=self._memory,
-                gpu=self._gpu or "NoGPU",  # pyright: ignore[reportArgumentType]
+                gpu=self._gpu or GpuType.NoGPU,
                 gpu_count=self._gpu_count,
                 image=self._image,
                 keep_warm_seconds=self._keep_warm_seconds,
