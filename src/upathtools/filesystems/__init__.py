@@ -1,15 +1,15 @@
 """Filesystem implementations for upathtools."""
 
-from .fsspec_filesystems import (
-    DataFileSystem,
-    GithubFileSystem,
-    # HTTPFileSystem,
-    LocalFileSystem,
-    MemoryFileSystem,
-    SimpleCacheFileSystem,
-    TarFileSystem,
-    ZipFileSystem,
-)
+# from .fsspec_filesystems import (
+#     DataFileSystem,
+#     GithubFileSystem,
+#     HTTPFileSystem,
+#     LocalFileSystem,
+#     MemoryFileSystem,
+#     SimpleCacheFileSystem,
+#     TarFileSystem,
+#     ZipFileSystem,
+# )
 from .remote_filesystems.appwrite_fs import AppwriteFileSystem, AppwritePath
 from .remote_filesystems.gist_fs import GistFileSystem, GistPath
 from .remote_filesystems.gitlab_fs import GitLabFileSystem, GitLabPath
