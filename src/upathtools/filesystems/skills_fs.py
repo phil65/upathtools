@@ -176,7 +176,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
 
         result = []
         for i, entry in enumerate(enhanced_entries):
-            if isinstance(entry, Exception):
+            if isinstance(entry, BaseException):
                 logger.warning("Failed to enhance entry %s: %s", entries[i].get("name"), entry)
                 original = entries[i]
                 result.append(
