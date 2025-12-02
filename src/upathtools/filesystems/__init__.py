@@ -3,7 +3,7 @@
 from .fsspec_filesystems import (
     DataFileSystem,
     GithubFileSystem,
-    HTTPFileSystem,
+    # HTTPFileSystem,
     LocalFileSystem,
     MemoryFileSystem,
     SimpleCacheFileSystem,

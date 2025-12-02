@@ -5,7 +5,8 @@ from __future__ import annotations
 from fsspec.implementations.cached import SimpleCacheFileSystem as _SimpleCacheFileSystem
 from fsspec.implementations.data import DataFileSystem as _DataFileSystem
 from fsspec.implementations.github import GithubFileSystem as _GithubFileSystem
-from fsspec.implementations.http import HTTPFileSystem as _HTTPFileSystem
+
+# from fsspec.implementations.http import HTTPFileSystem as _HTTPFileSystem
 from fsspec.implementations.local import LocalFileSystem as _LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem as _MemoryFileSystem
 from fsspec.implementations.tar import TarFileSystem as _TarFileSystem
@@ -13,7 +14,8 @@ from fsspec.implementations.zip import ZipFileSystem as _ZipFileSystem
 from upath.implementations.cached import SimpleCachePath
 from upath.implementations.data import DataPath
 from upath.implementations.github import GitHubPath
-from upath.implementations.http import HTTPPath
+
+# from upath.implementations.http import HTTPPath
 from upath.implementations.local import FilePath
 from upath.implementations.memory import MemoryPath
 from upath.implementations.tar import TarPath
@@ -34,10 +36,10 @@ class MemoryFileSystem(BaseFileSystem[MemoryPath], _MemoryFileSystem):
     upath_cls = MemoryPath
 
 
-class HTTPFileSystem(BaseFileSystem[HTTPPath], _HTTPFileSystem):
-    """HTTP/HTTPS filesystem with UPath integration."""
+# class HTTPFileSystem(BaseFileSystem[HTTPPath], _HTTPFileSystem):
+#     """HTTP/HTTPS filesystem with UPath integration."""
 
-    upath_cls = HTTPPath
+#     upath_cls = HTTPPath
 
 
 class GithubFileSystem(BaseFileSystem[GitHubPath], _GithubFileSystem):
