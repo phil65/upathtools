@@ -57,7 +57,7 @@ def test_chained_access(example_py: Path) -> None:
     """Test chaining with local files."""
     # Let's first verify the file exists and has content
     assert example_py.exists()
-    assert example_py.read_text()
+    assert example_py.read_text("utf-8")
 
     # Use forward slashes and normalize the path
     url = f"ast::file://{example_py.as_posix()}"
