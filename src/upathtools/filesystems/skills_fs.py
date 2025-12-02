@@ -164,28 +164,21 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
 
     async def _ls(self, path: str, detail=True, **kwargs: Any) -> list[SkillsInfo] | list[str]:
         """List directory contents with skill metadata enhancement."""
-        entries = await self._fs._ls(path, detail=True, **kwargs)
-
         if not detail:
-            return [entry["name"] for entry in entries]
+            return [entry["name"] for entry in await self._fs._ls(path, detail=False, **kwargs)]
 
+        entries: list[dict[str, Any]] = await self._fs._ls(path, detail=True, **kwargs)
         enhanced_entries = await asyncio.gather(
             *[self._enhance_with_skill_info(entry) for entry in entries],
             return_exceptions=True,
         )
-
         result = []
         for i, entry in enumerate(enhanced_entries):
             if isinstance(entry, BaseException):
                 logger.warning("Failed to enhance entry %s: %s", entries[i].get("name"), entry)
-                original = entries[i]
-                result.append(
-                    SkillsInfo(
-                        name=original.get("name", ""),
-                        type=original.get("type", "file"),
-                        size=original.get("size", 0),
-                    )
-                )
+                orig = entries[i]
+                info = SkillsInfo(name=orig["name"], type=orig["type"], size=orig.get("size", 0))
+                result.append(info)
             else:
                 result.append(entry)
 
