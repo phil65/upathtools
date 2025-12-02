@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.local import LocalFileSystem
 
 
 if TYPE_CHECKING:
@@ -54,6 +55,11 @@ class WrapperFileSystem(AsyncFileSystem):
             raise ValueError(msg)
 
         self.fs: AbstractFileSystem = fs
+
+    def is_local(self) -> bool:
+        """Did we read this from the local filesystem?"""
+        # see also fsspec.utils.can_be_local for more flexibility with caching.
+        return isinstance(self.fs, LocalFileSystem)
 
     @property
     def sep(self) -> str:
