@@ -16,6 +16,9 @@ from typing import Any, Literal, TypedDict, overload
 from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
+ErrorHandling = Literal["raise", "omit", "return"]
+
+
 class TypeAdapterInfo(TypedDict, total=False):
     """Info dict for TypeAdapter filesystem paths."""
 
@@ -211,7 +214,9 @@ class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
 
         return result
 
-    def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
+    def cat(  # noqa: PLR0911
+        self, path: str, recursive: bool = False, on_error: ErrorHandling = "raise", **kwargs: Any
+    ) -> bytes:
         """Get field definition, schema, or other information."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not path:

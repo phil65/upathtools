@@ -147,7 +147,13 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         fs, path = self._get_fs_and_path(path)
         return await fs._cat_file(path, start=start, end=end, **kwargs)
 
-    async def _pipe_file(self, path: str, value, **kwargs: Any) -> None:
+    async def _pipe_file(
+        self,
+        path: str,
+        value,
+        mode: Literal["create", "overwrite"] = "overwrite",
+        **kwargs: Any,
+    ) -> None:
         """Write file contents."""
         logger.debug("Writing to path: %s", path)
         fs, path = self._get_fs_and_path(path)
@@ -226,7 +232,13 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         fs, path = self._get_fs_and_path(path)
         await fs._rm_file(path, **kwargs)
 
-    async def _rm(self, path: str, recursive=False, **kwargs: Any) -> None:
+    async def _rm(
+        self,
+        path: str,
+        recursive: bool = False,
+        batch_size: int | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Remove a file or directory."""
         logger.debug("Removing path: %s (recursive=%s)", path, recursive)
         fs, path = self._get_fs_and_path(path)
