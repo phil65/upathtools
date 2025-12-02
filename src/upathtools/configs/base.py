@@ -109,7 +109,7 @@ class FileSystemConfig(BaseModel):
 
         return fs
 
-    def create_upath(self, path: str = "/") -> UPath:
+    def create_upath(self, path: str | None = None) -> UPath:
         """Create a UPath object for the specified path on this filesystem.
 
         Args:
@@ -119,7 +119,7 @@ class FileSystemConfig(BaseModel):
             UPath object for the specified path
         """
         fs = self.create_fs()
-        return UPath(path, fs=fs)
+        return UPath(path or fs.root_marker, fs=fs)
 
 
 class PathConfig(BaseModel):
