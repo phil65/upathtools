@@ -132,7 +132,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
 
     protocol = "mcptools"
     upath_cls = MCPToolsPath
-    root_marker = "/"
+    root_marker = ""
     cachable = False
 
     @overload
@@ -255,15 +255,13 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         if not self._cache_valid:
             await self._refresh_tools()
 
-        path = path.rstrip("/")
-        if path == "":
-            path = "/"
+        path = path.strip("/")
 
-        if path == "/":
+        if path == "":
             # Root directory - return _client.py + all tool files
             items: list[McpToolInfo] = [
                 McpToolInfo(
-                    name="/_client.py",
+                    name="_client.py",
                     type="file",
                     size=len(CLIENT_CODE_TEMPLATE),
                     tool_name=None,
@@ -288,15 +286,15 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
             return [item["name"] for item in items]
 
         # Check if it's a specific file
-        if path == "/_client.py":
+        if path == "_client.py":
             info = McpToolInfo(
-                name="/_client.py",
+                name="_client.py",
                 type="file",
                 size=len(CLIENT_CODE_TEMPLATE),
                 tool_name=None,
                 description="FastMCP client utilities",
             )
-            return [info] if detail else ["/_client.py"]  # type: ignore[list-item]
+            return [info] if detail else ["_client.py"]  # type: ignore[list-item]
 
         t_name = _filename_to_tool(path)
         if t_name and t_name in self._tools_cache:
@@ -326,12 +324,12 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         if not self._cache_valid:
             await self._refresh_tools()
 
-        path = path.lstrip("/")
+        path = path.strip("/")
 
         if path == "_client.py":
             content = CLIENT_CODE_TEMPLATE
         else:
-            tool_name = _filename_to_tool("/" + path)
+            tool_name = _filename_to_tool(path)
             if tool_name is None or tool_name not in self._tools_cache:
                 msg = f"Tool not found: {path}"
                 raise FileNotFoundError(msg)
@@ -351,16 +349,14 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         if not self._cache_valid:
             await self._refresh_tools()
 
-        path = path.rstrip("/")
+        path = path.strip("/")
+
         if path == "":
-            path = "/"
+            return McpToolInfo(name="", type="directory", size=None)
 
-        if path == "/":
-            return McpToolInfo(name="/", type="directory", size=None)
-
-        if path == "/_client.py":
+        if path == "_client.py":
             return McpToolInfo(
-                name="/_client.py",
+                name="_client.py",
                 type="file",
                 size=len(CLIENT_CODE_TEMPLATE),
                 tool_name=None,
@@ -407,7 +403,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
-        return path in {"/", ""}
+        return path.strip("/") == ""
 
     isdir = sync_wrapper(_isdir)
 
@@ -455,12 +451,12 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
 
 def _tool_to_filename(tool_name: str) -> str:
     """Convert tool name to filename."""
-    return f"/{tool_name}.py"
+    return f"{tool_name}.py"
 
 
 def _filename_to_tool(filename: str) -> str | None:
     """Extract tool name from filename."""
-    filename = filename.lstrip("/")
+    filename = filename.strip("/")
     if filename.endswith(".py") and not filename.startswith("_"):
         return filename[:-3]
     return None
