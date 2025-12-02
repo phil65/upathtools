@@ -1,5 +1,15 @@
 """Filesystem implementations for upathtools."""
 
+from .fsspec_filesystems import (
+    DataFileSystem,
+    GithubFileSystem,
+    HTTPFileSystem,
+    LocalFileSystem,
+    MemoryFileSystem,
+    SimpleCacheFileSystem,
+    TarFileSystem,
+    ZipFileSystem,
+)
 from .remote_filesystems.appwrite_fs import AppwriteFileSystem, AppwritePath
 from .remote_filesystems.gist_fs import GistFileSystem, GistPath
 from .remote_filesystems.gitlab_fs import GitLabFileSystem, GitLabPath
@@ -42,6 +52,7 @@ __all__ = [
     "BeamPath",
     "CliFS",
     "CliPath",
+    "DataFileSystem",
     "DaytonaFS",
     "DaytonaPath",
     "DistributionFS",
@@ -53,12 +64,16 @@ __all__ = [
     "GistPath",
     "GitLabFileSystem",
     "GitLabPath",
+    "GithubFileSystem",
+    "HTTPFileSystem",
+    "LocalFileSystem",
     "MCPFileSystem",
     "MCPPath",
     "MCPToolsFileSystem",
     "MCPToolsPath",
     "MarkdownFS",
     "MarkdownPath",
+    "MemoryFileSystem",
     "MicrosandboxFS",
     "MicrosandboxPath",
     "ModalFS",
@@ -73,8 +88,10 @@ __all__ = [
     "PackagePath",
     "PythonAstFS",
     "PythonAstPath",
+    "SimpleCacheFileSystem",
     "SqliteFS",
     "SqlitePath",
+    "TarFileSystem",
     "TreeSitterFS",
     "TreeSitterPath",
     "TypeAdapterFS",
@@ -83,4 +100,5 @@ __all__ = [
     "VercelPath",
     "WikiFileSystem",
     "WikiPath",
+    "ZipFileSystem",
 ]
