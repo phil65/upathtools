@@ -165,7 +165,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
             return zlib.decompress
         if encoding == "br":
             try:
-                import brotli  # pyright: ignore
+                import brotli
 
             except ImportError:
                 msg = "brotli module is required for brotli decompression"
