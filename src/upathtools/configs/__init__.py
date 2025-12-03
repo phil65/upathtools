@@ -30,6 +30,7 @@ from upathtools.configs.custom_fs_configs import (
     PackageFilesystemConfig,
     PythonAstFilesystemConfig,
     SkillsFilesystemConfig,
+    SRTFilesystemConfig,
     TypeAdapterFilesystemConfig,
     UnionFilesystemConfig,
     VercelFilesystemConfig,
@@ -77,6 +78,7 @@ FilesystemConfigType = Annotated[
     | PackageFilesystemConfig
     | PythonAstFilesystemConfig
     | SkillsFilesystemConfig
+    | SRTFilesystemConfig
     | TypeAdapterFilesystemConfig
     | UnionFilesystemConfig
     | VercelFilesystemConfig
@@ -138,6 +140,7 @@ __all__ = [
     "PythonAstFilesystemConfig",
     "SFTPFilesystemConfig",
     "SMBFilesystemConfig",
+    "SRTFilesystemConfig",
     "SkillsFilesystemConfig",
     "TarFilesystemConfig",
     "TypeAdapterFilesystemConfig",

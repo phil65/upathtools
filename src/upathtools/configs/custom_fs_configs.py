@@ -647,6 +647,70 @@ class VercelFilesystemConfig(FileSystemConfig):
     """Default timeout for operations in seconds"""
 
 
+class SRTFilesystemConfig(FileSystemConfig):
+    """Configuration for SRT (Sandbox Runtime) filesystem.
+
+    Uses Anthropic's sandbox-runtime for sandboxed local filesystem access
+    with configurable network and filesystem restrictions.
+    """
+
+    fs_type: Literal["srt"] = Field("srt", init=False)
+    """SRT filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "sandbox"
+
+    allowed_domains: list[str] = Field(
+        default_factory=list,
+        title="Allowed Domains",
+        examples=[["github.com", "*.github.com", "pypi.org"]],
+    )
+    """Domains that can be accessed. Empty = no network access."""
+
+    denied_domains: list[str] = Field(
+        default_factory=list,
+        title="Denied Domains",
+        examples=[["malicious.com"]],
+    )
+    """Domains explicitly blocked."""
+
+    allow_unix_sockets: list[str] = Field(
+        default_factory=list,
+        title="Allowed Unix Sockets",
+        examples=[["/var/run/docker.sock"]],
+    )
+    """Unix socket paths to allow."""
+
+    allow_all_unix_sockets: bool = Field(default=False, title="Allow All Unix Sockets")
+    """Allow all Unix sockets (less secure)."""
+
+    allow_local_binding: bool = Field(default=False, title="Allow Local Binding")
+    """Allow binding to localhost ports."""
+
+    deny_read: list[str] = Field(
+        default_factory=lambda: ["~/.ssh", "~/.aws", "~/.gnupg"],
+        title="Deny Read Paths",
+        examples=[["~/.ssh", "~/.aws"]],
+    )
+    """Paths blocked from reading."""
+
+    allow_write: list[str] = Field(
+        default_factory=lambda: ["."],
+        title="Allow Write Paths",
+        examples=[["."], [".", "/tmp"]],
+    )
+    """Paths where writes are permitted."""
+
+    deny_write: list[str] = Field(
+        default_factory=list,
+        title="Deny Write Paths",
+        examples=[[".env", "secrets/"]],
+    )
+    """Paths denied within allowed write paths."""
+
+    timeout: float = Field(default=30, gt=0, title="Timeout", examples=[30, 60, 120])
+    """Default timeout for operations in seconds."""
+
+
 class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel instance filesystem."""
 
