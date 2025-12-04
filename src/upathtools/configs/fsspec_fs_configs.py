@@ -472,3 +472,203 @@ class ZipFilesystemConfig(FileSystemConfig):
         default=None, ge=1, le=9, title="Compression Level", examples=[1, 6, 9]
     )
     """Compression level"""
+
+
+class AzureBlobFilesystemConfig(FileSystemConfig):
+    """Configuration for Azure Blob Storage filesystem."""
+
+    fs_type: Literal["abfs"] = Field("abfs", init=False)
+    """Azure Blob filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    account_name: str = Field(
+        title="Account Name",
+        examples=["mystorageaccount"],
+        pattern=r"^[a-z0-9]{3,24}$",
+    )
+    """Azure storage account name"""
+
+    account_key: SecretStr | None = Field(default=None, title="Account Key")
+    """Azure storage account key"""
+
+    connection_string: SecretStr | None = Field(default=None, title="Connection String")
+    """Azure storage connection string"""
+
+    sas_token: SecretStr | None = Field(default=None, title="SAS Token")
+    """Shared Access Signature token"""
+
+    container_name: str | None = Field(
+        default=None,
+        title="Container Name",
+        examples=["mycontainer"],
+    )
+    """Default container name"""
+
+    credential: Any | None = Field(default=None, title="Azure Credential")
+    """Azure credential object (DefaultAzureCredential, etc.)"""
+
+
+class GCSFilesystemConfig(FileSystemConfig):
+    """Configuration for Google Cloud Storage filesystem."""
+
+    fs_type: Literal["gcs"] = Field("gcs", init=False)
+    """GCS filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    project: str | None = Field(
+        default=None,
+        title="GCP Project",
+        examples=["my-gcp-project"],
+    )
+    """Google Cloud project ID"""
+
+    token: str | dict[str, Any] | None = Field(
+        default=None,
+        title="Authentication Token",
+        examples=["anon", "browser", "cloud", "cache"],
+    )
+    """Authentication method or token dict"""
+
+    access: Literal["read_only", "read_write", "full_control"] | None = Field(
+        default=None,
+        title="Access Level",
+    )
+    """Access level for the filesystem"""
+
+    consistency: Literal["none", "size", "md5"] | None = Field(
+        default=None,
+        title="Consistency Check",
+    )
+    """Consistency check method after writes"""
+
+    requester_pays: bool = Field(default=False, title="Requester Pays")
+    """Whether to use requester-pays buckets"""
+
+
+class HuggingFaceFilesystemConfig(FileSystemConfig):
+    """Configuration for HuggingFace Hub filesystem."""
+
+    fs_type: Literal["hf"] = Field("hf", init=False)
+    """HuggingFace filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    token: SecretStr | None = Field(default=None, title="HF Token")
+    """HuggingFace API token (or set HF_TOKEN env var)"""
+
+    repo_type: Literal["model", "dataset", "space"] | None = Field(
+        default=None,
+        title="Repository Type",
+    )
+    """Type of HuggingFace repository"""
+
+    revision: str | None = Field(
+        default=None,
+        title="Revision",
+        examples=["main", "v1.0.0"],
+    )
+    """Git revision (branch, tag, or commit)"""
+
+
+class S3FilesystemConfig(FileSystemConfig):
+    """Configuration for AWS S3 filesystem."""
+
+    fs_type: Literal["s3"] = Field("s3", init=False)
+    """S3 filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    key: SecretStr | None = Field(default=None, title="AWS Access Key ID")
+    """AWS access key ID"""
+
+    secret: SecretStr | None = Field(default=None, title="AWS Secret Access Key")
+    """AWS secret access key"""
+
+    token: SecretStr | None = Field(default=None, title="AWS Session Token")
+    """AWS session token for temporary credentials"""
+
+    endpoint_url: str | None = Field(
+        default=None,
+        title="Endpoint URL",
+        examples=["https://s3.amazonaws.com", "http://localhost:9000"],
+    )
+    """Custom S3 endpoint URL (for MinIO, LocalStack, etc.)"""
+
+    region_name: str | None = Field(
+        default=None,
+        title="AWS Region",
+        examples=["us-east-1", "eu-west-1"],
+    )
+    """AWS region name"""
+
+    anon: bool = Field(default=False, title="Anonymous Access")
+    """Use anonymous access (no credentials)"""
+
+    use_ssl: bool = Field(default=True, title="Use SSL")
+    """Whether to use SSL for connections"""
+
+    requester_pays: bool = Field(default=False, title="Requester Pays")
+    """Access requester-pays buckets"""
+
+    default_block_size: int | None = Field(
+        default=None, gt=0, title="Block Size", examples=[5242880]
+    )
+    """Default block size for multipart uploads"""
+
+
+class WebdavFilesystemConfig(FileSystemConfig):
+    """Configuration for WebDAV filesystem."""
+
+    fs_type: Literal["webdav"] = Field("webdav", init=False)
+    """WebDAV filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    base_url: str = Field(
+        title="WebDAV URL",
+        examples=["https://webdav.example.com/files", "http://localhost:8080/dav"],
+    )
+    """Base URL of the WebDAV server"""
+
+    auth: tuple[str, str] | None = Field(default=None, title="Basic Auth")
+    """Basic authentication (username, password) tuple"""
+
+    token: SecretStr | None = Field(default=None, title="Bearer Token")
+    """Bearer token for authentication"""
+
+    cert: str | tuple[str, str] | None = Field(default=None, title="Client Certificate")
+    """Client certificate path or (cert, key) tuple"""
+
+    verify: bool | str = Field(default=True, title="Verify SSL")
+    """Verify SSL certificates (True, False, or CA bundle path)"""
+
+    timeout: int | None = Field(default=None, ge=0, title="Timeout", examples=[30, 60])
+    """Connection timeout in seconds"""
+
+
+FsspecFilesystemConfig = (
+    ArrowFilesystemConfig
+    | AzureBlobFilesystemConfig
+    | DataFilesystemConfig
+    | DaskWorkerFilesystemConfig
+    | FTPFilesystemConfig
+    | GCSFilesystemConfig
+    | GitFilesystemConfig
+    | GithubFilesystemConfig
+    | HadoopFilesystemConfig
+    | HuggingFaceFilesystemConfig
+    | JupyterFilesystemConfig
+    | LibArchiveFilesystemConfig
+    | LocalFilesystemConfig
+    | MemoryFilesystemConfig
+    | S3FilesystemConfig
+    | SFTPFilesystemConfig
+    | SMBFilesystemConfig
+    | TarFilesystemConfig
+    | WebdavFilesystemConfig
+    | WebHDFSFilesystemConfig
+    | ZipFilesystemConfig
+)
+"""Union of all fsspec-based filesystem configurations."""

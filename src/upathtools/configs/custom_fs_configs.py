@@ -728,6 +728,146 @@ class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """BaseModel instance import path"""
 
 
+class AsyncLocalFilesystemConfig(FileSystemConfig):
+    """Configuration for async local filesystem."""
+
+    fs_type: Literal["asynclocal"] = Field("asynclocal", init=False)
+    """Async local filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    auto_mkdir: bool = Field(default=False, title="Auto Create Directories")
+    """Automatically create parent directories on write"""
+
+
+class OverlayFilesystemConfig(FileSystemConfig):
+    """Configuration for overlay filesystem with copy-on-write semantics."""
+
+    fs_type: Literal["overlay"] = Field("overlay", init=False)
+    """Overlay filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "aggregation"
+
+    filesystems: list[str] = Field(
+        title="Filesystem Identifiers",
+        examples=[["writable_fs", "readonly_fs"]],
+        min_length=1,
+    )
+    """List of filesystem identifiers, first is writable upper layer"""
+
+
+class SqliteFilesystemConfig(FileSystemConfig):
+    """Configuration for SQLite database filesystem."""
+
+    fs_type: Literal["sqlite"] = Field("sqlite", init=False)
+    """SQLite filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+
+    db_path: str = Field(title="Database Path", examples=["/path/to/database.db"])
+    """Path to SQLite database file"""
+
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
+    """Protocol for source database file"""
+
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
+    """Options for target protocol"""
+
+
+class TreeSitterFilesystemConfig(FileSystemConfig):
+    """Configuration for tree-sitter code structure filesystem."""
+
+    fs_type: Literal["treesitter"] = Field("treesitter", init=False)
+    """Tree-sitter filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+
+    source_file: str = Field(title="Source File Path", examples=["/path/to/code.py"])
+    """Path to source code file"""
+
+    language: str | None = Field(
+        default=None,
+        title="Language",
+        examples=["python", "javascript", "rust"],
+    )
+    """Programming language (auto-detected from extension if not specified)"""
+
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
+    """Protocol for source file"""
+
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
+    """Options for target protocol"""
+
+
+class GitLabFilesystemConfig(FileSystemConfig):
+    """Configuration for GitLab repository filesystem."""
+
+    fs_type: Literal["gitlab"] = Field("gitlab", init=False)
+    """GitLab filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    project_id: str | int = Field(
+        title="Project ID",
+        examples=["mygroup/myproject", 12345],
+    )
+    """GitLab project ID or path (e.g., 'namespace/project')"""
+
+    ref: str | None = Field(
+        default=None,
+        title="Git Reference",
+        examples=["main", "v1.0.0", "abc123"],
+    )
+    """Git ref (branch, tag, commit SHA). Uses default branch if not specified"""
+
+    url: str = Field(
+        default="https://gitlab.com",
+        title="GitLab URL",
+        examples=["https://gitlab.com", "https://gitlab.example.com"],
+    )
+    """GitLab instance URL"""
+
+    private_token: SecretStr | None = Field(
+        default=None,
+        title="Private Token",
+        description="GitLab private/personal access token (or set GITLAB_TOKEN env var)",
+    )
+    """GitLab private access token"""
+
+
+class McpToolsFilesystemConfig(FileSystemConfig):
+    """Configuration for MCP tools filesystem."""
+
+    fs_type: Literal["mcptools"] = Field("mcptools", init=False)
+    """MCP tools filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    url: str | None = Field(
+        default=None,
+        title="MCP Server URL",
+        examples=["http://localhost:8000/mcp"],
+    )
+    """URL of MCP server"""
+
+    server_cmd: list[str] | None = Field(
+        default=None,
+        title="Server Command",
+        examples=[["uvx", "mcp-server-fetch"]],
+    )
+    """Command to start MCP server"""
+
+    stubs_only: bool = Field(
+        default=False,
+        title="Stubs Only",
+    )
+    """If True, generate type stubs without implementation"""
+
+
 # class SkillsFilesystemConfig(FileSystemConfig):
 #     """Configuration for Skills filesystem."""
 
@@ -749,3 +889,41 @@ class BaseModelInstanceFilesystemConfig(FileSystemConfig):
 #         examples=["/path/to/skills", "~/my-skills"],
 #     )
 #     """Directory containing skill definitions"""
+
+
+CustomFilesystemConfig = (
+    AppwriteFilesystemConfig
+    | AsyncLocalFilesystemConfig
+    | BaseModelFilesystemConfig
+    | BaseModelInstanceFilesystemConfig
+    | BeamFilesystemConfig
+    | CliFilesystemConfig
+    | DaytonaFilesystemConfig
+    | DistributionFilesystemConfig
+    | E2BFilesystemConfig
+    | FlatUnionFilesystemConfig
+    | GistFilesystemConfig
+    | GitLabFilesystemConfig
+    | HttpFilesystemConfig
+    | HttpxFilesystemConfig
+    | MarkdownFilesystemConfig
+    | McpFilesystemConfig
+    | McpToolsFilesystemConfig
+    | MicrosandboxFilesystemConfig
+    | ModalFilesystemConfig
+    | ModuleFilesystemConfig
+    | NotionFilesystemConfig
+    | OpenApiFilesystemConfig
+    | OverlayFilesystemConfig
+    | PackageFilesystemConfig
+    | PythonAstFilesystemConfig
+    | SkillsFilesystemConfig
+    | SqliteFilesystemConfig
+    | SRTFilesystemConfig
+    | TreeSitterFilesystemConfig
+    | TypeAdapterFilesystemConfig
+    | UnionFilesystemConfig
+    | VercelFilesystemConfig
+    | WikiFilesystemConfig
+)
+"""Union of all custom filesystem configurations."""
