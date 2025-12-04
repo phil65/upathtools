@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -274,102 +273,3 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
             size=self.size(path) if self.isfile(path) else 0,  # pyright: ignore[reportArgumentType]
             type="directory" if self.isdir(path) else "file",
         )
-
-
-class VercelFile:
-    """File-like object for Vercel filesystem operations."""
-
-    def __init__(self, fs: VercelFS, path: str, mode: str = "rb", **kwargs: Any) -> None:
-        """Initialize Vercel file.
-
-        Args:
-            fs: Vercel filesystem instance
-            path: File path
-            mode: File open mode
-            **kwargs: Additional file arguments
-        """
-        self.fs = fs
-        self.path = path
-        self.mode = mode
-        self._buffer = io.BytesIO()
-        self._pos = 0
-        self._closed = False
-        self._loaded = False
-
-    async def _ensure_loaded(self) -> None:
-        """Load file content if needed."""
-        if not self._loaded and "r" in self.mode:
-            try:
-                content = await self.fs._cat_file(self.path)
-                self._buffer = io.BytesIO(content)
-                self._loaded = True
-            except FileNotFoundError:
-                if "w" not in self.mode and "a" not in self.mode:
-                    raise
-
-    def readable(self) -> bool:
-        """Check if file is readable."""
-        return "r" in self.mode
-
-    def writable(self) -> bool:
-        """Check if file is writable."""
-        return "w" in self.mode or "a" in self.mode
-
-    def seekable(self) -> bool:
-        """Check if file is seekable."""
-        return True
-
-    @property
-    def closed(self) -> bool:
-        """Check if file is closed."""
-        return self._closed
-
-    def tell(self) -> int:
-        """Get current position."""
-        return self._buffer.tell()
-
-    def seek(self, pos: int, whence: int = 0) -> int:
-        """Seek to position."""
-        return self._buffer.seek(pos, whence)
-
-    async def read(self, size: int = -1) -> bytes:
-        """Read from file."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-
-        await self._ensure_loaded()
-        return self._buffer.read(size)
-
-    async def write(self, data: bytes) -> int:
-        """Write to file."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-
-        if not self.writable():
-            msg = "File not open for writing"
-            raise OSError(msg)
-
-        return self._buffer.write(data)
-
-    async def flush(self) -> None:
-        """Flush buffer to remote file."""
-        if self.writable() and not self._closed:
-            content = self._buffer.getvalue()
-            await self.fs._pipe_file(self.path, content)
-
-    async def close(self) -> None:
-        """Close file and flush if needed."""
-        if not self._closed:
-            await self.flush()
-            self._buffer.close()
-            self._closed = True
-
-    async def __aenter__(self) -> Self:
-        """Enter async context."""
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        """Exit async context."""
-        await self.close()

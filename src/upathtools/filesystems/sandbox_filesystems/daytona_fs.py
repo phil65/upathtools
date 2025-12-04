@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-import io
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import sync_wrapper
 
@@ -15,7 +14,6 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 if TYPE_CHECKING:
     from daytona import AsyncDaytona, AsyncSandbox
-    from fsspec.asyn import AsyncFileSystem
 
 
 logger = logging.getLogger(__name__)
@@ -427,127 +425,3 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
     grep = sync_wrapper(_grep)
     chmod = sync_wrapper(_chmod)
-
-
-class DaytonaFile:
-    """File-like object for Daytona files."""
-
-    def __init__(self, fs: AsyncFileSystem, path: str, mode: str = "rb", **kwargs: Any) -> None:
-        """Initialize Daytona file object.
-
-        Args:
-            fs: Daytona filesystem instance
-            path: File path
-            mode: File open mode
-            **kwargs: Additional options
-        """
-        self.fs = fs
-        self.path = path
-        self.mode = mode
-        self._buffer = io.BytesIO()
-        self._position = 0
-        self._closed = False
-        self._loaded = False
-
-    async def _ensure_loaded(self) -> None:
-        """Ensure file content is loaded."""
-        if not self._loaded and "r" in self.mode:
-            try:
-                content = await self.fs._cat_file(self.path)
-                self._buffer = io.BytesIO(content)
-                self._loaded = True
-            except FileNotFoundError:
-                if "w" not in self.mode and "a" not in self.mode:
-                    raise
-
-    def readable(self) -> bool:
-        """Check if file is readable."""
-        return "r" in self.mode
-
-    def writable(self) -> bool:
-        """Check if file is writable."""
-        return "w" in self.mode or "a" in self.mode
-
-    def seekable(self) -> bool:
-        """Check if file is seekable."""
-        return True
-
-    @property
-    def closed(self) -> bool:
-        """Check if file is closed."""
-        return self._closed
-
-    def tell(self) -> int:
-        """Get current position."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-        return self._buffer.tell()
-
-    def seek(self, offset: int, whence: int = 0) -> int:
-        """Seek to position."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-        return self._buffer.seek(offset, whence)
-
-    async def read(self, size: int = -1) -> bytes:
-        """Read data from file."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-        if not self.readable():
-            msg = "not readable"
-            raise io.UnsupportedOperation(msg)
-
-        await self._ensure_loaded()
-        return self._buffer.read(size)
-
-    async def write(self, data: bytes) -> int:
-        """Write data to file."""
-        if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
-        if not self.writable():
-            msg = "not writable"
-            raise io.UnsupportedOperation(msg)
-
-        return self._buffer.write(data)
-
-    async def flush(self) -> None:
-        """Flush buffer to remote file."""
-        if self._closed:
-            return
-        if self.writable():
-            self._buffer.seek(0)
-            content = self._buffer.read()
-            await self.fs._pipe_file(self.path, content)
-
-    async def close(self) -> None:
-        """Close file."""
-        if not self._closed:
-            if self.writable():
-                await self.flush()
-            self._buffer.close()
-            self._closed = True
-
-    async def __aenter__(self) -> Self:
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        """Async context manager exit."""
-        await self.close()
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    async def main() -> None:
-        fs = DaytonaFS()
-        await fs._mkdir("test")
-        await fs._pipe_file("test/file.txt", b"Hello, Daytona!")
-        info = await fs._info("test/file.txt")
-        print(info)
-
-    asyncio.run(main())

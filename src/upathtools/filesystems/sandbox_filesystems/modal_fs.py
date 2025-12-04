@@ -380,7 +380,13 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
 
 
 class ModalFile:
-    """File-like object for Modal files."""
+    """File-like object wrapping Modal's native FileIO.
+
+    Unlike other sandbox filesystems, Modal provides a native async file API
+    (`sandbox.open.aio`) that may support true partial reads and seeks on the
+    remote end. This class wraps that native API rather than buffering the
+    entire file in memory like `AsyncBufferedFile`.
+    """
 
     def __init__(
         self,

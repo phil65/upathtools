@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import io
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
 from upath import UPath
 
-from upathtools.filesystems.base.file_objects import AsyncFile
+from upathtools.filesystems.base.file_objects import AsyncBufferedFile
 
 
 if TYPE_CHECKING:
@@ -79,30 +78,18 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         path: str,
         mode: str = "rb",
         **kwargs: Any,
-    ) -> io.BytesIO | AsyncFile:
+    ) -> AsyncBufferedFile:
         """Open a file asynchronously.
 
         Args:
             path: Path to the file
-            mode: File mode ('rb' for reading, 'wb' for writing)
-            **kwargs: Additional arguments for write operations
-                gist_description: Optional description for new gists
-                public: Whether the gist should be public (default: False)
+            mode: File mode ('rb', 'wb', 'r+b', 'ab', etc.)
+            **kwargs: Additional arguments passed to _cat_file/_pipe_file
 
         Returns:
-            File-like object for reading or async writer for writing
-
-        Raises:
-            ValueError: If token is not provided for write operations
-            NotImplementedError: If mode is not supported
+            AsyncBufferedFile instance supporting read/write/seek operations
         """
-        if "r" in mode:
-            content = await self._cat_file(path, **kwargs)
-            return io.BytesIO(content)
-        if "w" in mode:
-            return AsyncFile(self, path, **kwargs)
-        msg = f"Mode {mode} not supported"
-        raise NotImplementedError(msg)
+        return AsyncBufferedFile(self, path, mode=mode, **kwargs)
 
     @overload
     async def list_root_async(self, detail: Literal[False]) -> list[str]: ...
