@@ -6,7 +6,6 @@ import os
 import shutil
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
-import aiofile
 from fsspec.implementations.local import LocalFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
@@ -157,6 +156,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         mode: str = "rb",
         **kwargs: Any,
     ) -> Any:
+        import aiofile
+
         path = self._strip_protocol(path)
         if self.auto_mkdir and "w" in mode:
             await self._makedirs(self._parent(path), exist_ok=True)
