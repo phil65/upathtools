@@ -28,7 +28,13 @@ class FileSystemConfig(BaseModel):
     """Type of filesystem"""
 
     root_path: str | None = None
-    """Root directory to restrict filesystem access to (applies dir:: modifier)"""
+    """Root directory to restrict filesystem access to (wraps in DirFileSystem)."""
+
+    cwd: str | None = None
+    """Working directory for relative path operations (uses fs.chdir)."""
+
+    cached: bool = False
+    """Whether to wrap in CachingFileSystem."""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
     """Classification of the filesystem type"""
@@ -91,9 +97,9 @@ class FileSystemConfig(BaseModel):
         """Create a filesystem instance based on this configuration.
 
         Returns:
-            Instantiated filesystem with the proper configuration
+            Instantiated filesystem with the proper configuration.
         """
-        fs_kwargs = self.model_dump(exclude={"fs_type", "root_path"})
+        fs_kwargs = self.model_dump(exclude={"fs_type", "root_path", "cwd", "cached"})
         fs_kwargs = {k: v for k, v in fs_kwargs.items() if v is not None}
 
         # Convert Pydantic types to plain Python types
@@ -104,8 +110,18 @@ class FileSystemConfig(BaseModel):
                 fs_kwargs[key] = str(value)
 
         fs = fsspec.filesystem(self.fs_type, **fs_kwargs)
+
+        # Apply path prefix (DirFileSystem wrapper) - sandboxed, can't escape
         if self.root_path:
-            return fs.chdir(self.root_path)
+            fs = fsspec.filesystem("dir", path=self.root_path, fs=fs)
+
+        # Apply cwd for relative path convenience
+        if self.cwd:
+            fs = fs.chdir(self.cwd)
+
+        # Apply caching wrapper
+        if self.cached:
+            fs = fsspec.filesystem("filecache", fs=fs)
 
         return fs
 
