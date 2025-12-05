@@ -12,6 +12,8 @@ from upathtools.helpers import upath_to_fs
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from upath.types import JoinablePathLike
 
 
@@ -66,7 +68,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
 
     def __init__(
         self,
-        filesystems: dict[str, AbstractFileSystem | JoinablePathLike] | None = None,
+        filesystems: Mapping[str, AbstractFileSystem | JoinablePathLike] | None = None,
     ):
         super().__init__()
 
