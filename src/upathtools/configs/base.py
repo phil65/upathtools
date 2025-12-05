@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 from urllib.parse import urlparse
 
 import fsspec
+from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, SecretStr
 from upath import UPath
 
@@ -166,8 +168,17 @@ class URIFileSystemConfig(FileSystemConfig):
     storage_options: dict[str, Any] = Field(default_factory=dict)
     """Protocol-specific storage options passed to fsspec."""
 
-    def create_fs(self) -> AbstractFileSystem:
-        """Create filesystem from URI and storage options."""
+    @overload
+    def create_fs(self, ensure_async: Literal[False]) -> AbstractFileSystem: ...
+
+    @overload
+    def create_fs(self, ensure_async: Literal[True]) -> AsyncFileSystem: ...
+
+    def create_fs(self, ensure_async: bool = False) -> AbstractFileSystem:
+        """Create filesystem from URI and storage options.
+
+        ensure_async: If True, ensure the filesystem is async.
+        """
         # Parse protocol from URI
         parsed = urlparse(self.uri)
         protocol = parsed.scheme or "file"
@@ -191,7 +202,8 @@ class URIFileSystemConfig(FileSystemConfig):
 
         if self.cached:
             fs = fsspec.filesystem("filecache", fs=fs)
-
+        if not isinstance(fs, AsyncFileSystem) and ensure_async:
+            fs = AsyncFileSystemWrapper(fs)
         return fs
 
 
