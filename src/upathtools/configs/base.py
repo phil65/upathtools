@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from urllib.parse import urlparse
 
 import fsspec
-from pydantic import AnyUrl, BaseModel, ConfigDict, SecretStr
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, SecretStr
 from upath import UPath
 
 
@@ -136,6 +137,62 @@ class FileSystemConfig(BaseModel):
         """
         fs = self.create_fs()
         return UPath(path or fs.root_marker, fs=fs)
+
+
+class URIFileSystemConfig(FileSystemConfig):
+    """Generic filesystem config using URI and storage_options.
+
+    This provides a simpler, more concise way to configure filesystems
+    when you don't need the typed fields of specific configs.
+
+    Example:
+        ```python
+        config = URIFileSystemConfig(
+            uri="s3://my-bucket/data",
+            storage_options={"key": "...", "secret": "..."},
+        )
+        fs = config.create_fs()
+        ```
+    """
+
+    fs_type: Literal["uri"] = Field("uri", init=False)
+    """URI-based filesystem type."""
+
+    uri: str = Field(
+        examples=["file:///path/to/docs", "s3://bucket/data", "https://example.com"],
+    )
+    """URI defining the resource location and protocol."""
+
+    storage_options: dict[str, Any] = Field(default_factory=dict)
+    """Protocol-specific storage options passed to fsspec."""
+
+    def create_fs(self) -> AbstractFileSystem:
+        """Create filesystem from URI and storage options."""
+        # Parse protocol from URI
+        parsed = urlparse(self.uri)
+        protocol = parsed.scheme or "file"
+
+        # Build path from URI (handle file:// specially)
+        if protocol == "file":
+            path = parsed.path
+        else:
+            # For remote protocols, include netloc + path
+            path = f"{parsed.netloc}{parsed.path}" if parsed.netloc else parsed.path
+
+        fs = fsspec.filesystem(protocol, **self.storage_options)
+
+        # Apply root_path restriction if set, otherwise use URI path
+        effective_root = self.root_path or path
+        if effective_root:
+            fs = fsspec.filesystem("dir", path=effective_root, fs=fs)
+
+        if self.cwd:
+            fs = fs.chdir(self.cwd)
+
+        if self.cached:
+            fs = fsspec.filesystem("filecache", fs=fs)
+
+        return fs
 
 
 class PathConfig(BaseModel):
