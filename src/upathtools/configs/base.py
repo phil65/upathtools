@@ -96,7 +96,13 @@ class FileSystemConfig(BaseModel):
             return configs[fs_type](**data)
         return cls(**data)
 
-    def create_fs(self) -> AbstractFileSystem:
+    @overload
+    def create_fs(self, ensure_async: Literal[False] = ...) -> AbstractFileSystem: ...
+
+    @overload
+    def create_fs(self, ensure_async: Literal[True]) -> AsyncFileSystem: ...
+
+    def create_fs(self, ensure_async: bool = False) -> AbstractFileSystem:
         """Create a filesystem instance based on this configuration.
 
         Returns:
@@ -125,7 +131,8 @@ class FileSystemConfig(BaseModel):
         # Apply caching wrapper
         if self.cached:
             fs = fsspec.filesystem("filecache", fs=fs)
-
+        if not isinstance(fs, AsyncFileSystem):
+            fs = AsyncFileSystemWrapper(fs)
         return fs
 
     def create_upath(self, path: str | None = None) -> UPath:
@@ -169,7 +176,7 @@ class URIFileSystemConfig(FileSystemConfig):
     """Protocol-specific storage options passed to fsspec."""
 
     @overload
-    def create_fs(self, ensure_async: Literal[False]) -> AbstractFileSystem: ...
+    def create_fs(self, ensure_async: Literal[False] = ...) -> AbstractFileSystem: ...
 
     @overload
     def create_fs(self, ensure_async: Literal[True]) -> AsyncFileSystem: ...
