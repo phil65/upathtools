@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import IO, TYPE_CHECKING, Any, Self, overload
+from typing import IO, TYPE_CHECKING, Any, Self
 
 from upath.extensions import ProxyUPath
 
@@ -35,23 +35,10 @@ class AsyncUPath(ProxyUPath):
     async def aread_bytes(self) -> bytes:
         """Asynchronously read file content as bytes."""
         fs = await self.afs()
-        return await fs._cat_file(self.path)
-
-    @overload
-    async def aread_text(
-        self,
-        encoding: str = "utf-8",
-        errors: str = "strict",
-        newline: str | None = None,
-    ) -> str: ...
-
-    @overload
-    async def aread_text(
-        self,
-        encoding: None = None,
-        errors: str = "strict",
-        newline: str | None = None,
-    ) -> str: ...
+        data = await fs._cat_file(self.path)
+        if isinstance(data, str):
+            return data.encode("utf-8")
+        return data
 
     async def aread_text(
         self,
@@ -60,42 +47,17 @@ class AsyncUPath(ProxyUPath):
         newline: str | None = None,
     ) -> str:
         """Asynchronously read file content as text."""
-        try:
-            fs = await self.afs()
-            async_file = await fs.open_async(
-                self.path, "rt", encoding=encoding, errors=errors, newline=newline
-            )
-            async with async_file:
-                return await async_file.read()
-        except Exception:  # noqa: BLE001
-            # Final fallback
-            return await asyncio.to_thread(
-                self.read_text, encoding=encoding, errors=errors, newline=newline
-            )
+        fs = await self.afs()
+        data = await fs._cat_file(self.path)
+        if isinstance(data, bytes):
+            return data.decode(encoding or "utf-8", errors)
+        return data  # Already a string
 
     async def awrite_bytes(self, data: bytes) -> int:
         """Asynchronously write bytes to file."""
         fs = await self.afs()
         await fs._pipe_file(self.path, data)
         return len(data)
-
-    @overload
-    async def awrite_text(
-        self,
-        data: str,
-        encoding: str = "utf-8",
-        errors: str = "strict",
-        newline: str | None = None,
-    ) -> int: ...
-
-    @overload
-    async def awrite_text(
-        self,
-        data: str,
-        encoding: None = None,
-        errors: str = "strict",
-        newline: str | None = None,
-    ) -> int: ...
 
     async def awrite_text(
         self,
@@ -106,11 +68,9 @@ class AsyncUPath(ProxyUPath):
     ) -> int:
         """Asynchronously write text to file."""
         fs = await self.afs()
-        try:
-            file = await fs.open_async(self.path, encoding=encoding, errors=errors, newline=newline)
-            return await file.read()
-        except Exception:  # noqa: BLE001
-            return await fs._pipe_file(self.path, data)
+        encoded_data = data.encode(encoding or "utf-8", errors)
+        await fs._pipe_file(self.path, encoded_data)
+        return len(data)
 
     async def aexists(self) -> bool:
         """Asynchronously check if path exists."""

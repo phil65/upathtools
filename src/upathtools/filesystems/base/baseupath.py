@@ -61,7 +61,10 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
     async def aread_bytes(self) -> bytes:
         """Asynchronously read file content as bytes."""
         fs = await self.afs()
-        return await fs._cat_file(self.path)
+        data = await fs._cat_file(self.path)
+        if isinstance(data, str):
+            return data.encode("utf-8")
+        return data
 
     @overload
     async def aread_text(
@@ -88,7 +91,9 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
         """Asynchronously read file content as text."""
         fs = await self.afs()
         data = await fs._cat_file(self.path)
-        return data.decode(encoding or "utf-8", errors)
+        if isinstance(data, bytes):
+            return data.decode(encoding or "utf-8", errors)
+        return data  # Already a string
 
     async def awrite_bytes(self, data: bytes) -> int:
         """Asynchronously write bytes to file."""
