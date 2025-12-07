@@ -14,6 +14,7 @@ from upathtools.filesystems.base.file_objects import AsyncBufferedFile
 if TYPE_CHECKING:
     from re import Pattern
 
+    from upathtools.async_upath import AsyncUPath
     from upathtools.filetree import SortCriteria
 
 
@@ -63,14 +64,31 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         """
         return await super()._glob(path, maxdepth=maxdepth, detail=detail, **kwargs)  # pyright: ignore[reportReturnType]
 
-    def get_upath(self, path: str | None = None) -> TPath:
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...
+
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[False] = False) -> TPath: ...
+
+    @overload
+    def get_upath(
+        self, path: str | None = None, *, as_async: bool = False
+    ) -> TPath | AsyncUPath: ...
+
+    def get_upath(self, path: str | None = None, *, as_async: bool = False) -> TPath | AsyncUPath:
         """Get a UPath object for the given path.
 
         Args:
             path: The path to the file or directory. If None, the root path is returned.
+            as_async: If True, return an AsyncUPath wrapper
         """
+        from upathtools.async_upath import AsyncUPath
+
         path_obj = self.upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
+
+        if as_async:
+            return AsyncUPath._from_upath(path_obj)
         return path_obj
 
     async def open_async(
@@ -213,14 +231,31 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
         """
         return super().glob(path, maxdepth=maxdepth, detail=detail, **kwargs)  # pyright: ignore[reportReturnType]
 
-    def get_upath(self, path: str | None = None) -> TPath:
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...
+
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[False] = False) -> TPath: ...
+
+    @overload
+    def get_upath(
+        self, path: str | None = None, *, as_async: bool = False
+    ) -> TPath | AsyncUPath: ...
+
+    def get_upath(self, path: str | None = None, *, as_async: bool = False) -> TPath | AsyncUPath:
         """Get a UPath object for the given path.
 
         Args:
             path: The path to the file or directory. If None, the root path is returned.
+            as_async: If True, return an AsyncUPath wrapper
         """
+        from upathtools.async_upath import AsyncUPath
+
         path_obj = self.upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
+
+        if as_async:
+            return AsyncUPath._from_upath(path_obj)
         return path_obj
 
     @overload
