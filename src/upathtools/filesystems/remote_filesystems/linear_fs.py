@@ -18,6 +18,9 @@ if TYPE_CHECKING:
     import httpx
 
 
+GroupBy = Literal["project"] | None
+
+
 class LinearIssueInfo(FileInfo, total=False):
     """Info dict for Linear Issues filesystem paths."""
 
@@ -36,6 +39,7 @@ class LinearIssueInfo(FileInfo, total=False):
     labels: list[str] | None
     assignee: str | None
     project: str | None
+    project_id: str | None
 
 
 class LinearCommentInfo(FileInfo, total=False):
@@ -48,6 +52,19 @@ class LinearCommentInfo(FileInfo, total=False):
     created_at: str | None
     updated_at: str | None
     author: str | None
+
+
+class LinearProjectInfo(FileInfo, total=False):
+    """Info dict for Linear project directories."""
+
+    size: int
+    project_id: str
+    project_name: str
+    description: str | None
+    state: str | None
+    url: str | None
+    created_at: str | None
+    updated_at: str | None
 
 
 logger = logging.getLogger(__name__)
@@ -65,12 +82,13 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
     Provides read/write access to Linear issues as files.
     Each issue is represented as a markdown file.
 
-    URL format: linear://team_key/TEAM-123.md (flat mode)
-    URL format: linear://team_key/TEAM-123/issue.md (extended mode)
+    Structure depends on parameters:
+    - extended=False, group_by=None: linear:///PHI-123.md (flat)
+    - extended=True, group_by=None: linear:///PHI-123/issue.md + comments/
+    - extended=False, group_by="project": linear:///ProjectName/PHI-123.md
+    - extended=True, group_by="project": linear:///ProjectName/PHI-123/issue.md + comments/
 
-    In extended mode, issues are folders containing:
-    - issue.md: The main issue content
-    - comments/001.md, 002.md, etc.: Comments on the issue
+    Issues without a project appear under "_unassigned/" when group_by="project".
     """
 
     protocol = "linear"
@@ -79,9 +97,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
     def __init__(
         self,
-        team_key: str | None = None,
         api_key: str | None = None,
         extended: bool = False,
+        group_by: GroupBy = None,
         timeout: float | None = None,
         loop: Any = None,
         client_kwargs: dict[str, Any] | None = None,
@@ -90,9 +108,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         """Initialize the filesystem.
 
         Args:
-            team_key: Linear team key (e.g., "ENG")
             api_key: Linear API key for authentication
             extended: If True, issues are folders with comments as sub-files
+            group_by: How to group issues. None for flat, "project" for project folders
             timeout: Connection timeout in seconds
             loop: Event loop for async operations
             client_kwargs: Additional arguments for httpx client
@@ -100,17 +118,12 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         """
         super().__init__(loop=loop, **kwargs)
 
-        self.team_key = team_key
         self.api_key = api_key or os.environ.get("LINEAR_API_KEY")
         self.extended = extended
+        self.group_by = group_by
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
         self._session: httpx.AsyncClient | None = None
-        self._team_id: str | None = None
-
-        if not team_key:
-            msg = "team_key must be provided"
-            raise ValueError(msg)
 
         if not self.api_key:
             msg = "api_key must be provided or LINEAR_API_KEY environment variable must be set"
@@ -126,7 +139,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
     @property
     def fsid(self) -> str:
         """Filesystem ID."""
-        return f"linear-{self.team_key}"
+        return f"linear-{self.group_by or 'flat'}"
 
     async def set_session(self) -> httpx.AsyncClient:
         """Set up and return the httpx async client."""
@@ -160,17 +173,8 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
     @classmethod
     def _get_kwargs_from_urls(cls, path: str) -> dict[str, Any]:
-        """Parse URL into constructor kwargs.
-
-        URL format: linear://team_key/path
-        """
-        so = infer_storage_options(path)
-        out: dict[str, Any] = {}
-
-        if so.get("host"):
-            out["team_key"] = so["host"]
-
-        return out
+        """Parse URL into constructor kwargs."""
+        return {}
 
     async def _graphql_request(
         self,
@@ -208,34 +212,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return result.get("data", {})
 
-    async def _get_team_id(self) -> str:
-        """Get the team ID from the team key."""
-        if self._team_id is not None:
-            return self._team_id
-
-        query = """
-        query GetTeam($filter: TeamFilter) {
-            teams(filter: $filter, first: 1) {
-                nodes {
-                    id
-                    key
-                    name
-                }
-            }
-        }
-        """
-        variables = {"filter": {"key": {"eq": self.team_key}}}
-        data = await self._graphql_request(query, variables)
-
-        teams = data.get("teams", {}).get("nodes", [])
-        if not teams:
-            msg = f"Team not found: {self.team_key}"
-            raise FileNotFoundError(msg)
-
-        self._team_id = teams[0]["id"]
-        return self._team_id
-
-    async def _fetch_issue(self, identifier: str) -> dict[str, Any]:
+    async def _fetch_issue_by_identifier(self, identifier: str) -> dict[str, Any]:
         """Fetch a specific issue by identifier.
 
         Args:
@@ -253,6 +230,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             if len(parts) != 2:
                 raise ValueError("Invalid identifier format")
             issue_number = int(parts[1])
+            team_key = parts[0]
         except (ValueError, IndexError):
             msg = f"Invalid issue identifier format: {identifier}"
             raise FileNotFoundError(msg) from None
@@ -284,13 +262,22 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                         }
                     }
                     project {
+                        id
                         name
+                    }
+                    team {
+                        key
                     }
                 }
             }
         }
         """
-        variables = {"filter": {"number": {"eq": issue_number}}}
+        variables = {
+            "filter": {
+                "number": {"eq": issue_number},
+                "team": {"key": {"eq": team_key}},
+            }
+        }
         data = await self._graphql_request(query, variables)
 
         issues = data.get("issues", {}).get("nodes", [])
@@ -298,7 +285,6 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             msg = f"Issue not found: {identifier}"
             raise FileNotFoundError(msg)
 
-        # Verify the identifier matches (in case of team key mismatch)
         found_issue = issues[0]
         if found_issue.get("identifier") != identifier:
             msg = f"Issue not found: {identifier}"
@@ -306,49 +292,49 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return found_issue
 
-    async def _fetch_issues(self) -> list[dict[str, Any]]:
-        """Fetch all issues for the team.
+    async def _fetch_all_issues(self) -> list[dict[str, Any]]:
+        """Fetch all issues accessible to the user.
 
         Returns:
             List of issue data dictionaries
         """
-        team_id = await self._get_team_id()
-
         query = """
-        query GetTeamIssues($teamId: String!, $after: String) {
-            team(id: $teamId) {
-                issues(first: 100, after: $after) {
-                    nodes {
+        query GetAllIssues($after: String) {
+            issues(first: 100, after: $after) {
+                nodes {
+                    id
+                    identifier
+                    title
+                    description
+                    url
+                    createdAt
+                    updatedAt
+                    dueDate
+                    priority
+                    priorityLabel
+                    state {
+                        name
+                    }
+                    assignee {
+                        name
+                        email
+                    }
+                    labels {
+                        nodes {
+                            name
+                        }
+                    }
+                    project {
                         id
-                        identifier
-                        title
-                        description
-                        url
-                        createdAt
-                        updatedAt
-                        dueDate
-                        priority
-                        priorityLabel
-                        state {
-                            name
-                        }
-                        assignee {
-                            name
-                            email
-                        }
-                        labels {
-                            nodes {
-                                name
-                            }
-                        }
-                        project {
-                            name
-                        }
+                        name
                     }
-                    pageInfo {
-                        hasNextPage
-                        endCursor
+                    team {
+                        key
                     }
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
                 }
             }
         }
@@ -357,12 +343,12 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         cursor: str | None = None
 
         while True:
-            variables: dict[str, Any] = {"teamId": team_id}
+            variables: dict[str, Any] = {}
             if cursor:
                 variables["after"] = cursor
 
             data = await self._graphql_request(query, variables)
-            issues_data = data.get("team", {}).get("issues", {})
+            issues_data = data.get("issues", {})
             issues = issues_data.get("nodes", [])
             all_issues.extend(issues)
 
@@ -372,6 +358,56 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             cursor = page_info.get("endCursor")
 
         return all_issues
+
+    async def _fetch_projects(self) -> list[dict[str, Any]]:
+        """Fetch all projects.
+
+        Returns:
+            List of project data dictionaries
+        """
+        cache_key = "_projects"
+        if cache_key in self.dircache:
+            return self.dircache[cache_key]
+
+        query = """
+        query GetProjects($after: String) {
+            projects(first: 100, after: $after) {
+                nodes {
+                    id
+                    name
+                    description
+                    url
+                    state
+                    createdAt
+                    updatedAt
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
+        """
+        all_projects: list[dict[str, Any]] = []
+        cursor: str | None = None
+
+        while True:
+            variables: dict[str, Any] = {}
+            if cursor:
+                variables["after"] = cursor
+
+            data = await self._graphql_request(query, variables)
+            projects_data = data.get("projects", {})
+            projects = projects_data.get("nodes", [])
+            all_projects.extend(projects)
+
+            page_info = projects_data.get("pageInfo", {})
+            if not page_info.get("hasNextPage"):
+                break
+            cursor = page_info.get("endCursor")
+
+        self.dircache[cache_key] = all_projects
+        return all_projects
 
     async def _fetch_comments(self, issue_id: str) -> list[dict[str, Any]]:
         """Fetch comments for an issue.
@@ -424,21 +460,57 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return all_comments
 
-    async def _get_all_issues(self) -> list[LinearIssueInfo]:
-        """Get all issues as LinearIssueInfo objects."""
+    async def _get_all_issues_cached(self) -> list[dict[str, Any]]:
+        """Get all issues with caching."""
         cache_key = "_issues"
         if cache_key in self.dircache:
             return self.dircache[cache_key]
 
-        issues = await self._fetch_issues()
-        out = [_issue_to_info(issue, extended=self.extended) for issue in issues]
-        self.dircache[cache_key] = out
-        return out
+        issues = await self._fetch_all_issues()
+        self.dircache[cache_key] = issues
+        return issues
+
+    async def _get_issues_by_project(self) -> dict[str | None, list[dict[str, Any]]]:
+        """Get issues grouped by project name.
+
+        Returns:
+            Dict mapping project name (or None for unassigned) to list of issues
+        """
+        issues = await self._get_all_issues_cached()
+        grouped: dict[str | None, list[dict[str, Any]]] = {}
+
+        for issue in issues:
+            project = issue.get("project")
+            project_name = project.get("name") if project else None
+            if project_name not in grouped:
+                grouped[project_name] = []
+            grouped[project_name].append(issue)
+
+        return grouped
+
+    def _get_issue_path(self, issue: dict[str, Any], include_project: bool = False) -> str:
+        """Get the path for an issue based on current settings."""
+        identifier = issue["identifier"]
+        project = issue.get("project")
+        project_name = project.get("name") if project else None
+
+        parts: list[str] = []
+
+        if include_project and self.group_by == "project":
+            parts.append(project_name or "_unassigned")
+
+        if self.extended:
+            parts.append(identifier)
+            parts.append("issue.md")
+        else:
+            parts.append(f"{identifier}.md")
+
+        return "/".join(parts)
 
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = ..., **kwargs: Any
-    ) -> list[LinearIssueInfo | LinearCommentInfo]: ...
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
@@ -448,75 +520,162 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[LinearIssueInfo | LinearCommentInfo] | list[str]:
-        """List contents of path.
-
-        Args:
-            path: Path to list
-            detail: Whether to include detailed information
-            **kwargs: Additional arguments
-
-        Returns:
-            List of issue/comment information or names
-        """
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+        """List contents of path."""
         path = self._strip_protocol(path or "")
-        logger.debug("Listing path: %s (extended=%s)", path, self.extended)
+        logger.debug(
+            "Listing path: %s (extended=%s, group_by=%s)", path, self.extended, self.group_by
+        )
 
+        parts = path.rstrip("/").split("/") if path else []
+
+        # Root listing
         if not path:
-            # Root - list all issues
-            results = await self._get_all_issues()
-            if detail:
-                return results
-            return [f["name"] for f in results]
+            return await self._ls_root(detail)
 
-        parts = path.rstrip("/").split("/")
+        if self.group_by == "project":
+            return await self._ls_project_mode(parts, detail)
+        return await self._ls_flat_mode(parts, detail)
 
-        if self.extended:
-            # Extended mode: issues are directories
-            identifier = parts[0]
+    async def _ls_root(
+        self, detail: bool
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+        """List root directory."""
+        if self.group_by == "project":
+            # List projects as directories
+            grouped = await self._get_issues_by_project()
+            results: list[LinearProjectInfo] = []
 
-            if len(parts) == 1:
-                # Listing issue directory - show issue.md and comments/
-                issue = await self._fetch_issue(identifier)
-                results: list[LinearIssueInfo | LinearCommentInfo] = [
-                    LinearIssueInfo(
-                        name=f"{identifier}/issue.md",
-                        type="file",
-                        size=len((issue.get("description") or "").encode()),
-                    ),
-                    LinearIssueInfo(
-                        name=f"{identifier}/comments",
+            # Add project directories
+            projects = await self._fetch_projects()
+            project_names = {p["name"] for p in projects}
+
+            for project in projects:
+                if project["name"] in grouped:
+                    results.append(_project_to_info(project))
+
+            # Add _unassigned if there are unassigned issues
+            if None in grouped:
+                results.append(
+                    LinearProjectInfo(
+                        name="_unassigned",
                         type="directory",
                         size=0,
-                    ),
-                ]
-                if detail:
-                    return results
-                return [f["name"] for f in results]
+                        project_id="",
+                        project_name="_unassigned",
+                        description="Issues not assigned to any project",
+                    )
+                )
 
-            if len(parts) == 2 and parts[1] == "comments":
-                # Listing comments directory
-                issue = await self._fetch_issue(identifier)
-                comments = await self._fetch_comments(issue["id"])
-                results = [
-                    _comment_to_info(comment, identifier, idx)
-                    for idx, comment in enumerate(comments, 1)
-                ]
-                if detail:
-                    return results
-                return [f["name"] for f in results]
+            # Add projects that have issues but weren't in the projects query
+            for project_name in grouped:
+                if project_name is not None and project_name not in project_names:
+                    results.append(
+                        LinearProjectInfo(
+                            name=project_name,
+                            type="directory",
+                            size=0,
+                            project_id="",
+                            project_name=project_name,
+                        )
+                    )
 
-        # Flat mode or specific file - check if it's a valid issue
-        identifier = parts[0].removesuffix(".md")
-        try:
-            issue = await self._fetch_issue(identifier)
-            results = [_issue_to_info(issue, extended=self.extended)]
             if detail:
                 return results
-            return [f["name"] for f in results]
-        except FileNotFoundError:
-            msg = f"Path not found: {path}"
-            raise FileNotFoundError(msg) from None
+            return [r["name"] for r in results]
+
+        # Flat mode - list all issues
+        issues = await self._get_all_issues_cached()
+        results_flat = [_issue_to_info(issue, extended=self.extended) for issue in issues]
+        if detail:
+            return results_flat
+        return [r["name"] for r in results_flat]
+
+    async def _ls_project_mode(
+        self, parts: list[str], detail: bool
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+        """List in project grouping mode."""
+        project_name = parts[0]
+        actual_project_name: str | None = None if project_name == "_unassigned" else project_name
+
+        grouped = await self._get_issues_by_project()
+
+        if actual_project_name not in grouped and project_name not in grouped:
+            msg = f"Project not found: {project_name}"
+            raise FileNotFoundError(msg)
+
+        project_issues = grouped.get(actual_project_name, [])
+
+        if len(parts) == 1:
+            # List issues in project
+            results = [
+                _issue_to_info(issue, extended=self.extended, prefix=project_name)
+                for issue in project_issues
+            ]
+            if detail:
+                return results
+            return [r["name"] for r in results]
+
+        # Deeper path - delegate to issue handling
+        identifier = parts[1]
+        remaining_parts = parts[1:]
+        return await self._ls_issue_path(remaining_parts, detail, prefix=project_name)
+
+    async def _ls_flat_mode(
+        self, parts: list[str], detail: bool
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+        """List in flat mode."""
+        return await self._ls_issue_path(parts, detail)
+
+    async def _ls_issue_path(
+        self, parts: list[str], detail: bool, prefix: str | None = None
+    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+        """List issue-related paths."""
+        identifier = parts[0].removesuffix(".md")
+
+        if not self.extended:
+            # Flat mode - just return the issue
+            issue = await self._fetch_issue_by_identifier(identifier)
+            results = [_issue_to_info(issue, extended=False, prefix=prefix)]
+            if detail:
+                return results
+            return [r["name"] for r in results]
+
+        # Extended mode
+        if len(parts) == 1:
+            # Listing issue directory
+            issue = await self._fetch_issue_by_identifier(identifier)
+            base = f"{prefix}/{identifier}" if prefix else identifier
+            results: list[LinearIssueInfo | LinearCommentInfo] = [
+                LinearIssueInfo(
+                    name=f"{base}/issue.md",
+                    type="file",
+                    size=len((issue.get("description") or "").encode()),
+                ),
+                LinearIssueInfo(
+                    name=f"{base}/comments",
+                    type="directory",
+                    size=0,
+                ),
+            ]
+            if detail:
+                return results
+            return [r["name"] for r in results]
+
+        if len(parts) == 2 and parts[1] == "comments":
+            # Listing comments directory
+            issue = await self._fetch_issue_by_identifier(identifier)
+            comments = await self._fetch_comments(issue["id"])
+            base = f"{prefix}/{identifier}" if prefix else identifier
+            results = [
+                _comment_to_info(comment, base, idx) for idx, comment in enumerate(comments, 1)
+            ]
+            if detail:
+                return results
+            return [r["name"] for r in results]
+
+        msg = f"Invalid path: {'/'.join(parts)}"
+        raise FileNotFoundError(msg)
 
     ls = sync_wrapper(_ls)
 
@@ -531,15 +690,17 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         path = self._strip_protocol(path)
         parts = path.rstrip("/").split("/")
 
+        # Handle project prefix if in project mode
+        if self.group_by == "project" and len(parts) > 1:
+            parts = parts[1:]  # Skip project name
+
         if self.extended:
             identifier = parts[0]
 
             if len(parts) >= 2 and parts[1] == "issue.md":
-                # Reading main issue file
-                issue = await self._fetch_issue(identifier)
+                issue = await self._fetch_issue_by_identifier(identifier)
                 content = _format_issue_markdown(issue)
             elif len(parts) >= 3 and parts[1] == "comments":
-                # Reading a comment file
                 comment_file = parts[2].removesuffix(".md")
                 try:
                     comment_idx = int(comment_file) - 1
@@ -547,7 +708,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                     msg = f"Invalid comment path: {path}"
                     raise FileNotFoundError(msg) from None
 
-                issue = await self._fetch_issue(identifier)
+                issue = await self._fetch_issue_by_identifier(identifier)
                 comments = await self._fetch_comments(issue["id"])
 
                 if comment_idx < 0 or comment_idx >= len(comments):
@@ -559,9 +720,8 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 msg = f"Invalid path: {path}"
                 raise FileNotFoundError(msg)
         else:
-            # Flat mode
             identifier = parts[0].removesuffix(".md")
-            issue = await self._fetch_issue(identifier)
+            issue = await self._fetch_issue_by_identifier(identifier)
             content = _format_issue_markdown(issue)
 
         content_bytes = content.encode()
@@ -580,9 +740,10 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         value: bytes,
         *,
         title: str | None = None,
+        team_id: str | None = None,
         state_id: str | None = None,
         priority: int | None = None,
-        labels: list[str] | None = None,
+        project_id: str | None = None,
         assignee_id: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -595,14 +756,19 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             path: Issue identifier to update, or path for new issue
             value: Issue/comment body content (markdown)
             title: Issue title (if not provided, extracted from first # heading)
+            team_id: Team ID for new issues (required for creation)
             state_id: Workflow state ID to set
             priority: Priority level (0-4)
-            labels: List of label IDs to apply
+            project_id: Project ID to associate
             assignee_id: User ID to assign
             **kwargs: Additional arguments
         """
         path = self._strip_protocol(path)
         parts = path.rstrip("/").split("/")
+
+        # Handle project prefix
+        if self.group_by == "project" and len(parts) > 1:
+            parts = parts[1:]
 
         try:
             body = value.decode()
@@ -611,16 +777,15 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             raise ValueError(msg) from None
 
         if self.extended and len(parts) >= 3 and parts[1] == "comments":
-            # Creating/updating a comment
             identifier = parts[0]
-            issue = await self._fetch_issue(identifier)
+            issue = await self._fetch_issue_by_identifier(identifier)
             await self._create_comment(issue["id"], body)
             self.invalidate_cache()
             return
 
         # Creating/updating an issue
         if self.extended:
-            identifier = parts[0] if parts[0] != "issue.md" else None
+            identifier = parts[0] if len(parts) > 0 and parts[0] != "issue.md" else None
         else:
             identifier = parts[0].removesuffix(".md") if parts else None
 
@@ -635,9 +800,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         # Check if updating existing issue
         existing_issue: dict[str, Any] | None = None
-        if identifier:
+        if identifier and "-" in identifier:
             with contextlib.suppress(FileNotFoundError):
-                existing_issue = await self._fetch_issue(identifier)
+                existing_issue = await self._fetch_issue_by_identifier(identifier)
 
         if existing_issue:
             await self._update_issue(
@@ -646,20 +811,24 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 title=title,
                 state_id=state_id,
                 priority=priority,
+                project_id=project_id,
                 assignee_id=assignee_id,
             )
         else:
             if not title:
                 msg = "Issue title is required (pass title= or start body with '# Title')"
                 raise ValueError(msg)
+            if not team_id:
+                msg = "team_id is required for creating new issues"
+                raise ValueError(msg)
 
-            team_id = await self._get_team_id()
             await self._create_issue(
                 team_id=team_id,
                 title=title,
                 description=body,
                 state_id=state_id,
                 priority=priority,
+                project_id=project_id,
                 assignee_id=assignee_id,
             )
 
@@ -674,6 +843,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         description: str,
         state_id: str | None = None,
         priority: int | None = None,
+        project_id: str | None = None,
         assignee_id: str | None = None,
     ) -> dict[str, Any]:
         """Create a new issue."""
@@ -699,6 +869,8 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             input_data["stateId"] = state_id
         if priority is not None:
             input_data["priority"] = priority
+        if project_id:
+            input_data["projectId"] = project_id
         if assignee_id:
             input_data["assigneeId"] = assignee_id
 
@@ -718,6 +890,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         title: str | None = None,
         state_id: str | None = None,
         priority: int | None = None,
+        project_id: str | None = None,
         assignee_id: str | None = None,
     ) -> dict[str, Any]:
         """Update an existing issue."""
@@ -743,6 +916,8 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             input_data["stateId"] = state_id
         if priority is not None:
             input_data["priority"] = priority
+        if project_id:
+            input_data["projectId"] = project_id
         if assignee_id:
             input_data["assigneeId"] = assignee_id
 
@@ -779,7 +954,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return result.get("comment", {})
 
-    async def _info(self, path: str, **kwargs: Any) -> LinearIssueInfo | LinearCommentInfo:
+    async def _info(
+        self, path: str, **kwargs: Any
+    ) -> LinearIssueInfo | LinearCommentInfo | LinearProjectInfo:
         """Get info for a path."""
         path = self._strip_protocol(path)
 
@@ -788,46 +965,75 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         parts = path.rstrip("/").split("/")
 
-        if self.extended:
-            identifier = parts[0]
+        if self.group_by == "project":
+            project_name = parts[0]
 
             if len(parts) == 1:
-                # Issue directory
-                try:
-                    await self._fetch_issue(identifier)
-                    return LinearIssueInfo(name=identifier, type="directory", size=0)
-                except FileNotFoundError:
-                    msg = f"Issue not found: {identifier}"
-                    raise FileNotFoundError(msg) from None
-
-            if len(parts) == 2:
-                if parts[1] == "issue.md":
-                    issue = await self._fetch_issue(identifier)
-                    return _issue_to_info(issue, extended=True, as_file=True)
-                if parts[1] == "comments":
-                    return LinearIssueInfo(name=f"{identifier}/comments", type="directory", size=0)
-
-            if len(parts) == 3 and parts[1] == "comments":
-                comment_file = parts[2].removesuffix(".md")
-                try:
-                    comment_idx = int(comment_file) - 1
-                except ValueError:
-                    msg = f"Invalid comment path: {path}"
-                    raise FileNotFoundError(msg) from None
-
-                issue = await self._fetch_issue(identifier)
-                comments = await self._fetch_comments(issue["id"])
-
-                if comment_idx < 0 or comment_idx >= len(comments):
-                    msg = f"Comment not found: {path}"
+                # Project directory
+                grouped = await self._get_issues_by_project()
+                actual_name: str | None = None if project_name == "_unassigned" else project_name
+                if actual_name not in grouped and project_name != "_unassigned":
+                    msg = f"Project not found: {project_name}"
                     raise FileNotFoundError(msg)
+                return LinearProjectInfo(
+                    name=project_name,
+                    type="directory",
+                    size=0,
+                    project_id="",
+                    project_name=project_name,
+                )
 
-                return _comment_to_info(comments[comment_idx], identifier, comment_idx + 1)
+            # Strip project prefix for further processing
+            parts = parts[1:]
 
-        # Flat mode
+        return await self._info_issue_path(
+            parts, prefix=parts[0] if self.group_by == "project" else None
+        )
+
+    async def _info_issue_path(
+        self, parts: list[str], prefix: str | None = None
+    ) -> LinearIssueInfo | LinearCommentInfo:
+        """Get info for issue-related paths."""
         identifier = parts[0].removesuffix(".md")
-        issue = await self._fetch_issue(identifier)
-        return _issue_to_info(issue, extended=False)
+
+        if not self.extended:
+            issue = await self._fetch_issue_by_identifier(identifier)
+            return _issue_to_info(issue, extended=False, prefix=prefix)
+
+        if len(parts) == 1:
+            # Issue directory
+            await self._fetch_issue_by_identifier(identifier)
+            base = f"{prefix}/{identifier}" if prefix else identifier
+            return LinearIssueInfo(name=base, type="directory", size=0)
+
+        if len(parts) == 2:
+            if parts[1] == "issue.md":
+                issue = await self._fetch_issue_by_identifier(identifier)
+                return _issue_to_info(issue, extended=True, as_file=True, prefix=prefix)
+            if parts[1] == "comments":
+                base = f"{prefix}/{identifier}" if prefix else identifier
+                return LinearIssueInfo(name=f"{base}/comments", type="directory", size=0)
+
+        if len(parts) == 3 and parts[1] == "comments":
+            comment_file = parts[2].removesuffix(".md")
+            try:
+                comment_idx = int(comment_file) - 1
+            except ValueError:
+                msg = f"Invalid comment path: {'/'.join(parts)}"
+                raise FileNotFoundError(msg) from None
+
+            issue = await self._fetch_issue_by_identifier(identifier)
+            comments = await self._fetch_comments(issue["id"])
+
+            if comment_idx < 0 or comment_idx >= len(comments):
+                msg = f"Comment not found: {'/'.join(parts)}"
+                raise FileNotFoundError(msg)
+
+            base = f"{prefix}/{identifier}" if prefix else identifier
+            return _comment_to_info(comments[comment_idx], base, comment_idx + 1)
+
+        msg = f"Invalid path: {'/'.join(parts)}"
+        raise FileNotFoundError(msg)
 
     info = sync_wrapper(_info)  # type: ignore
 
@@ -849,23 +1055,11 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         if not path:
             return True
 
-        if not self.extended:
+        try:
+            info = await self._info(path)
+            return info.get("type") == "directory"
+        except FileNotFoundError:
             return False
-
-        parts = path.rstrip("/").split("/")
-
-        if len(parts) == 1:
-            # Issue directory
-            try:
-                await self._fetch_issue(parts[0])
-                return True
-            except FileNotFoundError:
-                return False
-
-        if len(parts) == 2 and parts[1] == "comments":
-            return True
-
-        return False
 
     isdir = sync_wrapper(_isdir)
 
@@ -891,6 +1085,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             path = self._strip_protocol(path or "")
             self.dircache.pop(path, None)
             self.dircache.pop("_issues", None)
+            self.dircache.pop("_projects", None)
 
 
 def _issue_to_info(
@@ -898,17 +1093,23 @@ def _issue_to_info(
     *,
     extended: bool = False,
     as_file: bool = False,
+    prefix: str | None = None,
 ) -> LinearIssueInfo:
     """Convert Linear API issue response to LinearIssueInfo."""
     description = issue.get("description") or ""
     identifier = issue["identifier"]
 
     if extended and not as_file:
-        name = identifier
+        name = f"{prefix}/{identifier}" if prefix else identifier
         file_type = "directory"
     else:
-        name = f"{identifier}/issue.md" if extended else f"{identifier}.md"
+        if extended:
+            name = f"{prefix}/{identifier}/issue.md" if prefix else f"{identifier}/issue.md"
+        else:
+            name = f"{prefix}/{identifier}.md" if prefix else f"{identifier}.md"
         file_type = "file"
+
+    project = issue.get("project")
 
     return LinearIssueInfo(
         name=name,
@@ -927,27 +1128,44 @@ def _issue_to_info(
         priority_label=issue.get("priorityLabel"),
         labels=[lbl["name"] for lbl in issue.get("labels", {}).get("nodes", [])],
         assignee=(issue.get("assignee", {}).get("name") if issue.get("assignee") else None),
-        project=(issue.get("project", {}).get("name") if issue.get("project") else None),
+        project=project.get("name") if project else None,
+        project_id=project.get("id") if project else None,
     )
 
 
 def _comment_to_info(
     comment: dict[str, Any],
-    issue_identifier: str,
+    issue_base: str,
     index: int,
 ) -> LinearCommentInfo:
     """Convert Linear API comment response to LinearCommentInfo."""
     body = comment.get("body") or ""
     return LinearCommentInfo(
-        name=f"{issue_identifier}/comments/{index:03d}.md",
+        name=f"{issue_base}/comments/{index:03d}.md",
         type="file",
         size=len(body.encode()),
         comment_id=comment["id"],
-        issue_identifier=issue_identifier,
+        issue_identifier=issue_base.split("/")[-1] if "/" in issue_base else issue_base,
         body=body,
         created_at=comment.get("createdAt"),
         updated_at=comment.get("updatedAt"),
         author=comment.get("user", {}).get("name") if comment.get("user") else None,
+    )
+
+
+def _project_to_info(project: dict[str, Any]) -> LinearProjectInfo:
+    """Convert Linear API project response to LinearProjectInfo."""
+    return LinearProjectInfo(
+        name=project["name"],
+        type="directory",
+        size=0,
+        project_id=project["id"],
+        project_name=project["name"],
+        description=project.get("description"),
+        state=project.get("state"),
+        url=project.get("url"),
+        created_at=project.get("createdAt"),
+        updated_at=project.get("updatedAt"),
     )
 
 
@@ -1011,23 +1229,29 @@ if __name__ == "__main__":
     print(f"Environment LINEAR_API_KEY set: {'LINEAR_API_KEY' in os.environ}")
 
     async def main() -> None:
-        # Example usage - replace with your team key
-        fs = LinearIssueFileSystem(team_key="ENG", extended=True)
+        # Example usage - flat mode
+        print("\n=== Flat Mode ===")
+        fs = LinearIssueFileSystem(extended=False, group_by=None)
 
-        print("\nListing issues:")
+        print("\nListing all issues:")
         issues = await fs._ls("", detail=True)
-        for issue in issues[:5]:  # Show first 5
-            print(f"  {issue.get('identifier')}: {issue.get('title')} [{issue.get('state')}]")
+        for issue in issues[:5]:
+            print(f"  {issue.get('identifier')}: {issue.get('title')} [{issue.get('project')}]")
 
-        if issues:
-            first_issue = issues[0].get("identifier")
-            print(f"\nReading issue {first_issue}:")
-            content = await fs._cat_file(f"{first_issue}/issue.md")
-            print(content.decode()[:500])
+        # Example usage - project grouped mode
+        print("\n=== Project Grouped Mode ===")
+        fs_proj = LinearIssueFileSystem(extended=True, group_by="project")
 
-            print(f"\nListing comments for {first_issue}:")
-            comments = await fs._ls(f"{first_issue}/comments", detail=True)
-            for comment in comments[:3]:
-                print(f"  {comment.get('name')}: by {comment.get('author')}")
+        print("\nListing root (projects):")
+        projects = await fs_proj._ls("", detail=True)
+        for proj in projects:
+            print(f"  📁 {proj.get('name')}")
+
+        if projects:
+            first_proj = projects[0].get("name")
+            print(f"\nListing issues in {first_proj}:")
+            proj_issues = await fs_proj._ls(first_proj, detail=True)
+            for issue in proj_issues[:3]:
+                print(f"  {issue.get('name')}")
 
     asyncio.run(main())

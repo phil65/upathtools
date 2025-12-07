@@ -10,6 +10,7 @@ from upathtools.filesystems.remote_filesystems.linear_fs import (
     LinearIssueFileSystem,
     LinearIssueInfo,
     LinearIssuePath,
+    LinearProjectInfo,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "LinearIssueFileSystem",
     "LinearIssueInfo",
     "LinearIssuePath",
+    "LinearProjectInfo",
 ]
