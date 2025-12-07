@@ -86,7 +86,7 @@ issues = "upathtools.filesystems:IssuePath"
 [project.optional-dependencies]
 appwrite = ["appwrite"]
 beam = ["beam-client>=0.2.187"]
-daytona = ["daytona"]
+daytona = ["daytona; python_version < '3.14'"]
 e2b = ["e2b-code-interpreter"]
 gitlab = ["python-gitlab>=7.0.0"]
 httpx = ["httpx", "yarl", "brotli"]
