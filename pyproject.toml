@@ -1,6 +1,8 @@
+#:tombi schema.strict = false
+
 [project]
 name = "upathtools"
-version = "1.0.2"
+version = "1.12.5"
 description = "UPath utilities"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -40,35 +42,69 @@ Issues = "https://github.com/phil65/upathtools/issues"
 Source = "https://github.com/phil65/upathtools"
 
 [project.entry-points."fsspec.specs"]
-gist = "upathtools.filesystems.gist_fs.GistFS"
-wiki = "upathtools.filesystems.wiki_fs.WikiFS"
-markdown = "upathtools.filesystems.markdown_fs.MarkdownFS"
-distribution = "upathtools.filesystems.distribution_fs.DistributionFS"
-pkg = "upathtools.filesystems.package_fs.PackageFS"
-mod = "upathtools.filesystems.module_fs.ModuleFS"
-ast = "upathtools.filesystems.python_ast_fs.PythonAstFS"
-notion = "upathtools.filesystems.notion_fs.NotionFS"
-appwrite = "upathtools.filesystems.appwrite_fs.AppwriteFS"
-flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionFS"
-cli = "upathtools.filesystems.cli_fs.CliFS"
+gist = "upathtools.filesystems:GistFileSystem"
+wiki = "upathtools.filesystems:WikiFileSystem"
+markdown = "upathtools.filesystems:MarkdownFileSystem"
+distribution = "upathtools.filesystems:DistributionFileSystem"
+pkg = "upathtools.filesystems:PackageFileSystem"
+mod = "upathtools.filesystems:ModuleFileSystem"
+ast = "upathtools.filesystems:PythonAstFileSystem"
+notion = "upathtools.filesystems:NotionFileSystem"
+appwrite = "upathtools.filesystems:AppwriteFileSystem"
+flatunion = "upathtools.filesystems:FlatUnionFileSystem"
+cli = "upathtools.filesystems:CliFileSystem"
+mcp = "upathtools.filesystems:MCPFileSystem"
+openapi = "upathtools.filesystems:OpenAPIFileSystem"
+basemodel = "upathtools.filesystems:BaseModelFileSystem"
+typeadapter = "upathtools.filesystems:TypeAdapterFileSystem"
+sqlite = "upathtools.filesystems:SqliteFileSystem"
+ts = "upathtools.filesystems:TreeSitterFileSystem"
+gitlab = "upathtools.filesystems:GitLabFileSystem"
+issues = "upathtools.filesystems:IssueFileSystem"
 
 [project.entry-points."universal_pathlib.implementations"]
-gist = "upathtools.filesystems.gist_fs.GistPath"
-wiki = "upathtools.filesystems.wiki_fs.WikiPath"
-markdown = "upathtools.filesystems.markdown_fs.MarkdownPath"
-distribution = "upathtools.filesystems.distribution_fs.DistributionPath"
-pkg = "upathtools.filesystems.package_fs.PackagePath"
-mod = "upathtools.filesystems.module_fs.ModulePath"
-ast = "upathtools.filesystems.python_ast_fs.PythonAstPath"
-notion = "upathtools.filesystems.notion_fs.NotionPath"
-appwrite = "upathtools.filesystems.appwrite_fs.AppwritePath"
-flatunion = "upathtools.filesystems.flat_union_fs.FlatUnionPath"
-cli = "upathtools.filesystems.cli_fs.CliPath"
+gist = "upathtools.filesystems:GistPath"
+wiki = "upathtools.filesystems:WikiPath"
+markdown = "upathtools.filesystems:MarkdownPath"
+distribution = "upathtools.filesystems:DistributionPath"
+pkg = "upathtools.filesystems:PackagePath"
+mod = "upathtools.filesystems:ModulePath"
+ast = "upathtools.filesystems:PythonAstPath"
+notion = "upathtools.filesystems:NotionPath"
+appwrite = "upathtools.filesystems:AppwritePath"
+flatunion = "upathtools.filesystems:FlatUnionPath"
+cli = "upathtools.filesystems:CliPath"
+mcp = "upathtools.filesystems:MCPPath"
+basemodel = "upathtools.filesystems:BaseModelPath"
+typeadapter = "upathtools.filesystems:TypeAdapterPath"
+openapi = "upathtools.filesystems:OpenAPIPath"
+sqlite = "upathtools.filesystems:SqlitePath"
+ts = "upathtools.filesystems:TreeSitterPath"
+gitlab = "upathtools.filesystems:GitLabPath"
+issues = "upathtools.filesystems:IssuePath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
-httpx = ["httpx", "yarl"]
+beam = [
+  "beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"
+]
+daytona = ["daytona; python_version < '3.14'"]
+e2b = ["e2b-code-interpreter"]
+gitlab = ["python-gitlab>=7.0.0"]
+httpx = ["httpx", "yarl", "brotli"]
+mcp = ["fastmcp", "mcp"]
+microsandbox = ["microsandbox"]
+modal = ["modal"]
 notion-client = ["notion-client"]
+openapi3 = ["openapi3"]
+sqlite = ["sqlalchemy[aiosqlite]"]
+tree-sitter = [
+  "tree-sitter>=0.25.2",
+  "tree-sitter-python>=0.25.0",
+  "tree-sitter-c>=0.24.1",
+  "tree-sitter-javascript>=0.25.0",
+]
+vercel = ["vercel"]
 
 [dependency-groups]
 dev = [
@@ -89,6 +125,12 @@ lint = [
   "mypy; python_version >= '3.14'",
   "mypy[faster-cache]; python_version < '3.14'",
   "ruff",
+  "types-Authlib",
+  "types-PyYAML",
+  "types-Pygments",
+  "types-jsonschema",
+  "types-protobuf",
+  "types-requests",
   # Only add below (Copier)
 ]
 
@@ -119,7 +161,7 @@ docstring-style = "google"
 
 [tool.mypy]
 python_version = "3.13"
-disable_error_code = ["misc", "import"]
+disable_error_code = ["import"]
 pretty = true
 check_untyped_defs = true
 exclude = ["venv/", ".venv/", "tests/"]
@@ -144,20 +186,21 @@ reportUnannotatedClassAttribute = false
 reportSelfClsParameterName = false
 reportPrivateImportUsage = false
 
-[tool.pytest.ini_options]
-addopts = "-m 'not integration'"
+[tool.pytest]
+addopts = ["-m", "not integration"]
 log_cli = true
 log_date_format = "%Y-%m-%d %H:%M:%S"
 log_format = "%(asctime)s %(levelname)s %(message)s"
 markers = [
   "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
-testpaths = "tests/"
-asyncio_default_fixture_loop_scope = "function"
+minversion = "9.0"
+testpaths = ["tests/"]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 
 [tool.ruff]
-line-length = 90
+line-length = 100
 extend-exclude = ["docs"]
 target-version = "py313"
 
@@ -250,6 +293,8 @@ ignore = [
   "D408",  # Section underline should be in the line following the section's name ("{name}")
   "D409",  # Section underline should match the length of its name ("{name}")
   "D413",  # Missing blank line after last section ("{name}")
+  "EM101",  # Exception must not use a string literal, assign to variable first
+  "EM102",  # Exception must not use an f-string literal, assign to variable first
   "ISC001",
   "PLC0415",
   "PLR0912",  # Too many branches

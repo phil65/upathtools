@@ -9,15 +9,10 @@ import io
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec.asyn import (
-    AbstractAsyncStreamedFile,
-    AsyncFileSystem,
-    sync,
-    sync_wrapper,
-)
+from fsspec.asyn import AbstractAsyncStreamedFile, sync, sync_wrapper
 from fsspec.caching import AllBytes
 from fsspec.callbacks import DEFAULT_CALLBACK
 from fsspec.exceptions import FSTimeoutError
@@ -29,14 +24,32 @@ from fsspec.utils import (
     nullcontext,
     tokenize,
 )
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     import httpx
+    from httpx import Response
     from yarl import URL
+
+
+class HttpInfo(FileInfo, total=False):
+    """Info dict for HTTP filesystem paths."""
+
+    size: int | None
+    mimetype: str | None
+    partial: bool | None
+    url: str | None
+    ETag: str | None
+    Content_MD5: str | None
+    Digest: str | None
+    # Additional fields that may be present
+    last_modified: str | None
+    content_type: str | None
+    etag: str | None
 
 
 # URL pattern in HTML href tags
@@ -46,7 +59,7 @@ URL_PATTERN = re.compile(r"""(?P<url>http[s]?://[-a-zA-Z0-9@:%_+.~#?&/=]+)""")
 logger = logging.getLogger("fsspec.http")
 
 
-class HttpPath(UPath):
+class HttpPath(BaseUPath[HttpInfo]):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -59,10 +72,12 @@ async def get_client(**kwargs: Any) -> httpx.AsyncClient:
     return httpx.AsyncClient(follow_redirects=True, **kwargs)
 
 
-class HTTPFileSystem(AsyncFileSystem):
+class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
     """Simple File-System for fetching data via HTTP(S)."""
 
     sep = "/"
+    # protocol = "http"
+    upath_cls = HttpPath
 
     def __init__(
         self,
@@ -71,13 +86,13 @@ class HTTPFileSystem(AsyncFileSystem):
         same_scheme: bool = True,
         size_policy: str | None = None,
         cache_type: str = "bytes",
-        cache_options: dict | None = None,
+        cache_options: dict[str, Any] | None = None,
         asynchronous: bool = False,
         loop: Any = None,
-        client_kwargs: dict | None = None,
+        client_kwargs: dict[str, Any] | None = None,
         get_client: Any = get_client,
         encoded: bool = False,
-        **storage_options,
+        **storage_options: Any,
     ) -> None:
         """Initialize the filesystem."""
         super().__init__(asynchronous=asynchronous, loop=loop, **storage_options)
@@ -98,10 +113,6 @@ class HTTPFileSystem(AsyncFileSystem):
         request_options.pop("max_paths", None)
         request_options.pop("skip_instance_cache", None)
         self.kwargs = request_options
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return HttpPath(path)
 
     @property
     def fsid(self) -> str:
@@ -141,9 +152,7 @@ class HTTPFileSystem(AsyncFileSystem):
         par = super()._parent(path)
         return par if len(par) > 7 else ""  # noqa: PLR2004
 
-    async def _get_decompressor(
-        self, response: httpx.Response
-    ) -> Callable[[bytes], bytes] | None:
+    async def _get_decompressor(self, response: httpx.Response) -> Callable[[bytes], bytes] | None:
         """Get decompressor based on Content-Encoding header."""
         encoding = response.headers.get("Content-Encoding", "").lower()
         if encoding == "gzip":
@@ -156,7 +165,7 @@ class HTTPFileSystem(AsyncFileSystem):
             return zlib.decompress
         if encoding == "br":
             try:
-                import brotli  # pyright: ignore
+                import brotli
 
             except ImportError:
                 msg = "brotli module is required for brotli decompression"
@@ -166,7 +175,12 @@ class HTTPFileSystem(AsyncFileSystem):
 
         return None
 
-    async def _ls_real(self, url: str, detail: bool = True, **kwargs: Any) -> list | dict:
+    async def _ls_real(
+        self,
+        url: str,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
         """List contents of a URL path."""
         from urllib.parse import urlparse
 
@@ -227,23 +241,33 @@ class HTTPFileSystem(AsyncFileSystem):
             ]
         return sorted(out)
 
-    async def _ls(self, url: str, detail: bool = True, **kwargs: Any) -> list | dict:
+    @overload
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[HttpInfo]: ...
+
+    @overload
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
+
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[HttpInfo] | list[str]:
         """List directory contents."""
-        if self.use_listings_cache and url in self.dircache:
-            out = self.dircache[url]
+        if self.use_listings_cache and path in self.dircache:
+            out = self.dircache[path]
         else:
             try:
-                out = await self._ls_real(url, detail=detail, **kwargs)
+                out = await self._ls_real(path, detail=detail, **kwargs)
                 if not out:
-                    raise FileNotFoundError(url)  # noqa: TRY301
+                    raise FileNotFoundError(path)  # noqa: TRY301
                 if self.use_listings_cache:
-                    self.dircache[url] = out
+                    self.dircache[path] = out
             except Exception as e:
-                raise FileNotFoundError(url) from e
+                raise FileNotFoundError(path) from e
 
         if detail:
-            return out
-        return sorted(out)
+            return out  # pyright: ignore[reportReturnType]
+        return sorted(out)  # pyright: ignore[reportArgumentType]
 
     ls = sync_wrapper(_ls)
 
@@ -254,7 +278,11 @@ class HTTPFileSystem(AsyncFileSystem):
         response.raise_for_status()
 
     async def _cat_file(
-        self, url: str, start: int | None = None, end: int | None = None, **kwargs
+        self,
+        url: str,
+        start: int | None = None,
+        end: int | None = None,
+        **kwargs: Any,
     ) -> bytes:
         kw = self.kwargs.copy()
         kw.update(kwargs)
@@ -346,9 +374,7 @@ class HTTPFileSystem(AsyncFileSystem):
             msg = f"method must be either 'post' or 'put', not: {method!r}"
             raise ValueError(msg)
 
-        r = await getattr(session, method)(
-            str(self.encode_url(rpath)), content=gen_chunks(), **kw
-        )
+        r = await getattr(session, method)(str(self.encode_url(rpath)), content=gen_chunks(), **kw)
         self._raise_not_found_for_status(r, rpath)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
@@ -433,12 +459,16 @@ class HTTPFileSystem(AsyncFileSystem):
         )
 
     async def open_async(
-        self, path: str, mode: str = "rb", size: int | None = None, **kwargs
+        self,
+        path: str,
+        mode: str = "rb",
+        size: int | None = None,
+        **kwargs: Any,
     ) -> AsyncStreamFile:
         session = await self.set_session()
         if size is None:
             with contextlib.suppress(FileNotFoundError):
-                size = (await self._info(path, **kwargs))["size"]
+                size = (await self._info(path, **kwargs)).get("size")
         return AsyncStreamFile(
             self,
             path,
@@ -488,7 +518,7 @@ class HTTPFileSystem(AsyncFileSystem):
         r = await session.put(str(self.encode_url(url)), content=value, **kw)
         self._raise_not_found_for_status(r, url)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> HttpInfo:
         """Get info of URL."""
         info = {}
         session = await self.set_session()
@@ -511,9 +541,9 @@ class HTTPFileSystem(AsyncFileSystem):
                     raise FileNotFoundError(path) from exc
                 logger.debug("HEAD request failed", exc_info=exc)
 
-        return {"name": path, "size": None, **info, "type": "file"}
+        return {"name": path, "size": None, **info, "type": "file"}  # type: ignore[return-value, typeddict-item]
 
-    async def _glob(self, path: str, maxdepth: int | None = None, **kwargs):
+    async def _glob(self, path: str, maxdepth: int | None = None, **kwargs: Any):
         """Find files by glob-matching."""
         if maxdepth is not None and maxdepth < 1:
             msg = "maxdepth must be at least 1"
@@ -552,9 +582,7 @@ class HTTPFileSystem(AsyncFileSystem):
             else:
                 depth = None  # type: ignore
 
-        allpaths = await self._find(
-            root, maxdepth=depth, withdirs=True, detail=True, **kwargs
-        )
+        allpaths = await self._find(root, maxdepth=depth, withdirs=True, detail=True, **kwargs)
 
         pattern = glob_translate(path + ("/" if ends_with_slash else ""))
         pattern = re.compile(pattern)
@@ -562,9 +590,7 @@ class HTTPFileSystem(AsyncFileSystem):
         out = {
             (
                 p.rstrip("/")
-                if not append_slash_to_dirname
-                and info["type"] == "directory"
-                and p.endswith("/")
+                if not append_slash_to_dirname and info["type"] == "directory" and p.endswith("/")
                 else p
             ): info
             for p, info in sorted(allpaths.items())  # type: ignore
@@ -738,7 +764,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.details = {"name": url, "size": None}
         super().__init__(fs=fs, path=url, mode=mode, cache_type="none", **kwargs)
 
-        async def _init():
+        async def _init() -> Response:
             assert self.session
             r = await self.session.get(str(self.fs.encode_url(url)), **kwargs)
             self.fs._raise_not_found_for_status(r, url)
@@ -842,7 +868,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.loc += num
         return data[:num]
 
-    read = sync_wrapper(_read)  # type: ignore
+    read = sync_wrapper(_read)  # pyright: ignore[reportAssignmentType]
 
     async def _close(self) -> None:
         assert self.r
@@ -878,7 +904,7 @@ class AsyncStreamFile(AbstractAsyncStreamedFile):
         super().__init__(fs=fs, path=url, mode=mode, cache_type="none")
         self.size = size
 
-    async def read(self, num: int = -1) -> bytes:
+    async def read(self, length: int = -1) -> bytes:
         assert self.session
         if self.r is None:
             r = await self.session.get(str(self.fs.encode_url(self.url)), **self.kwargs)

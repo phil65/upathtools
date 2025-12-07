@@ -5,11 +5,11 @@ from __future__ import annotations
 import importlib.util
 import os
 import pkgutil
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -18,7 +18,17 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-class PackagePath(UPath):
+class PackageInfo(TypedDict, total=False):
+    """Info dict for package filesystem paths."""
+
+    name: str
+    type: Literal["package", "module"]
+    size: int
+    mtime: float | None
+    doc: str | None
+
+
+class PackagePath(BaseUPath[PackageInfo]):
     """UPath implementation for browsing Python packages."""
 
     __slots__ = ()
@@ -34,16 +44,13 @@ class PackagePath(UPath):
         return "/" if path == "." else path
 
 
-class PackageFS(AbstractFileSystem):
+class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"
+    upath_cls = PackagePath
 
-    def __init__(
-        self,
-        package: str | types.ModuleType = "",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, package: str | types.ModuleType = "", **kwargs: Any) -> None:
         """Initialize the filesystem.
 
         Args:
@@ -58,9 +65,10 @@ class PackageFS(AbstractFileSystem):
         self.package = package if isinstance(package, str) else package.__name__
         self._module_cache: dict[str, ModuleType] = {}
 
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return PackagePath(path)
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        path = path.removeprefix("pkg://")
+        return {"package": path}
 
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
@@ -76,22 +84,15 @@ class PackageFS(AbstractFileSystem):
         return module
 
     @overload
-    def ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = True, **kwargs: Any) -> list[PackageInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str,
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | PackageInfo]:
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
@@ -100,7 +101,7 @@ class PackageFS(AbstractFileSystem):
 
         try:
             module = self._get_module(module_name)
-            contents: list[str | dict[str, Any]] = []
+            contents: list[str | PackageInfo] = []
 
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
@@ -110,13 +111,15 @@ class PackageFS(AbstractFileSystem):
                     else:
                         sub_name = f"{module_name}.{item.name}"
                         sub_module = self._get_module(sub_name)
-                        contents.append({
-                            "name": item.name,
-                            "type": "package" if item.ispkg else "module",
-                            "size": 0 if item.ispkg else 1,
-                            "mtime": self._get_mtime(sub_module),
-                            "doc": sub_module.__doc__,
-                        })
+                        contents.append(
+                            PackageInfo(
+                                name=item.name,
+                                type="package" if item.ispkg else "module",
+                                size=0 if item.ispkg else 1,
+                                mtime=self._get_mtime(sub_module),
+                                doc=sub_module.__doc__,
+                            )
+                        )
         except ImportError as exc:
             msg = f"Cannot access {path}"
             raise FileNotFoundError(msg) from exc
@@ -132,9 +135,9 @@ class PackageFS(AbstractFileSystem):
             pass
         return None
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> PackageInfo:
         """Get info about a path."""
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
@@ -143,15 +146,17 @@ class PackageFS(AbstractFileSystem):
 
         try:
             module = self._get_module(module_name)
-            type_ = "package" if hasattr(module, "__path__") else "module"
+            type_: Literal["package", "module"] = (
+                "package" if hasattr(module, "__path__") else "module"
+            )
 
-            return {
-                "name": module_name.split(".")[-1],
-                "type": type_,
-                "size": 0 if type_ == "package" else 1,
-                "mtime": self._get_mtime(module),
-                "doc": module.__doc__,
-            }
+            return PackageInfo(
+                name=module_name.split(".")[-1],
+                type=type_,
+                size=0 if type_ == "package" else 1,
+                mtime=self._get_mtime(module),
+                doc=module.__doc__,
+            )
         except ImportError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
@@ -159,7 +164,7 @@ class PackageFS(AbstractFileSystem):
     def cat(self, path: str) -> bytes:
         """Get module file content."""
         path = path.removesuffix(".py")
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         # Construct full module name
         module_name = self.package
@@ -181,12 +186,7 @@ class PackageFS(AbstractFileSystem):
 
 if __name__ == "__main__":
     # Create a filesystem instance
-    fs = PackageFS("upathtools")
+    from upath import UPath
 
-    # List files in the package
-    for path in fs.ls("/"):
-        print(path)
-
-    # Read a file from the package
-    content = fs.cat("/filesystems/package_fs")
-    print(content.decode("utf-8"))
+    fs = UPath("pkg://pydantic")
+    print(list(fs.iterdir()))

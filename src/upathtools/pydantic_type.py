@@ -38,17 +38,7 @@ if TYPE_CHECKING:
 
 
 def _convert_to_upath(value: Any) -> upath.UPath:
-    """Convert a value to a UPath object.
-
-    Args:
-        value: Input value to convert (string, PathLike, or UPath)
-
-    Returns:
-        UPath: Converted UPath object
-
-    Raises:
-        TypeError: If the value cannot be converted to a UPath
-    """
+    """Convert a value to a UPath object."""
     try:
         return upath.UPath(value)
     except (TypeError, ValueError) as e:
@@ -57,17 +47,7 @@ def _convert_to_upath(value: Any) -> upath.UPath:
 
 
 def _validate_path_exists(path: upath.UPath) -> upath.UPath:
-    """Validate that a path exists.
-
-    Args:
-        path: UPath object to validate
-
-    Returns:
-        UPath: The validated path
-
-    Raises:
-        ValueError: If the path does not exist
-    """
+    """Validate that a path exists."""
     path = upath.UPath(path)
     if not path.exists():
         msg = f"Path does not exist: {path}"
@@ -76,17 +56,7 @@ def _validate_path_exists(path: upath.UPath) -> upath.UPath:
 
 
 def _validate_is_file(path: upath.UPath) -> upath.UPath:
-    """Validate that a path points to a file.
-
-    Args:
-        path: UPath object to validate
-
-    Returns:
-        UPath: The validated path
-
-    Raises:
-        ValueError: If the path is not a file
-    """
+    """Validate that a path points to a file."""
     path = upath.UPath(path)
     if not path.is_file():
         msg = f"Path is not a file: {path}"
@@ -95,17 +65,7 @@ def _validate_is_file(path: upath.UPath) -> upath.UPath:
 
 
 def _validate_is_dir(path: upath.UPath) -> upath.UPath:
-    """Validate that a path points to a directory.
-
-    Args:
-        path: UPath object to validate
-
-    Returns:
-        UPath: The validated path
-
-    Raises:
-        ValueError: If the path is not a directory
-    """
+    """Validate that a path points to a directory."""
     path = upath.UPath(path)
     if not path.is_dir():
         msg = f"Path is not a directory: {path}"

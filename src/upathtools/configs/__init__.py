@@ -6,99 +6,21 @@ from typing import Annotated
 
 from pydantic import Field
 
-from upathtools.configs.base import FileSystemConfig, PathConfig
-from upathtools.configs.custom_fs_configs import (
-    CliFilesystemConfig,
-    DistributionFilesystemConfig,
-    FlatUnionFilesystemConfig,
-    GistFilesystemConfig,
-    HttpFilesystemConfig,
-    MarkdownFilesystemConfig,
-    ModuleFilesystemConfig,
-    PackageFilesystemConfig,
-    PythonAstFilesystemConfig,
-    UnionFilesystemConfig,
-    WikiFilesystemConfig,
-)
-from upathtools.configs.fsspec_fs_configs import (
-    ArrowFilesystemConfig,
-    DataFilesystemConfig,
-    DaskWorkerFilesystemConfig,
-    FTPFilesystemConfig,
-    GitFilesystemConfig,
-    GithubFilesystemConfig,
-    HadoopFilesystemConfig,
-    JupyterFilesystemConfig,
-    LibArchiveFilesystemConfig,
-    LocalFilesystemConfig,
-    MemoryFilesystemConfig,
-    SFTPFilesystemConfig,
-    SMBFilesystemConfig,
-    TarFilesystemConfig,
-    WebHDFSFilesystemConfig,
-    ZipFilesystemConfig,
-)
+from upathtools.configs.base import FileSystemConfig, PathConfig, URIFileSystemConfig
+from upathtools.configs.custom_fs_configs import CustomFilesystemConfig
+from upathtools.configs.fsspec_fs_configs import FsspecFilesystemConfig
 
+# Combined union of all filesystem config types
 FilesystemConfigType = Annotated[
-    CliFilesystemConfig
-    | DistributionFilesystemConfig
-    | FlatUnionFilesystemConfig
-    | GistFilesystemConfig
-    | HttpFilesystemConfig
-    | MarkdownFilesystemConfig
-    | ModuleFilesystemConfig
-    | PackageFilesystemConfig
-    | PythonAstFilesystemConfig
-    | UnionFilesystemConfig
-    | WikiFilesystemConfig
-    | ArrowFilesystemConfig
-    | DataFilesystemConfig
-    | DaskWorkerFilesystemConfig
-    | FTPFilesystemConfig
-    | GitFilesystemConfig
-    | GithubFilesystemConfig
-    | HadoopFilesystemConfig
-    | JupyterFilesystemConfig
-    | LibArchiveFilesystemConfig
-    | LocalFilesystemConfig
-    | MemoryFilesystemConfig
-    | SFTPFilesystemConfig
-    | SMBFilesystemConfig
-    | TarFilesystemConfig
-    | WebHDFSFilesystemConfig
-    | ZipFilesystemConfig,
+    CustomFilesystemConfig | FsspecFilesystemConfig | URIFileSystemConfig,
     Field(discriminator="fs_type"),
 ]
 
 __all__ = [
-    "ArrowFilesystemConfig",
-    "CliFilesystemConfig",
-    "DaskWorkerFilesystemConfig",
-    "DataFilesystemConfig",
-    "DistributionFilesystemConfig",
-    "FTPFilesystemConfig",
+    "CustomFilesystemConfig",
     "FileSystemConfig",
     "FilesystemConfigType",
-    "FlatUnionFilesystemConfig",
-    "GistFilesystemConfig",
-    "GitFilesystemConfig",
-    "GithubFilesystemConfig",
-    "HadoopFilesystemConfig",
-    "HttpFilesystemConfig",
-    "JupyterFilesystemConfig",
-    "LibArchiveFilesystemConfig",
-    "LocalFilesystemConfig",
-    "MarkdownFilesystemConfig",
-    "MemoryFilesystemConfig",
-    "ModuleFilesystemConfig",
-    "PackageFilesystemConfig",
+    "FsspecFilesystemConfig",
     "PathConfig",
-    "PythonAstFilesystemConfig",
-    "SFTPFilesystemConfig",
-    "SMBFilesystemConfig",
-    "TarFilesystemConfig",
-    "UnionFilesystemConfig",
-    "WebHDFSFilesystemConfig",
-    "WikiFilesystemConfig",
-    "ZipFilesystemConfig",
+    "URIFileSystemConfig",
 ]

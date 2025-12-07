@@ -7,21 +7,30 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, Self, TypedDict, overload
 
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
 from upath.types import UNSET_DEFAULT
+
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
     from upath.types import WritablePathLike
 
 
+class CliInfo(TypedDict, total=False):
+    """Info dict for CLI paths."""
+
+    name: Required[str]
+    type: Required[Literal["directory", "command"]]
+    size: int
+    executable: str
+
+
 logger = logging.getLogger(__name__)
 
 
-class CliPath(UPath):
+class CliPath(BaseUPath[CliInfo]):
     """UPath implementation for CLI filesystems."""
 
     __slots__ = ()
@@ -44,12 +53,13 @@ class CliPath(UPath):
         raise NotImplementedError(msg)
 
 
-class CliFS(AbstractFileSystem):
+class CliFileSystem(BaseFileSystem[CliPath, CliInfo]):
     """Filesystem for executing CLI commands and capturing their output."""
 
     protocol = "cli"
+    upath_cls = CliPath
 
-    def __init__(self, shell: bool = False, encoding: str = "utf-8", **kwargs: Any):
+    def __init__(self, shell: bool = False, encoding: str = "utf-8", **kwargs: Any) -> None:
         """Initialize the CLI filesystem.
 
         Args:
@@ -62,9 +72,9 @@ class CliFS(AbstractFileSystem):
         self.encoding = encoding
         self._available_commands: dict[str, str] | None = None
 
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return CliPath(path)
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        return {}
 
     def _get_available_commands(self) -> dict[str, str]:
         """Get mapping of available commands to their full paths."""
@@ -105,27 +115,12 @@ class CliFS(AbstractFileSystem):
         return commands
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[CliInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[CliInfo] | list[str]:
         """List available commands.
 
         Only lists root-level commands for now.
@@ -141,18 +136,16 @@ class CliFS(AbstractFileSystem):
         Raises:
             NotImplementedError: If path is not empty (subcommands not supported)
         """
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if path:
             msg = "Listing subcommands is not supported"
             raise NotImplementedError(msg)
 
         commands = self._get_available_commands()
-
         if not detail:
             return list(commands)
-
         return [
-            {"name": name, "type": "command", "size": 0, "executable": path}
+            CliInfo(name=name, type="command", size=0, executable=path)
             for name, path in commands.items()
         ]
 
@@ -169,7 +162,7 @@ class CliFS(AbstractFileSystem):
             ValueError: If path/command is empty
             subprocess.CalledProcessError: If command execution fails
         """
-        command = self._strip_protocol(path).strip("/")  # type: ignore
+        command = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not command:
             msg = "No command specified"
             raise ValueError(msg)
@@ -186,19 +179,13 @@ class CliFS(AbstractFileSystem):
             else:
                 # Split command into args
                 args = command.split()
-                result = subprocess.check_output(
-                    args,
-                    text=True,
-                    encoding=self.encoding,
-                )
+                result = subprocess.check_output(args, text=True, encoding=self.encoding)
             return result.encode(self.encoding)
 
         except subprocess.CalledProcessError as e:
-            raise subprocess.CalledProcessError(
-                e.returncode, e.cmd, e.output, e.stderr
-            ) from None
+            raise subprocess.CalledProcessError(e.returncode, e.cmd, e.output, e.stderr) from None
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> CliInfo:
         """Get information about a command.
 
         Args:
@@ -211,9 +198,9 @@ class CliFS(AbstractFileSystem):
         Raises:
             FileNotFoundError: If command doesn't exist
         """
-        command = self._strip_protocol(path).strip("/")  # type: ignore
+        command = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not command:
-            return {"name": "", "type": "directory", "size": 0}
+            return CliInfo(name="", type="directory", size=0)
 
         # Get just the command name without args
         cmd_name = command.split()[0]
@@ -223,21 +210,21 @@ class CliFS(AbstractFileSystem):
             msg = f"Command not found: {cmd_name}"
             raise FileNotFoundError(msg)
 
-        return {
-            "name": cmd_name,
-            "type": "command",
-            "size": 0,
-            "executable": commands[cmd_name],
-        }
+        return CliInfo(
+            name=cmd_name,
+            type="command",
+            size=0,
+            executable=commands[cmd_name],
+        )
 
 
 if __name__ == "__main__":
-    fs = CliFS()
+    fs = CliFileSystem()
 
     # List available commands
     print("\nAvailable commands:")
-    for cmd in fs.ls(detail=True):
-        print(f"- {cmd['name']}: {cmd['executable']}")
+    for cmd in fs.ls("", detail=True):
+        print(f"- {cmd['name']}: {cmd.get('executable')}")
 
     # Execute a command
     output = fs.cat("git --version")

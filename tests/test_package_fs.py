@@ -1,4 +1,4 @@
-"""Tests for PackageFS."""
+"""Tests for PackageFileSystem."""
 
 from __future__ import annotations
 
@@ -93,8 +93,8 @@ def test_module_not_found(example_package: str) -> None:
 
 
 def test_chained_ast_access(example_package: str, tmp_path: Path) -> None:
-    """Test chaining PackageFS with PythonAstFS."""
-    # First get the module path through PackageFS
+    """Test chaining PackageFileSystem with PythonAstFileSystem."""
+    # First get the module path through PackageFileSystem
     pkg_fs = fsspec.filesystem("pkg", package=example_package)
     module_content = pkg_fs.cat("core")
 
@@ -102,8 +102,8 @@ def test_chained_ast_access(example_package: str, tmp_path: Path) -> None:
     temp_file = tmp_path / "temp_module.py"
     temp_file.write_bytes(module_content)
 
-    # Then analyze it with PythonAstFS
-    ast_fs = fsspec.filesystem("ast", fo=str(temp_file))
+    # Then analyze it with PythonAstFileSystem
+    ast_fs = fsspec.filesystem("ast", python_file=str(temp_file))
 
     # Check if we can list the members
     members = ast_fs.ls("/", detail=True)

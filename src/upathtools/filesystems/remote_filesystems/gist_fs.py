@@ -10,27 +10,51 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec.asyn import AsyncFileSystem, sync, sync_wrapper
+from fsspec.asyn import sync, sync_wrapper
 from fsspec.utils import infer_storage_options
-from upath import UPath
+
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter, FileInfo
 
 
 if TYPE_CHECKING:
-    from collections.abc import Buffer
-
     import httpx
+
+
+class GistInfo(FileInfo, total=False):
+    """Info dict for Gist filesystem paths."""
+
+    size: int
+    description: str | None
+    created_at: str | None
+    updated_at: str | None
+    html_url: str | None
+    git_pull_url: str | None
+    git_push_url: str | None
+    gist_id: str
+    mime_type: str
+    comments: int | None
+    public: bool | None
+    owner: str | None
+    files_count: int | None
+    files_preview: list[str] | None
+    # File-specific fields from GitHub API
+    filename: str | None
+    raw_url: str | None
+    language: str | None
+    content: str | None
+    truncated: bool | None
 
 
 logger = logging.getLogger(__name__)
 
 
-class GistPath(UPath):
+class GistPath(BaseUPath[GistInfo]):
     """UPath implementation for GitHub Gist filesystem."""
 
     __slots__ = ()
 
 
-class GistFileSystem(AsyncFileSystem):
+class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
     """Filesystem for accessing GitHub Gists files.
 
     Supports both individual gists and listing all gists for a user.
@@ -38,6 +62,7 @@ class GistFileSystem(AsyncFileSystem):
     """
 
     protocol = "gist"
+    upath_cls = GistPath
     gist_url = "https://api.github.com/gists/{gist_id}"
     gist_rev_url = "https://api.github.com/gists/{gist_id}/{sha}"
     user_gists_url = "https://api.github.com/users/{username}/gists"
@@ -52,7 +77,7 @@ class GistFileSystem(AsyncFileSystem):
         timeout: int | None = None,
         asynchronous: bool = False,
         loop: Any = None,
-        client_kwargs: dict | None = None,
+        client_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -85,18 +110,8 @@ class GistFileSystem(AsyncFileSystem):
             msg = "Either gist_id, username, or token must be provided"
             raise ValueError(msg)
 
-        # Setup authentication
-        if self.token:
-            self.headers = {"Authorization": f"token {self.token}"}
-        else:
-            self.headers = {}
-
-        # Initialize cache
+        self.headers = {"Authorization": f"token {self.token}"} if self.token else {}
         self.dircache: dict[str, Any] = {}
-
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return GistPath(path)
 
     @property
     def fsid(self) -> str:
@@ -182,9 +197,7 @@ class GistFileSystem(AsyncFileSystem):
         response.raise_for_status()
         return response.json()
 
-    async def _fetch_user_gists(
-        self, page: int = 1, per_page: int = 100
-    ) -> list[dict[str, Any]]:
+    async def _fetch_user_gists(self, page: int = 1, per_page: int = 100) -> list[dict[str, Any]]:
         """Fetch gists for a user.
 
         Args:
@@ -215,7 +228,7 @@ class GistFileSystem(AsyncFileSystem):
         response.raise_for_status()
         return response.json()
 
-    async def _get_gist_file_list(self, gist_id: str) -> list[dict[str, Any]]:
+    async def _get_gist_file_list(self, gist_id: str) -> list[GistInfo]:
         """Get list of files in a specific gist.
 
         Args:
@@ -229,35 +242,29 @@ class GistFileSystem(AsyncFileSystem):
 
         # Fetch the specific gist metadata
         meta = await self._fetch_gist_metadata(gist_id)
-
-        files = meta.get("files", {})
-        out = []
-        for fname, finfo in files.items():
-            if finfo is None:
-                continue
-
-            # Enhanced file information
-            file_entry = {
-                "name": fname,
-                "type": "file",
-                "size": finfo.get("size", 0),
-                "raw_url": finfo.get("raw_url"),
-                "language": finfo.get("language"),
-                "mime_type": finfo.get("type", "text/plain"),
-                "gist_id": gist_id,
-                "gist_description": meta.get("description", ""),
-                "gist_html_url": meta.get("html_url"),
-                "created_at": meta.get("created_at"),
-                "updated_at": meta.get("updated_at"),
-                "public": meta.get("public", False),
-                "truncated": finfo.get("truncated", False),
-            }
-            out.append(file_entry)
-
+        out = [
+            GistInfo(
+                name=fname,
+                type="file",
+                size=finfo.get("size", 0),
+                raw_url=finfo.get("raw_url"),
+                language=finfo.get("language"),
+                mime_type=finfo.get("type", "text/plain"),
+                gist_id=gist_id,
+                description=meta.get("description", ""),
+                html_url=meta.get("html_url"),
+                created_at=meta.get("created_at"),
+                updated_at=meta.get("updated_at"),
+                public=meta.get("public", False),
+                truncated=finfo.get("truncated", False),
+            )
+            for fname, finfo in meta.get("files", {}).items()
+            if finfo is not None
+        ]
         self.dircache[gist_id] = out
         return out
 
-    async def _get_all_gists(self) -> list[dict[str, Any]]:
+    async def _get_all_gists(self) -> list[GistInfo]:
         """Get metadata for all gists of the user."""
         if "" in self.dircache:
             return self.dircache[""]
@@ -269,55 +276,45 @@ class GistFileSystem(AsyncFileSystem):
             gists = await self._fetch_user_gists(page=page, per_page=100)
             all_gists.extend(gists)
             page += 1
-
-        out = []
-        for gist in all_gists:
-            gist_entry = {
-                "name": gist["id"],
-                "type": "directory",
-                "description": gist.get("description", ""),
-                "created_at": gist.get("created_at"),
-                "updated_at": gist.get("updated_at"),
-                "html_url": gist.get("html_url"),
-                "git_pull_url": gist.get("git_pull_url"),
-                "git_push_url": gist.get("git_push_url"),
-                "comments": gist.get("comments", 0),
-                "public": gist.get("public", False),
-                "owner": gist.get("owner", {}).get("login")
-                if gist.get("owner")
-                else None,
-                "files_count": len(gist.get("files", {})),
+        out = [
+            GistInfo(
+                gist_id=gist["id"],
+                name=gist["id"],
+                type="directory",
+                description=gist.get("description", ""),
+                created_at=gist.get("created_at"),
+                updated_at=gist.get("updated_at"),
+                html_url=gist.get("html_url"),
+                git_pull_url=gist.get("git_pull_url"),
+                git_push_url=gist.get("git_push_url"),
+                comments=gist.get("comments", 0),
+                public=gist.get("public", False),
+                owner=gist.get("owner", {}).get("login") if gist.get("owner") else None,
+                files_count=len(gist.get("files", {})),
                 # Include truncated file names as a preview
-                "files_preview": list(gist.get("files", {}).keys()),
-                "size": sum(f.get("size", 0) for f in gist.get("files", {}).values()),
-            }
-            out.append(gist_entry)
+                files_preview=list(gist.get("files", {}).keys()),
+                size=sum(f.get("size", 0) for f in gist.get("files", {}).values()),
+            )
+            for gist in all_gists
+        ]
 
         self.dircache[""] = out
         return out
 
     @overload
     async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[GistInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[GistInfo] | list[str]:
         """List contents of path.
 
         Args:
@@ -384,12 +381,10 @@ class GistFileSystem(AsyncFileSystem):
     ) -> bytes:
         """Get contents of a file."""
         path = self._strip_protocol(path)
-
-        # Parse path into gist_id and file_name
         if self.gist_id:
             gist_id = self.gist_id
             file_name = path
-        else:
+        else:  # Parse path into gist_id and file_name
             if "/" not in path:
                 msg = f"Invalid file path: {path}"
                 raise ValueError(msg)
@@ -398,14 +393,11 @@ class GistFileSystem(AsyncFileSystem):
         # Find file info in dircache
         files = await self._get_gist_file_list(gist_id)
         matches = [f for f in files if f["name"] == file_name]
-
         if not matches:
             msg = f"File not found: {path}"
             raise FileNotFoundError(msg)
 
-        file_info = matches[0]
-        raw_url = file_info["raw_url"]
-
+        raw_url = matches[0].get("raw_url")
         if not raw_url:
             msg = f"No raw URL for file: {path}"
             raise FileNotFoundError(msg)
@@ -445,9 +437,7 @@ class GistFileSystem(AsyncFileSystem):
 
         session = await self.set_session()
         path = self._strip_protocol(path)
-
         logger.debug("Writing to path: %s", path)
-
         # Parse the path into gist_id and filename
         if self.gist_id and "/" not in path:
             # Single gist mode with just a filename
@@ -461,7 +451,6 @@ class GistFileSystem(AsyncFileSystem):
             gist_id, filename = path.split("/", 1)
 
         logger.debug("Resolved gist_id=%s, filename=%s", gist_id, filename)
-
         # Determine if we're updating an existing gist or creating a new one
         is_update = True
         try:
@@ -473,13 +462,12 @@ class GistFileSystem(AsyncFileSystem):
 
         # Convert bytes to string content
         try:
-            content = value.decode("utf-8")
+            content = value.decode()
         except UnicodeDecodeError:
             # If content is binary, base64 encode it
             content = f"base64:{base64.b64encode(value).decode('ascii')}"
 
         files_data = {filename: {"content": content}}
-
         if is_update:
             # Update existing gist
             update_url = f"https://api.github.com/gists/{gist_id}"
@@ -490,9 +478,7 @@ class GistFileSystem(AsyncFileSystem):
             # Create new gist
             create_url = "https://api.github.com/gists"
             logger.debug("Creating new gist: %s", create_url)
-            description = kwargs.get(
-                "gist_description", "Gist created via GistFileSystem"
-            )
+            description = kwargs.get("gist_description", "Gist created via GistFileSystem")
             public = kwargs.get("public", False)
             data = {"description": description, "public": public, "files": files_data}
             response = await session.post(create_url, json=data)
@@ -529,9 +515,7 @@ class GistFileSystem(AsyncFileSystem):
             filename = path
         else:
             if "/" not in path:
-                msg = (
-                    "Cannot identify file without gist_id. Use 'gist_id/filename' format"
-                )
+                msg = "Cannot identify file without gist_id. Use 'gist_id/filename' format"
                 raise ValueError(msg)
             gist_id, filename = path.split("/", 1)
 
@@ -541,9 +525,7 @@ class GistFileSystem(AsyncFileSystem):
 
         response = await session.patch(update_url, json=data)
         response.raise_for_status()
-
-        # Invalidate cache for this gist
-        self.dircache.pop(gist_id, None)
+        self.dircache.pop(gist_id, None)  # Invalidate cache for this gist
 
     rm_file = sync_wrapper(_rm_file)
 
@@ -563,7 +545,6 @@ class GistFileSystem(AsyncFileSystem):
             raise ValueError(msg)
 
         path = self._strip_protocol(path)
-
         # Determine if we're deleting a file or an entire gist
         if "/" in path or (self.gist_id and not path):
             # Path contains a filename or we're in single gist mode - delete file
@@ -592,16 +573,16 @@ class GistFileSystem(AsyncFileSystem):
 
     rm = sync_wrapper(_rm)
 
-    async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _info(self, path: str, **kwargs: Any) -> GistInfo:
         """Get info about a path."""
         path = self._strip_protocol(path)
         if not path:
-            return {
-                "name": "",
-                "type": "directory",
-                "size": 0,
-                "description": "Root directory listing gists",
-            }
+            return GistInfo(
+                name="",
+                type="directory",
+                size=0,
+                description="Root directory listing gists",
+            )
 
         parts = path.split("/")
         if len(parts) == 1:
@@ -613,7 +594,18 @@ class GistFileSystem(AsyncFileSystem):
                     if not matches:
                         msg = f"File not found: {path}"
                         raise FileNotFoundError(msg)  # noqa: TRY301
-                    return matches[0]
+                    file_info = matches[0]
+                    return GistInfo(
+                        name=file_info.get("name", path),
+                        type="file",
+                        size=file_info.get("size", 0),
+                        description=file_info.get("description"),
+                        filename=file_info.get("filename"),
+                        raw_url=file_info.get("raw_url"),
+                        language=file_info.get("language"),
+                        content=file_info.get("content"),
+                        truncated=file_info.get("truncated", False),
+                    )
                 except FileNotFoundError:
                     msg = f"File not found: {path}"
                     raise FileNotFoundError(msg)  # noqa: B904
@@ -626,31 +618,39 @@ class GistFileSystem(AsyncFileSystem):
                         # Try to fetch the specific gist
                         try:
                             meta = await self._fetch_gist_metadata(parts[0])
-                            return {
-                                "name": parts[0],
-                                "type": "directory",
-                                "description": meta.get("description", ""),
-                                "created_at": meta.get("created_at"),
-                                "updated_at": meta.get("updated_at"),
-                                "html_url": meta.get("html_url"),
-                                "git_pull_url": meta.get("git_pull_url"),
-                                "git_push_url": meta.get("git_push_url"),
-                                "comments": meta.get("comments", 0),
-                                "public": meta.get("public", False),
-                                "owner": meta.get("owner", {}).get("login")
+                            return GistInfo(
+                                name=parts[0],
+                                type="directory",
+                                description=meta.get("description", ""),
+                                created_at=meta.get("created_at"),
+                                updated_at=meta.get("updated_at"),
+                                html_url=meta.get("html_url"),
+                                git_pull_url=meta.get("git_pull_url"),
+                                git_push_url=meta.get("git_push_url"),
+                                comments=meta.get("comments", 0),
+                                public=meta.get("public", False),
+                                owner=meta.get("owner", {}).get("login")
                                 if meta.get("owner")
                                 else None,
-                                "files_count": len(meta.get("files", {})),
-                                "files_preview": list(meta.get("files", {}).keys()),
-                                "size": sum(
-                                    f.get("size", 0)
-                                    for f in meta.get("files", {}).values()
-                                ),
-                            }
+                                files_count=len(meta.get("files", {})),
+                                files_preview=list(meta.get("files", {}).keys()),
+                                size=sum(f.get("size", 0) for f in meta.get("files", {}).values()),
+                            )
                         except FileNotFoundError:
                             msg = f"Gist not found: {parts[0]}"
                             raise FileNotFoundError(msg)  # noqa: B904
-                    return matches[0]
+                    file_info = matches[0]
+                    return GistInfo(
+                        name=file_info.get("name", parts[0]),
+                        type="file",
+                        size=file_info.get("size", 0),
+                        description=file_info.get("description"),
+                        filename=file_info.get("filename"),
+                        raw_url=file_info.get("raw_url"),
+                        language=file_info.get("language"),
+                        content=file_info.get("content"),
+                        truncated=file_info.get("truncated", False),
+                    )
                 except FileNotFoundError:
                     msg = f"Gist not found: {parts[0]}"
                     raise FileNotFoundError(msg)  # noqa: B904
@@ -665,7 +665,18 @@ class GistFileSystem(AsyncFileSystem):
                 if not matches:
                     msg = f"File not found: {path}"
                     raise FileNotFoundError(msg)  # noqa: TRY301
-                return matches[0]
+                file_info = matches[0]
+                return GistInfo(
+                    name=file_info.get("name", file_name),
+                    type="file",
+                    size=file_info.get("size", 0),
+                    description=file_info.get("description"),
+                    filename=file_info.get("filename"),
+                    raw_url=file_info.get("raw_url"),
+                    language=file_info.get("language"),
+                    content=file_info.get("content"),
+                    truncated=file_info.get("truncated", False),
+                )
             except FileNotFoundError:
                 msg = f"File not found: {path}"
                 raise FileNotFoundError(msg)  # noqa: B904
@@ -690,7 +701,7 @@ class GistFileSystem(AsyncFileSystem):
 
         try:
             info = await self._info(path, **kwargs)
-            return info["type"] == "directory"
+            return info["type"] == "directory"  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except FileNotFoundError:
             return False
 
@@ -700,18 +711,13 @@ class GistFileSystem(AsyncFileSystem):
         """Check if path is a file."""
         try:
             info = await self._info(path, **kwargs)
-            return info["type"] == "file"
+            return info["type"] == "file"  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except FileNotFoundError:
             return False
 
     isfile = sync_wrapper(_isfile)
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | GistBufferedWriter:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> io.BytesIO | BufferedWriter:
         """Open a file.
 
         Args:
@@ -738,41 +744,7 @@ class GistFileSystem(AsyncFileSystem):
                 raise ValueError(msg)
 
             buffer = io.BytesIO()
-            return GistBufferedWriter(buffer, self, path, **kwargs)
-        msg = f"Mode {mode} not supported"
-        raise NotImplementedError(msg)
-
-    async def open_async(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO | AsyncGistWriter:
-        """Open a file asynchronously.
-
-        Args:
-            path: Path to the file
-            mode: File mode ('rb' for reading, 'wb' for writing)
-            **kwargs: Additional arguments for write operations
-                gist_description: Optional description for new gists
-                public: Whether the gist should be public (default: False)
-
-        Returns:
-            File-like object for reading or async writer for writing
-
-        Raises:
-            ValueError: If token is not provided for write operations
-            NotImplementedError: If mode is not supported
-        """
-        if "r" in mode:
-            content = await self._cat_file(path, **kwargs)
-            return io.BytesIO(content)
-        if "w" in mode:
-            if not self.token:
-                msg = "GitHub token is required for write operations"
-                raise ValueError(msg)
-
-            return AsyncGistWriter(self, path, **kwargs)
+            return BufferedWriter(buffer, self, path, **kwargs)
         msg = f"Mode {mode} not supported"
         raise NotImplementedError(msg)
 
@@ -792,107 +764,20 @@ class GistFileSystem(AsyncFileSystem):
                     self.dircache.pop(parts[0], None)
 
 
-class GistBufferedWriter(io.BufferedIOBase):
-    """Buffered writer for gist files that writes to the gist when closed."""
-
-    def __init__(self, buffer: io.BytesIO, fs: GistFileSystem, path: str, **kwargs: Any):
-        """Initialize the writer.
-
-        Args:
-            buffer: Buffer to store content
-            fs: GistFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to pipe_file
-        """
-        super().__init__()
-        self.buffer = buffer
-        self.fs = fs
-        self.path = path
-        self.kwargs = kwargs
-
-    def write(self, data: Buffer) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    def close(self) -> None:
-        """Close the writer and write content to the gist."""
-        if not self.closed:
-            # Get the buffer contents and write to the gist
-            content = self.buffer.getvalue()
-            self.fs.pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-            super().close()
-
-    def readable(self) -> bool:
-        """Whether the writer is readable."""
-        return False
-
-    def writable(self) -> bool:
-        """Whether the writer is writable."""
-        return True
-
-
-class AsyncGistWriter:
-    """Asynchronous writer for gist files."""
-
-    def __init__(self, fs: GistFileSystem, path: str, **kwargs: Any):
-        """Initialize the writer.
-
-        Args:
-            fs: GistFileSystem instance
-            path: Path to write to
-            **kwargs: Additional arguments to pass to _pipe_file
-        """
-        self.fs = fs
-        self.path = path
-        self.buffer = io.BytesIO()
-        self.kwargs = kwargs
-        self.closed = False
-
-    async def write(self, data: bytes) -> int:
-        """Write data to the buffer.
-
-        Args:
-            data: Data to write
-
-        Returns:
-            Number of bytes written
-        """
-        return self.buffer.write(data)
-
-    async def close(self) -> None:
-        """Close the writer and write content to the gist."""
-        if not self.closed:
-            self.closed = True
-            content = self.buffer.getvalue()
-            await self.fs._pipe_file(self.path, content, **self.kwargs)
-            self.buffer.close()
-
-    def __aenter__(self) -> AsyncGistWriter:
-        """Enter the context manager."""
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        """Exit the context manager and close the writer."""
-        await self.close()
-
-
 if __name__ == "__main__":
-    import os
+    import asyncio
 
     logging.basicConfig(level=logging.INFO)
     print(f"Environment GITHUB_TOKEN set: {'GITHUB_TOKEN' in os.environ}")
     fs = GistFileSystem(username="phil65")
     print("\nListing files with filesystem.ls():")
-    files = fs.ls("")
-    print(f"Files: {files}")
+
+    async def main() -> None:
+        upath = fs.get_upath("")
+        async for p in upath.aiterdir():
+            print(p)
+
+    asyncio.run(main())
     # test_filename = "test_file2.py"
     # print(f"\nWriting to {test_filename}")
     # fs.pipe_file(test_filename, b"test content")

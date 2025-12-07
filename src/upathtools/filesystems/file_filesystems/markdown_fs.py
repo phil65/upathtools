@@ -5,15 +5,22 @@ from __future__ import annotations
 import io
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+class MarkdownInfo(FileInfo, total=False):
+    """Info dict for Markdown filesystem paths."""
+
+    size: Required[int]
+    level: Required[int]
 
 
 class MarkdownNode:
@@ -48,7 +55,7 @@ class MarkdownNode:
         return len(self.content.encode())
 
 
-class MarkdownPath(UPath):
+class MarkdownPath(BaseUPath[MarkdownInfo]):
     """UPath implementation for browsing markdown documents."""
 
     __slots__ = ()
@@ -59,10 +66,11 @@ class MarkdownPath(UPath):
         yield from super().iterdir()
 
 
-class MarkdownFS(AbstractFileSystem):
+class MarkdownFileSystem(BaseFileSystem[MarkdownPath, MarkdownInfo]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
+    upath_cls = MarkdownPath
 
     def __init__(
         self,
@@ -86,9 +94,10 @@ class MarkdownFS(AbstractFileSystem):
         self._content: str | None = None
         self._root: MarkdownNode | None = None
 
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return MarkdownPath(path)
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        path = path.removeprefix("md://")
+        return {"fo": path}
 
     def _load(self) -> None:
         """Load and parse the markdown file if not already loaded."""
@@ -182,7 +191,7 @@ class MarkdownFS(AbstractFileSystem):
             return self._root
 
         current = self._root
-        parts = self._strip_protocol(path).strip("/").split("/")  # type: ignore
+        parts = self._strip_protocol(path).strip("/").split("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         for part in parts:
             if part not in current.children:
@@ -193,27 +202,12 @@ class MarkdownFS(AbstractFileSystem):
         return current
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[MarkdownInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str = "",
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | MarkdownInfo]:
         """List contents of a path."""
         node = self._get_node(path)
 
@@ -221,12 +215,12 @@ class MarkdownFS(AbstractFileSystem):
             return list(node.children)
 
         return [
-            {
-                "name": name,
-                "size": child.get_size(),
-                "type": "directory" if child.is_dir() else "file",
-                "level": child.level,
-            }
+            MarkdownInfo(
+                name=name,
+                size=child.get_size(),
+                type="directory" if child.is_dir() else "file",
+                level=child.level,
+            )
             for name, child in node.children.items()
         ]
 
@@ -249,26 +243,19 @@ class MarkdownFS(AbstractFileSystem):
 
         return "\n".join(lines).encode()
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> MarkdownInfo:
         """Get info about a path."""
         node = self._get_node(path)
-        name = (
-            "root" if not path or path == "/" else path.split("/")[-1]  # type: ignore
+        name = "root" if not path or path == "/" else path.split("/")[-1]
+
+        return MarkdownInfo(
+            name=name,
+            size=node.get_size(),
+            type="directory" if node.is_dir() else "file",
+            level=node.level,
         )
 
-        return {
-            "name": name,
-            "size": node.get_size(),
-            "type": "directory" if node.is_dir() else "file",
-            "level": node.level,
-        }
-
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to section content."""
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"
@@ -304,7 +291,7 @@ Content 2.1
         f.flush()
 
         # Create filesystem
-        fs = MarkdownFS(f.name)
+        fs = MarkdownFileSystem(f.name)
 
         # List root
         print("\nRoot sections:")

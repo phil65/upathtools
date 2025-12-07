@@ -155,8 +155,7 @@ async def test_filesystem_root_operations(union_fs: UnionFileSystem):
         for listing in root_listings
     )  # memory:// and file://
     assert all(
-        {item["name"] for item in listing} == {"memory://", "file://"}
-        for listing in root_listings
+        {item["name"] for item in listing} == {"memory://", "file://"} for listing in root_listings
     )
 
     # Test info with different root path formats

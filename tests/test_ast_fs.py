@@ -1,4 +1,4 @@
-"""Tests for PythonAstFS."""
+"""Tests for PythonAstFileSystem."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class TestClass:
 
 def test_static_module_direct_file(example_py: Path) -> None:
     """Test direct file access."""
-    fs = fsspec.filesystem("ast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", python_file=str(example_py))
 
     # Test listing
     members = fs.ls("/", detail=True)
@@ -46,7 +46,7 @@ def test_static_module_direct_file(example_py: Path) -> None:
 
 def test_static_module_without_py_extension(example_py: Path) -> None:
     """Test access without .py extension."""
-    fs = fsspec.filesystem("ast", fo=str(example_py.with_suffix("")))
+    fs = fsspec.filesystem("ast", python_file=str(example_py.with_suffix("")))
 
     members = fs.ls("/", detail=False)
     assert len(members) == 2  # noqa: PLR2004
@@ -57,14 +57,14 @@ def test_chained_access(example_py: Path) -> None:
     """Test chaining with local files."""
     # Let's first verify the file exists and has content
     assert example_py.exists()
-    assert example_py.read_text()
+    assert example_py.read_text("utf-8")
 
     # Use forward slashes and normalize the path
     url = f"ast::file://{example_py.as_posix()}"
     print(f"Debug: URL = {url}")
 
     # Try with explicit filesystem first
-    fs = fsspec.filesystem("ast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", python_file=str(example_py))
     content = fs.cat().decode()
     assert "test_func" in content
 
@@ -76,15 +76,21 @@ def test_chained_access(example_py: Path) -> None:
 
 def test_member_not_found(example_py: Path) -> None:
     """Test error when requesting non-existent member."""
-    fs = fsspec.filesystem("ast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", python_file=str(example_py))
 
     with pytest.raises(FileNotFoundError):
         fs.cat("non_existent")
 
 
-def test_lazy_loading(example_py: Path) -> None:
+def test_ast_fs_init_requires_path() -> None:
+    """Test that python_file is required."""
+    with pytest.raises(ValueError, match="Python file path required"):
+        fsspec.filesystem("ast", python_file="")
+
+
+def test_basic_listing(example_py: Path) -> None:
     """Test that file is only loaded when needed."""
-    fs = fsspec.filesystem("ast", fo=str(example_py))
+    fs = fsspec.filesystem("ast", python_file=str(example_py))
     assert fs._source is None
 
     # Access triggers loading

@@ -6,16 +6,27 @@ import importlib.metadata
 import importlib.util
 import os
 import pkgutil
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import ModuleType
+
+
+class DistributionInfo(TypedDict, total=False):
+    """Info dict for distribution paths."""
+
+    name: Required[str]
+    type: Required[Literal["directory", "package", "module"]]
+    size: int
+    mtime: float | None
+    doc: str | None
+    version: str | None
 
 
 def _get_mtime(module: ModuleType) -> float | None:
@@ -28,7 +39,7 @@ def _get_mtime(module: ModuleType) -> float | None:
     return None
 
 
-class DistributionPath(UPath):
+class DistributionPath(BaseUPath[DistributionInfo]):
     """UPath implementation for browsing Python distributions."""
 
     __slots__ = ()
@@ -44,26 +55,34 @@ class DistributionPath(UPath):
         return "/" if path == "." else path
 
 
-class DistributionFS(AbstractFileSystem):
-    """Hierarchical filesystem for browsing Python packages."""
+class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo]):
+    """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"
+    upath_cls = DistributionPath
 
     def __init__(self, *args: Any, **storage_options: Any) -> None:
         """Initialize the filesystem."""
         super().__init__(*args, **storage_options)
         self._module_cache: dict[str, ModuleType] = {}
 
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return DistributionPath(path)
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        return {}
 
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""
-        clean_path = self._strip_protocol(path).strip("/")  # type: ignore
+        clean_path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not clean_path:
             return ""
         return clean_path.replace(".", "/")
+
+    def isdir(self, path):
+        """Is this entry directory-like?"""
+        try:
+            return self.info(path)["type"] in ("directory", "package")
+        except OSError:
+            return False
 
     def _get_module(self, module_name: str) -> ModuleType:
         """Get or import a module."""
@@ -80,18 +99,13 @@ class DistributionFS(AbstractFileSystem):
 
     @overload
     def ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[DistributionInfo]: ...
 
     @overload
     def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
-        self,
-        path: str,
-        detail: bool = True,
-        **kwargs: Any,
-    ) -> Sequence[str | dict[str, Any]]:
+    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | DistributionInfo]:
         """List contents of a path."""
         norm_path = self._normalize_path(path)
 
@@ -102,7 +116,7 @@ class DistributionFS(AbstractFileSystem):
         module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
-            contents: list[str | dict[str, Any]] = []
+            contents: list[str | DistributionInfo] = []
 
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
@@ -112,20 +126,22 @@ class DistributionFS(AbstractFileSystem):
                         contents.append(item.name)
                     else:
                         sub_module = self._get_module(full_name)
-                        contents.append({
-                            "name": item.name,
-                            "type": "package" if item.ispkg else "module",
-                            "size": 0 if item.ispkg else 1,
-                            "mtime": _get_mtime(sub_module),
-                            "doc": sub_module.__doc__,
-                        })
+                        contents.append(
+                            DistributionInfo(
+                                name=item.name,
+                                type="package" if item.ispkg else "module",
+                                size=0 if item.ispkg else 1,
+                                mtime=_get_mtime(sub_module),
+                                doc=sub_module.__doc__,
+                            )
+                        )
         except ImportError as exc:
             msg = f"Cannot access {path}"
             raise FileNotFoundError(msg) from exc
         else:
             return contents
 
-    def _list_packages(self, detail: bool) -> list[dict[str, Any]] | list[str]:
+    def _list_packages(self, detail: bool) -> list[DistributionInfo] | list[str]:
         """List all installed packages."""
         packages = list(importlib.metadata.distributions())
 
@@ -133,35 +149,37 @@ class DistributionFS(AbstractFileSystem):
             return [pkg.metadata["Name"] for pkg in packages]
 
         return [
-            {
-                "name": pkg.metadata["Name"],
-                "type": "package",
-                "size": 0,
-                "version": pkg.version,
-                "mtime": None,
-            }
+            DistributionInfo(
+                name=pkg.metadata["Name"],
+                type="package",
+                size=0,
+                version=pkg.version,
+                mtime=None,
+            )
             for pkg in packages
         ]
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> DistributionInfo:
         """Get info about a path."""
         norm_path = self._normalize_path(path)
 
         if not norm_path:
-            return {"name": "", "type": "directory", "size": 0}
+            return DistributionInfo(name="", type="directory", size=0)
 
         module_name = norm_path.replace("/", ".")
         try:
             module = self._get_module(module_name)
-            type_ = "package" if hasattr(module, "__path__") else "module"
+            type_: Literal["package", "module"] = (
+                "package" if hasattr(module, "__path__") else "module"
+            )
 
-            return {
-                "name": module_name.split(".")[-1],
-                "type": type_,
-                "size": 0 if type_ == "package" else 1,
-                "mtime": _get_mtime(module),
-                "doc": module.__doc__,
-            }
+            return DistributionInfo(
+                name=module_name.split(".")[-1],
+                type=type_,
+                size=0 if type_ == "package" else 1,
+                mtime=_get_mtime(module),
+                doc=module.__doc__,
+            )
         except ImportError as exc:
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
@@ -188,14 +206,5 @@ class DistributionFS(AbstractFileSystem):
 
 
 if __name__ == "__main__":
-    fs = DistributionFS()
-
-    # List root
-    print("Root level (installed packages):")
-    for item in fs.ls("/", detail=True):
-        print(f"- {item['name']} ({item['type']})")
-
-    # Explore a package
-    print("\nContents of requests:")
-    for item in fs.ls("requests", detail=True):
-        print(f"- {item})")
+    fs = DistributionFileSystem()
+    print(fs.get_tree())

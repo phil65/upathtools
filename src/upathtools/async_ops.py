@@ -67,9 +67,7 @@ async def read_path(
 
 
 @overload
-async def read_path(
-    path: JoinablePathLike, mode: Literal["rb"], encoding: str = ...
-) -> bytes: ...
+async def read_path(path: JoinablePathLike, mode: Literal["rb"], encoding: str = ...) -> bytes: ...
 
 
 async def read_path(
@@ -226,7 +224,7 @@ async def list_files(
     include_dirs: bool = False,
     exclude: list[str] | None = None,
     max_depth: int | None = None,
-    detail: Literal[True],
+    detail: Literal[True] = ...,
 ) -> list[dict[str, Any]]: ...
 
 
@@ -388,10 +386,9 @@ async def read_folder_as_text(
 
 
 if __name__ == "__main__":
-    import asyncio
     from pprint import pprint
 
-    async def main():
+    async def main() -> None:
         # Test with current directory
         files = await read_folder(
             ".",

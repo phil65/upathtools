@@ -6,14 +6,23 @@ import ast
 from dataclasses import dataclass
 import io
 import os
-from typing import Any, Literal, overload
+from typing import Any, Literal, TypedDict, overload
 
 import fsspec
-from fsspec.spec import AbstractFileSystem
-from upath import UPath
+
+from upathtools.filesystems.base import BaseFileSystem, BaseUPath
 
 
 NodeType = Literal["function", "class", "import", "assign"]
+
+
+class PythonAstInfo(TypedDict):
+    """Info dict for Python AST filesystem paths."""
+
+    name: str
+    type: Literal["module", "function", "class", "import", "assign"]
+    size: int
+    doc: str | None
 
 
 @dataclass
@@ -27,7 +36,7 @@ class ModuleMember:
     doc: str | None = None
 
 
-class PythonAstPath(UPath):
+class PythonAstPath(BaseUPath[PythonAstInfo]):
     """UPath implementation for browsing Python AST."""
 
     __slots__ = ()
@@ -38,32 +47,40 @@ class PythonAstPath(UPath):
         yield from super().iterdir()
 
 
-class PythonAstFS(AbstractFileSystem):
+class PythonAstFileSystem(BaseFileSystem[PythonAstPath, PythonAstInfo]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"
+    upath_cls = PythonAstPath
 
     def __init__(
         self,
-        fo: str = "",
+        python_file: str = "",
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
+        # Handle both direct usage and chaining - fo is used by fsspec for chaining
+        fo = kwargs.pop("fo", "")
+        path = python_file or fo
+
+        if not path:
+            msg = "Python file path required"
+            raise ValueError(msg)
+
         # Store parameters for lazy loading
-        self.path = fo if fo.endswith(".py") else fo + ".py"
+        self.path = path if path.endswith(".py") else path + ".py"
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
-
-        # Initialize empty state
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
 
-    def _make_path(self, path: str) -> UPath:
-        """Create a path object from string."""
-        return PythonAstPath(path)
+    @staticmethod
+    def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
+        path = path.removeprefix("ast://")
+        return {"python_file": path}
 
     def _load(self) -> None:
         """Load and parse the source file if not already loaded."""
@@ -107,27 +124,17 @@ class PythonAstFS(AbstractFileSystem):
                     )
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[True] = True,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]: ...
+    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[PythonAstInfo]: ...
 
     @overload
-    def ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
     def ls(
         self,
-        path: str = "",
+        path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[dict[str, Any]] | list[str]:
+    ) -> list[PythonAstInfo] | list[str]:
         """List module contents."""
         self._load()
 
@@ -135,12 +142,12 @@ class PythonAstFS(AbstractFileSystem):
             return list(self._members)
 
         return [
-            {
-                "name": member.name,
-                "type": member.type,
-                "size": member.end_line - member.start_line,
-                "doc": member.doc,
-            }
+            PythonAstInfo(
+                name=member.name,
+                type=member.type,
+                size=member.end_line - member.start_line,
+                doc=member.doc,
+            )
             for member in self._members.values()
         ]
 
@@ -149,7 +156,7 @@ class PythonAstFS(AbstractFileSystem):
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         if not path:
             return self._source.encode()
 
@@ -161,18 +168,13 @@ class PythonAstFS(AbstractFileSystem):
         lines = self._source.splitlines()
         return "\n".join(lines[member.start_line : member.end_line]).encode()
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> Any:
+    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to module or member source."""
         # Make sure we have the source
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         content: bytes
 
         if not path:
@@ -189,21 +191,21 @@ class PythonAstFS(AbstractFileSystem):
         # Return a file-like object
         return io.BytesIO(content)
 
-    def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+    def info(self, path: str, **kwargs: Any) -> PythonAstInfo:
         """Get info about the module or a specific member."""
         self._load()
         assert self._source is not None
 
-        path = self._strip_protocol(path).strip("/")  # type: ignore
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root path - return info about the module itself
-            return {
-                "name": os.path.splitext(os.path.basename(self.path))[0],  # noqa: PTH119, PTH122
-                "type": "module",
-                "size": len(self._source),
-                "doc": ast.get_docstring(ast.parse(self._source)),
-            }
+            return PythonAstInfo(
+                name=os.path.splitext(os.path.basename(self.path))[0],  # noqa: PTH119, PTH122
+                type="module",
+                size=len(self._source),
+                doc=ast.get_docstring(ast.parse(self._source)),
+            )
 
         # Get specific member info
         if path not in self._members:
@@ -211,15 +213,18 @@ class PythonAstFS(AbstractFileSystem):
             raise FileNotFoundError(msg)
 
         member = self._members[path]
-        return {
-            "name": member.name,
-            "type": member.type,
-            "size": member.end_line - member.start_line,
-            "doc": member.doc,
-        }
+        size = member.end_line - member.start_line
+        return PythonAstInfo(name=member.name, type=member.type, size=size, doc=member.doc)
 
 
 if __name__ == "__main__":
-    fs = fsspec.filesystem("ast", fo="duties.py")
+    fs = fsspec.filesystem("ast", python_file="duties.py")
     print(fs.ls("/"))
     print(fs.cat("build"))
+    from prettyqt import widgets  # pyright: ignore[reportMissingImports]
+    from prettyqt.itemmodels.fsspecmodel import (  # pyright: ignore[reportMissingImports]
+        FSSpecTreeModel,
+    )
+
+    app = widgets.app()
+    model = FSSpecTreeModel("basemodel", model="schemez.Schema")
