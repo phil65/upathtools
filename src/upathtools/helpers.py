@@ -2,26 +2,48 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import fsspec
 from upath import UPath
 
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Literal
 
     from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
+
+    from upathtools.async_upath import AsyncUPath
 
 
 logger = logging.getLogger(__name__)
 
 
-def to_upath(path: JoinablePathLike | str) -> UPath:
+@overload
+def to_upath(path: JoinablePathLike | str, as_async: Literal[True]) -> AsyncUPath: ...
+
+
+@overload
+def to_upath(path: JoinablePathLike | str, as_async: Literal[False]) -> UPath: ...
+
+
+@overload
+def to_upath(path: JoinablePathLike | str, as_async: bool) -> UPath | AsyncUPath: ...
+
+
+@overload
+def to_upath(path: JoinablePathLike | str) -> UPath: ...
+
+
+def to_upath(path: JoinablePathLike | str, as_async: bool = False) -> UPath | AsyncUPath:
+    from upathtools.async_upath import AsyncUPath
+
     if isinstance(path, UPath):
-        return path
-    return UPath(os.fspath(path)) if isinstance(path, os.PathLike) else UPath(path)
+        path_obj = path
+    else:
+        path_obj = UPath(os.fspath(path)) if isinstance(path, os.PathLike) else UPath(path)
+    return AsyncUPath._from_upath(path_obj) if as_async else path_obj
 
 
 def fsspec_copy(
