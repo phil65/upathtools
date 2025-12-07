@@ -1,4 +1,4 @@
-"""Tests for ModuleFS."""
+"""Tests for ModuleFileSystem."""
 
 from __future__ import annotations
 

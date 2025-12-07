@@ -1,4 +1,4 @@
-"""Tests for PythonAstFS."""
+"""Tests for PythonAstFileSystem."""
 
 from __future__ import annotations
 

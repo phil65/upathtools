@@ -38,7 +38,7 @@ class SqlitePath(BaseUPath[SqliteInfo]):
         yield from super().iterdir()
 
 
-class SqliteFS(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
+class SqliteFileSystem(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
     """Filesystem for browsing SQLite databases."""
 
     protocol = "sqlite"
@@ -372,7 +372,7 @@ if __name__ == "__main__":
         conn.close()
 
         # Create filesystem
-        fs = SqliteFS(demo_db)
+        fs = SqliteFileSystem(demo_db)
 
         # List tables
         print("\nTables:")

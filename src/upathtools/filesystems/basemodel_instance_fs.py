@@ -46,7 +46,7 @@ class BaseModelInstancePath(BaseUPath[BaseModelInstanceInfo]):
         return "/" if path == "." else path
 
 
-class BaseModelInstanceFS(BaseFileSystem[BaseModelInstancePath, BaseModelInstanceInfo]):
+class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseModelInstanceInfo]):
     """Filesystem for browsing Pydantic BaseModel instance data and values."""
 
     protocol = "basemodel-instance"
@@ -443,7 +443,7 @@ if __name__ == "__main__":
         tags=["developer", "python"],
     )
 
-    fs = BaseModelInstanceFS(user)
+    fs = BaseModelInstanceFileSystem(user)
     print("Fields:", fs.ls("/", detail=False))
     print("User info:", fs.info("/"))
     print("Address info:", fs.info("/address"))

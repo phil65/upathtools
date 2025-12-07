@@ -53,7 +53,7 @@ class CliPath(BaseUPath[CliInfo]):
         raise NotImplementedError(msg)
 
 
-class CliFS(BaseFileSystem[CliPath, CliInfo]):
+class CliFileSystem(BaseFileSystem[CliPath, CliInfo]):
     """Filesystem for executing CLI commands and capturing their output."""
 
     protocol = "cli"
@@ -219,7 +219,7 @@ class CliFS(BaseFileSystem[CliPath, CliInfo]):
 
 
 if __name__ == "__main__":
-    fs = CliFS()
+    fs = CliFileSystem()
 
     # List available commands
     print("\nAvailable commands:")

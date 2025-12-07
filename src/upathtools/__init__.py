@@ -23,14 +23,14 @@ from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
-from upathtools.filesystems import CliFS, CliPath
-from upathtools.filesystems import DistributionFS, DistributionPath
+from upathtools.filesystems import CliFileSystem, CliPath
+from upathtools.filesystems import DistributionFileSystem, DistributionPath
 from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
-from upathtools.filesystems import MarkdownFS, MarkdownPath
-from upathtools.filesystems import ModuleFS, ModulePath
-from upathtools.filesystems import PackageFS, PackagePath
-from upathtools.filesystems import PythonAstPath, PythonAstFS
-from upathtools.filesystems import SqliteFS, SqlitePath
+from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
+from upathtools.filesystems import ModuleFileSystem, ModulePath
+from upathtools.filesystems import PackageFileSystem, PackagePath
+from upathtools.filesystems import PythonAstPath, PythonAstFileSystem
+from upathtools.filesystems import SqliteFileSystem, SqlitePath
 from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 from upathtools.filesystems import GistFileSystem, GistPath
 from upathtools.filesystems import WikiFileSystem, WikiPath
@@ -47,28 +47,28 @@ def register_http_filesystems() -> None:
 def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
     register_http_filesystems()
-    register_implementation("cli", CliFS, clobber=True)
+    register_implementation("cli", CliFileSystem, clobber=True)
     registry.register_implementation("cli", CliPath, clobber=True)
 
-    register_implementation("distribution", DistributionFS, clobber=True)
+    register_implementation("distribution", DistributionFileSystem, clobber=True)
     registry.register_implementation("distribution", DistributionPath, clobber=True)
 
     register_implementation("flatunion", FlatUnionFileSystem, clobber=True)
     registry.register_implementation("flatunion", FlatUnionPath, clobber=True)
 
-    register_implementation("md", MarkdownFS, clobber=True)
+    register_implementation("md", MarkdownFileSystem, clobber=True)
     registry.register_implementation("md", MarkdownPath, clobber=True)
 
-    register_implementation("mod", ModuleFS, clobber=True)
+    register_implementation("mod", ModuleFileSystem, clobber=True)
     registry.register_implementation("mod", ModulePath, clobber=True)
 
-    register_implementation("pkg", PackageFS, clobber=True)
+    register_implementation("pkg", PackageFileSystem, clobber=True)
     registry.register_implementation("pkg", PackagePath, clobber=True)
 
-    register_implementation("ast", PythonAstFS, clobber=True)
+    register_implementation("ast", PythonAstFileSystem, clobber=True)
     registry.register_implementation("ast", PythonAstPath, clobber=True)
 
-    register_implementation("sqlite", SqliteFS, clobber=True)
+    register_implementation("sqlite", SqliteFileSystem, clobber=True)
     registry.register_implementation("sqlite", SqlitePath, clobber=True)
 
     register_implementation("union", UnionFileSystem, clobber=True)
@@ -83,9 +83,9 @@ def register_all_filesystems() -> None:
 
 __all__ = [
     "AsyncUPath",
-    "CliFS",
+    "CliFileSystem",
     "CliPath",
-    "DistributionFS",
+    "DistributionFileSystem",
     "DistributionPath",
     "FlatUnionFileSystem",
     "FlatUnionPath",
@@ -93,15 +93,15 @@ __all__ = [
     "GistPath",
     "HTTPFileSystem",
     "HttpPath",
-    "MarkdownFS",
+    "MarkdownFileSystem",
     "MarkdownPath",
-    "ModuleFS",
+    "ModuleFileSystem",
     "ModulePath",
-    "PackageFS",
+    "PackageFileSystem",
     "PackagePath",
-    "PythonAstFS",
+    "PythonAstFileSystem",
     "PythonAstPath",
-    "SqliteFS",
+    "SqliteFileSystem",
     "SqlitePath",
     "UnionFileSystem",
     "UnionPath",

@@ -44,7 +44,7 @@ class PackagePath(BaseUPath[PackageInfo]):
         return "/" if path == "." else path
 
 
-class PackageFS(BaseFileSystem[PackagePath, PackageInfo]):
+class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"

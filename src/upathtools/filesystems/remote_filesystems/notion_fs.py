@@ -25,7 +25,7 @@ class NotionPath(BaseUPath[NotionInfo]):
     __slots__ = ()
 
 
-class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
+class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
     """Async filesystem for Notion pages.
 
     This filesystem provides access to Notion pages as files,
@@ -37,7 +37,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
     upath_cls = NotionPath
 
     def __init__(self, token: str, parent_page_id: str, **kwargs: Any):
-        """Initialize NotionFS with a Notion integration token.
+        """Initialize NotionFileSystem with a Notion integration token.
 
         Args:
             token: Notion integration token
@@ -403,7 +403,7 @@ class NotionFS(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 class NotionFile:
     """File-like object for Notion pages."""
 
-    def __init__(self, fs: NotionFS, path: str, mode: str) -> None:
+    def __init__(self, fs: NotionFileSystem, path: str, mode: str) -> None:
         self.fs = fs
         stripped = fs._strip_protocol(path)
         self.path = stripped if isinstance(stripped, str) else stripped[0]
@@ -524,7 +524,7 @@ if __name__ == "__main__":
         assert key
         assert parent_page_id
 
-        fs = NotionFS(token=key, parent_page_id=parent_page_id)
+        fs = NotionFileSystem(token=key, parent_page_id=parent_page_id)
         pages = await fs._ls("/")
         print(pages)
 

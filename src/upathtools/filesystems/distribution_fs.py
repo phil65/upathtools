@@ -55,7 +55,7 @@ class DistributionPath(BaseUPath[DistributionInfo]):
         return "/" if path == "." else path
 
 
-class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
+class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo]):
     """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"
@@ -206,5 +206,5 @@ class DistributionFS(BaseFileSystem[DistributionPath, DistributionInfo]):
 
 
 if __name__ == "__main__":
-    fs = DistributionFS()
+    fs = DistributionFileSystem()
     print(fs.get_tree())

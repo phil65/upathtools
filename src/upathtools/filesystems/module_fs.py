@@ -54,7 +54,7 @@ class ModulePath(BaseUPath[ModuleInfo]):
         return "/" if path == "." else path
 
 
-class ModuleFS(BaseFileSystem[ModulePath, ModuleInfo]):
+class ModuleFileSystem(BaseFileSystem[ModulePath, ModuleInfo]):
     """Runtime-based filesystem for browsing a single Python module."""
 
     protocol = "mod"

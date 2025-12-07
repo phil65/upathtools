@@ -52,7 +52,7 @@ class TypeAdapterPath(BaseUPath[TypeAdapterInfo]):
         return "/" if path == "." else path
 
 
-class TypeAdapterFS(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
+class TypeAdapterFileSystem(BaseFileSystem[TypeAdapterPath, TypeAdapterInfo]):
     """Filesystem for browsing type schemas via Pydantic TypeAdapter.
 
     Supports browsing field definitions and schemas for any TypeAdapter-compatible type:
@@ -424,7 +424,7 @@ if __name__ == "__main__":
         email: str
 
     # Test with direct filesystem creation
-    fs = TypeAdapterFS(User)
+    fs = TypeAdapterFileSystem(User)
     print("Fields:", fs.ls("/", detail=False))
     print("User info:", fs.info("/"))
     print("Name field:", fs.info("/name"))

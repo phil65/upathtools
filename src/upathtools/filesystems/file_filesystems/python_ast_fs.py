@@ -47,7 +47,7 @@ class PythonAstPath(BaseUPath[PythonAstInfo]):
         yield from super().iterdir()
 
 
-class PythonAstFS(BaseFileSystem[PythonAstPath, PythonAstInfo]):
+class PythonAstFileSystem(BaseFileSystem[PythonAstPath, PythonAstInfo]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"

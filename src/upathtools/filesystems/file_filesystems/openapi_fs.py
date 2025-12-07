@@ -58,7 +58,7 @@ class OpenAPIPath(BaseUPath[OpenApiInfo]):
         return "/" if path == "." else path
 
 
-class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
+class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
     """Filesystem for browsing OpenAPI specifications and API documentation."""
 
     protocol = "openapi"
@@ -769,7 +769,7 @@ class OpenAPIFS(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
 
 
 if __name__ == "__main__":
-    fs = OpenAPIFS("https://petstore3.swagger.io/api/v3/openapi.json")
+    fs = OpenAPIFileSystem("https://petstore3.swagger.io/api/v3/openapi.json")
     print("Root sections:", fs.ls("/", detail=False))
     print("API Info:", fs.info("/"))
     print("Paths:", fs.ls("/paths", detail=False)[:5])  # First 5 paths

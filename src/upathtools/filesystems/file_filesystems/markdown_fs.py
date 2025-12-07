@@ -66,7 +66,7 @@ class MarkdownPath(BaseUPath[MarkdownInfo]):
         yield from super().iterdir()
 
 
-class MarkdownFS(BaseFileSystem[MarkdownPath, MarkdownInfo]):
+class MarkdownFileSystem(BaseFileSystem[MarkdownPath, MarkdownInfo]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
@@ -291,7 +291,7 @@ Content 2.1
         f.flush()
 
         # Create filesystem
-        fs = MarkdownFS(f.name)
+        fs = MarkdownFileSystem(f.name)
 
         # List root
         print("\nRoot sections:")

@@ -9,7 +9,7 @@ import tempfile
 import pytest
 import sqlalchemy.exc
 
-from upathtools.filesystems import SqliteFS
+from upathtools.filesystems import SqliteFileSystem
 
 
 # Skip all tests in this file on Windows due to SQLite file locking issues
@@ -87,12 +87,12 @@ def sample_db():
 
 @pytest.fixture
 def sqlite_fs(sample_db):
-    """Create SqliteFS instance with sample database."""
-    return SqliteFS(db_path=sample_db)
+    """Create SqliteFileSystem instance with sample database."""
+    return SqliteFileSystem(db_path=sample_db)
 
 
-class TestSqliteFS:
-    """Test cases for SqliteFS."""
+class TestSqliteFileSystem:
+    """Test cases for SqliteFileSystem."""
 
     @pytest.mark.asyncio
     async def test_ls_tables_and_views(self, sqlite_fs):
@@ -288,14 +288,14 @@ class TestSqliteFS:
 
     def test_get_kwargs_from_urls(self):
         """Test URL parsing."""
-        kwargs = SqliteFS._get_kwargs_from_urls("sqlite://path/to/database.db")
+        kwargs = SqliteFileSystem._get_kwargs_from_urls("sqlite://path/to/database.db")
         assert kwargs == {"db_path": "path/to/database.db"}
 
-        kwargs = SqliteFS._get_kwargs_from_urls("sqlite:///absolute/path.db")
+        kwargs = SqliteFileSystem._get_kwargs_from_urls("sqlite:///absolute/path.db")
         assert kwargs == {"db_path": "/absolute/path.db"}
 
 
-class TestSqliteFSChaining:
+class TestSqliteFileSystemChaining:
     """Test filesystem chaining functionality."""
 
     @pytest.fixture
@@ -333,7 +333,7 @@ class TestSqliteFSChaining:
     @pytest.mark.asyncio
     async def test_chained_filesystem_http(self, http_server_db):
         """Test accessing database via HTTP."""
-        fs = SqliteFS(db_path=http_server_db, target_protocol="http")
+        fs = SqliteFileSystem(db_path=http_server_db, target_protocol="http")
 
         # Test basic functionality
         items = await fs._ls("/", detail=False)
@@ -346,7 +346,7 @@ class TestSqliteFSChaining:
         assert "Alice Johnson" in content
 
 
-class TestSqliteFSEmpty:
+class TestSqliteFileSystemEmpty:
     """Test behavior with empty database."""
 
     @pytest.fixture
@@ -365,7 +365,7 @@ class TestSqliteFSEmpty:
     @pytest.mark.asyncio
     async def test_empty_database(self, empty_db):
         """Test behavior with empty database."""
-        fs = SqliteFS(db_path=empty_db)
+        fs = SqliteFileSystem(db_path=empty_db)
 
         items = await fs._ls("/", detail=True)
         assert len(items) == 0
@@ -374,13 +374,13 @@ class TestSqliteFSEmpty:
         assert len(items) == 0
 
 
-class TestSqliteFSNonexistent:
+class TestSqliteFileSystemNonexistent:
     """Test behavior with nonexistent database."""
 
     @pytest.mark.asyncio
     async def test_nonexistent_database(self):
         """Test behavior with nonexistent database file."""
-        fs = SqliteFS(db_path="/nonexistent/path/database.db")
+        fs = SqliteFileSystem(db_path="/nonexistent/path/database.db")
 
         with pytest.raises(sqlalchemy.exc.OperationalError):
             await fs._ls("/")

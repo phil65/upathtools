@@ -49,7 +49,7 @@ class BaseModelPath(BaseUPath[BaseModelInfo]):
         return "/" if path == "." else path
 
 
-class BaseModelFS(BaseFileSystem[BaseModelPath, BaseModelInfo]):
+class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     protocol = "basemodel"
@@ -425,7 +425,7 @@ if __name__ == "__main__":
         age: int = Field(ge=0, le=120)
         email: str
 
-    fs = BaseModelFS(User)
+    fs = BaseModelFileSystem(User)
     print("Fields:", fs.ls("/", detail=False))
     print("User info:", fs.info("/"))
     print("Name field:", fs.info("/name"))

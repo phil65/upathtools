@@ -102,7 +102,7 @@ class TreeSitterPath(BaseUPath[TreeSitterInfo]):
         yield from super().iterdir()
 
 
-class TreeSitterFS(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
+class TreeSitterFileSystem(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
     """Browse source code structure using tree-sitter."""
 
     protocol = "ts"
@@ -468,7 +468,7 @@ def _import_language_module(language: Any):
 
 if __name__ == "__main__":
     try:
-        fs = TreeSitterFS(__file__, language="python")
+        fs = TreeSitterFileSystem(__file__, language="python")
 
         print("Code entities:")
         for item in fs.ls("/", detail=True):

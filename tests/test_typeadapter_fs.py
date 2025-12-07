@@ -1,4 +1,4 @@
-"""Tests for BaseModelFS with TypeAdapter support."""
+"""Tests for BaseModelFileSystem with TypeAdapter support."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class TypedUser(TypedDict):
 
 
 def test_typeadapter_fs_with_pydantic_model():
-    """Test BaseModelFS with a Pydantic BaseModel."""
+    """Test BaseModelFileSystem with a Pydantic BaseModel."""
     fs = fsspec.filesystem("typeadapter", model=User)
 
     # Test root listing
@@ -65,7 +65,7 @@ def test_typeadapter_fs_with_pydantic_model():
 
 
 def test_typeadapter_fs_with_dataclass():
-    """Test BaseModelFS with a dataclass using TypeAdapter."""
+    """Test BaseModelFileSystem with a dataclass using TypeAdapter."""
     fs = fsspec.filesystem("typeadapter", model=DataUser)
 
     # Test root listing
@@ -89,7 +89,7 @@ def test_typeadapter_fs_with_dataclass():
 
 
 def test_typeadapter_fs_with_typeddict():
-    """Test BaseModelFS with a TypedDict using TypeAdapter."""
+    """Test BaseModelFileSystem with a TypedDict using TypeAdapter."""
     fs = fsspec.filesystem("typeadapter", model=TypedUser)
 
     # Test root listing
@@ -174,9 +174,9 @@ def test_typeadapter_fs_string_import():
 
 def test_typeadapter_fs_url_parsing():
     """Test URL parsing functionality."""
-    from upathtools.filesystems import TypeAdapterFS
+    from upathtools.filesystems import TypeAdapterFileSystem
 
-    kwargs = TypeAdapterFS._get_kwargs_from_urls("typeadapter://mypackage.MyModel")
+    kwargs = TypeAdapterFileSystem._get_kwargs_from_urls("typeadapter://mypackage.MyModel")
     assert kwargs == {"model": "mypackage.MyModel"}
 
 

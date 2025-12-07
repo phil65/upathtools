@@ -1,4 +1,4 @@
-"""Test OpenAPIFS functionality."""
+"""Test OpenAPIFileSystem functionality."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from upathtools.filesystems import OpenAPIFS
+from upathtools.filesystems import OpenAPIFileSystem
 
 
 openapi3 = pytest.importorskip("openapi3")
@@ -74,19 +74,19 @@ def spec_file(tmp_path, minimal_spec):
 def test_openapi_fs_init_requires_url():
     """Test that spec_url is required."""
     with pytest.raises(ValueError, match="OpenAPI spec URL required"):
-        OpenAPIFS()
+        OpenAPIFileSystem()
 
 
 def test_openapi_fs_init_local_file(spec_file):
-    """Test initializing OpenAPIFS with local file."""
-    fs = OpenAPIFS(spec_file)
+    """Test initializing OpenAPIFileSystem with local file."""
+    fs = OpenAPIFileSystem(spec_file)
     assert fs.spec_url == spec_file
     assert fs._spec is None  # Not loaded yet
 
 
 def test_openapi_fs_root_listing(spec_file):
     """Test listing root sections."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # Test simple listing
     sections = fs.ls("/", detail=False)
@@ -102,7 +102,7 @@ def test_openapi_fs_root_listing(spec_file):
 
 def test_openapi_fs_info_section(spec_file):
     """Test info section browsing."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # List info fields
     info_fields = fs.ls("/info", detail=False)
@@ -119,7 +119,7 @@ def test_openapi_fs_info_section(spec_file):
 
 def test_openapi_fs_paths_listing(spec_file):
     """Test paths section browsing."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # List all paths
     paths = fs.ls("/paths", detail=False)
@@ -140,7 +140,7 @@ def test_openapi_fs_paths_listing(spec_file):
 
 def test_openapi_fs_operation_details(spec_file):
     """Test operation detail browsing."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # List operation sections
     sections = fs.ls("/paths/users/{id}/GET", detail=False)
@@ -164,7 +164,7 @@ def test_openapi_fs_operation_details(spec_file):
 
 def test_openapi_fs_components(spec_file):
     """Test components section browsing."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # List component types
     component_types = fs.ls("/components", detail=False)
@@ -184,7 +184,7 @@ def test_openapi_fs_components(spec_file):
 
 def test_openapi_fs_special_paths(spec_file):
     """Test special paths like __raw__ and __openapi__."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # Test __raw__ path
     raw_spec = fs.cat("/__raw__").decode()
@@ -201,7 +201,7 @@ def test_openapi_fs_special_paths(spec_file):
 
 def test_openapi_fs_info_method(spec_file):
     """Test info() method for various paths."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # Root info
     root_info = fs.info("/")
@@ -226,7 +226,7 @@ def test_openapi_fs_info_method(spec_file):
 
 def test_openapi_fs_curl_generation(spec_file):
     """Test curl command generation."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # Generate curl for GET operation
     curl_cmd = fs.cat("/paths/users/GET/__curl__").decode()
@@ -236,7 +236,7 @@ def test_openapi_fs_curl_generation(spec_file):
 
 def test_openapi_fs_error_handling(spec_file):
     """Test error handling for invalid paths."""
-    fs = OpenAPIFS(spec_file)
+    fs = OpenAPIFileSystem(spec_file)
 
     # Non-existent path
     with pytest.raises(FileNotFoundError):
@@ -256,7 +256,7 @@ def test_openapi_fs_remote_spec():
     """Test with remote OpenAPI spec (if network available)."""
     # Use a reliable public API spec
     try:
-        fs = OpenAPIFS("https://petstore3.swagger.io/api/v3/openapi.json")
+        fs = OpenAPIFileSystem("https://petstore3.swagger.io/api/v3/openapi.json")
 
         # Basic connectivity test
         root_info = fs.info("/")
@@ -272,9 +272,9 @@ def test_openapi_fs_remote_spec():
 
 
 def test_openapi_fs_with_headers(spec_file):
-    """Test OpenAPIFS with custom headers."""
+    """Test OpenAPIFileSystem with custom headers."""
     headers = {"Authorization": "Bearer test-token"}
-    fs = OpenAPIFS(spec_file, headers=headers)
+    fs = OpenAPIFileSystem(spec_file, headers=headers)
 
     assert fs.headers == headers
 
