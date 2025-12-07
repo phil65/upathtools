@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.implementations.local import LocalFileSystem
 
 
@@ -12,6 +13,12 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
 
     from fsspec.spec import AbstractFileSystem
+
+
+def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
+    if not isinstance(filesystem, AsyncFileSystem):
+        return AsyncFileSystemWrapper(filesystem)
+    return filesystem
 
 
 class WrapperFileSystem(AsyncFileSystem):
@@ -45,16 +52,7 @@ class WrapperFileSystem(AsyncFileSystem):
             from fsspec import filesystem
 
             fs = filesystem(protocol=target_protocol, **(target_options or {}))
-
-        if self.asynchronous and not fs.async_impl:
-            msg = "Cannot use asynchronous mode with non-async filesystem"
-            raise ValueError(msg)
-
-        if fs.async_impl and self.asynchronous != fs.asynchronous:
-            msg = "Both wrapper and wrapped filesystem must be in same sync/async mode"
-            raise ValueError(msg)
-
-        self.fs: AbstractFileSystem = fs
+        self.fs = to_async(fs)
 
     def is_local(self) -> bool:
         """Did we read this from the local filesystem?"""
