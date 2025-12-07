@@ -20,6 +20,11 @@ if TYPE_CHECKING:
 
 GroupBy = Literal["project"] | None
 
+# Constants for identifier parsing and path handling
+IDENTIFIER_PARTS_COUNT = 2
+MIN_ISSUE_COMMENT_PATH_PARTS = 2
+MIN_COMMENT_FILE_PATH_PARTS = 3
+
 
 class LinearIssueInfo(FileInfo, total=False):
     """Info dict for Linear Issues filesystem paths."""
@@ -89,6 +94,14 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
     - extended=True, group_by="project": linear:///ProjectName/PHI-123/issue.md + comments/
 
     Issues without a project appear under "_unassigned/" when group_by="project".
+
+    Deletion examples:
+    - fs.rm("PHI-123.md")  # Delete issue in flat mode
+    - fs.rm("ProjectName/PHI-123.md")  # Delete issue in project mode
+    - fs.rm("PHI-123/issue.md")  # Delete issue in extended mode
+    - fs.rm("PHI-123", recursive=True)  # Delete issue directory in extended mode
+
+    Note: Deleting individual comments is not supported.
     """
 
     protocol = "linear"
@@ -224,16 +237,24 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         Raises:
             FileNotFoundError: If issue is not found
         """
+
         # Extract the number from the identifier (e.g., "PHI-7" -> 7)
-        try:
+        def _parse_identifier_or_raise(identifier: str) -> tuple[int, str]:
             parts = identifier.split("-")
-            if len(parts) != 2:
-                raise ValueError("Invalid identifier format")
-            issue_number = int(parts[1])
-            team_key = parts[0]
-        except (ValueError, IndexError):
-            msg = f"Invalid issue identifier format: {identifier}"
-            raise FileNotFoundError(msg) from None
+            if len(parts) != IDENTIFIER_PARTS_COUNT:
+                msg = f"Invalid issue identifier format: {identifier}"
+                raise FileNotFoundError(msg)
+
+            try:
+                issue_number = int(parts[1])
+            except (ValueError, IndexError):
+                msg = f"Invalid issue identifier format: {identifier}"
+                raise FileNotFoundError(msg) from None
+            else:
+                team_key = parts[0]
+                return issue_number, team_key
+
+        issue_number, team_key = _parse_identifier_or_raise(identifier)
 
         query = """
         query GetIssue($filter: IssueFilter) {
@@ -550,9 +571,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             projects = await self._fetch_projects()
             project_names = {p["name"] for p in projects}
 
-            for project in projects:
-                if project["name"] in grouped:
-                    results.append(_project_to_info(project))
+            results.extend([
+                _project_to_info(project) for project in projects if project["name"] in grouped
+            ])
 
             # Add _unassigned if there are unassigned issues
             if None in grouped:
@@ -568,27 +589,27 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 )
 
             # Add projects that have issues but weren't in the projects query
-            for project_name in grouped:
-                if project_name is not None and project_name not in project_names:
-                    results.append(
-                        LinearProjectInfo(
-                            name=project_name,
-                            type="directory",
-                            size=0,
-                            project_id="",
-                            project_name=project_name,
-                        )
-                    )
+            results.extend([
+                LinearProjectInfo(
+                    name=project_name,
+                    type="directory",
+                    size=0,
+                    project_id="",
+                    project_name=project_name,
+                )
+                for project_name in grouped
+                if project_name is not None and project_name not in project_names
+            ])
 
             if detail:
-                return results
+                return results  # type: ignore[return-value]
             return [r["name"] for r in results]
 
         # Flat mode - list all issues
         issues = await self._get_all_issues_cached()
         results_flat = [_issue_to_info(issue, extended=self.extended) for issue in issues]
         if detail:
-            return results_flat
+            return results_flat  # type: ignore[return-value]
         return [r["name"] for r in results_flat]
 
     async def _ls_project_mode(
@@ -613,11 +634,11 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 for issue in project_issues
             ]
             if detail:
-                return results
+                return results  # type: ignore[return-value]
             return [r["name"] for r in results]
 
         # Deeper path - delegate to issue handling
-        identifier = parts[1]
+        parts[1]
         remaining_parts = parts[1:]
         return await self._ls_issue_path(remaining_parts, detail, prefix=project_name)
 
@@ -638,7 +659,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             issue = await self._fetch_issue_by_identifier(identifier)
             results = [_issue_to_info(issue, extended=False, prefix=prefix)]
             if detail:
-                return results
+                return results  # type: ignore[return-value]
             return [r["name"] for r in results]
 
         # Extended mode
@@ -646,7 +667,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             # Listing issue directory
             issue = await self._fetch_issue_by_identifier(identifier)
             base = f"{prefix}/{identifier}" if prefix else identifier
-            results: list[LinearIssueInfo | LinearCommentInfo] = [
+            issue_contents: list[LinearIssueInfo | LinearCommentInfo] = [
                 LinearIssueInfo(
                     name=f"{base}/issue.md",
                     type="file",
@@ -659,20 +680,20 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 ),
             ]
             if detail:
-                return results
-            return [r["name"] for r in results]
+                return issue_contents  # type: ignore[return-value]
+            return [r["name"] for r in issue_contents]
 
-        if len(parts) == 2 and parts[1] == "comments":
+        if len(parts) == MIN_ISSUE_COMMENT_PATH_PARTS and parts[1] == "comments":
             # Listing comments directory
             issue = await self._fetch_issue_by_identifier(identifier)
             comments = await self._fetch_comments(issue["id"])
             base = f"{prefix}/{identifier}" if prefix else identifier
-            results = [
+            comment_results: list[LinearCommentInfo] = [
                 _comment_to_info(comment, base, idx) for idx, comment in enumerate(comments, 1)
             ]
             if detail:
-                return results
-            return [r["name"] for r in results]
+                return comment_results  # type: ignore[return-value]
+            return [r["name"] for r in comment_results]
 
         msg = f"Invalid path: {'/'.join(parts)}"
         raise FileNotFoundError(msg)
@@ -697,10 +718,10 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         if self.extended:
             identifier = parts[0]
 
-            if len(parts) >= 2 and parts[1] == "issue.md":
+            if len(parts) >= MIN_ISSUE_COMMENT_PATH_PARTS and parts[1] == "issue.md":
                 issue = await self._fetch_issue_by_identifier(identifier)
                 content = _format_issue_markdown(issue)
-            elif len(parts) >= 3 and parts[1] == "comments":
+            elif len(parts) >= MIN_COMMENT_FILE_PATH_PARTS and parts[1] == "comments":
                 comment_file = parts[2].removesuffix(".md")
                 try:
                     comment_idx = int(comment_file) - 1
@@ -776,7 +797,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             msg = "Content must be valid UTF-8 text"
             raise ValueError(msg) from None
 
-        if self.extended and len(parts) >= 3 and parts[1] == "comments":
+        if self.extended and len(parts) >= MIN_COMMENT_FILE_PATH_PARTS and parts[1] == "comments":
             identifier = parts[0]
             issue = await self._fetch_issue_by_identifier(identifier)
             await self._create_comment(issue["id"], body)
@@ -785,9 +806,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         # Creating/updating an issue
         if self.extended:
-            identifier = parts[0] if len(parts) > 0 and parts[0] != "issue.md" else None
+            update_identifier = parts[0] if len(parts) > 0 and parts[0] != "issue.md" else None
         else:
-            identifier = parts[0].removesuffix(".md") if parts else None
+            update_identifier = parts[0].removesuffix(".md") if parts else None
 
         # Extract title from first heading if not provided
         if title is None:
@@ -800,9 +821,9 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         # Check if updating existing issue
         existing_issue: dict[str, Any] | None = None
-        if identifier and "-" in identifier:
+        if update_identifier and "-" in update_identifier:
             with contextlib.suppress(FileNotFoundError):
-                existing_issue = await self._fetch_issue_by_identifier(identifier)
+                existing_issue = await self._fetch_issue_by_identifier(update_identifier)
 
         if existing_issue:
             await self._update_issue(
@@ -954,6 +975,24 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return result.get("comment", {})
 
+    async def _delete_issue(self, issue_id: str) -> dict[str, Any]:
+        """Delete an issue."""
+        mutation = """
+        mutation DeleteIssue($id: String!) {
+            issueDelete(id: $id) {
+                success
+            }
+        }
+        """
+        data = await self._graphql_request(mutation, {"id": issue_id})
+        result = data.get("issueDelete", {})
+
+        if not result.get("success"):
+            msg = f"Failed to delete issue {issue_id}"
+            raise RuntimeError(msg)
+
+        return result
+
     async def _info(
         self, path: str, **kwargs: Any
     ) -> LinearIssueInfo | LinearCommentInfo | LinearProjectInfo:
@@ -1006,7 +1045,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             base = f"{prefix}/{identifier}" if prefix else identifier
             return LinearIssueInfo(name=base, type="directory", size=0)
 
-        if len(parts) == 2:
+        if len(parts) == MIN_ISSUE_COMMENT_PATH_PARTS:
             if parts[1] == "issue.md":
                 issue = await self._fetch_issue_by_identifier(identifier)
                 return _issue_to_info(issue, extended=True, as_file=True, prefix=prefix)
@@ -1014,7 +1053,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 base = f"{prefix}/{identifier}" if prefix else identifier
                 return LinearIssueInfo(name=f"{base}/comments", type="directory", size=0)
 
-        if len(parts) == 3 and parts[1] == "comments":
+        if len(parts) == MIN_COMMENT_FILE_PATH_PARTS and parts[1] == "comments":
             comment_file = parts[2].removesuffix(".md")
             try:
                 comment_idx = int(comment_file) - 1
@@ -1077,6 +1116,108 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
     isfile = sync_wrapper(_isfile)
 
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
+        """Delete a file (issue or comment)."""
+        path = self._strip_protocol(path)
+        if not path:
+            msg = "Cannot delete root path"
+            raise ValueError(msg)
+
+        # Parse the path to identify what to delete
+        if self.extended:
+            # In extended mode: project/issue-id/issue.md or project/issue-id/comments/comment-id.md
+            parts = path.split("/")
+            if self.group_by == "project":
+                if len(parts) < 3:  # noqa: PLR2004
+                    msg = f"Invalid path for deletion: {path}"
+                    raise ValueError(msg)
+                issue_identifier = parts[1]
+                remaining_path = "/".join(parts[2:])
+            else:
+                if len(parts) < 2:  # noqa: PLR2004
+                    msg = f"Invalid path for deletion: {path}"
+                    raise ValueError(msg)
+                issue_identifier = parts[0]
+                remaining_path = "/".join(parts[1:])
+
+            if remaining_path == "issue.md":
+                # Delete the issue itself
+                issue = await self._fetch_issue_by_identifier(issue_identifier)
+                await self._delete_issue(issue["id"])
+                self.invalidate_cache()
+            elif remaining_path.startswith("comments/") and remaining_path.endswith(".md"):
+                msg = "Deleting individual comments is not supported"
+                raise NotImplementedError(msg)
+            else:
+                msg = f"Cannot delete file: {path}"
+                raise ValueError(msg)
+        # In flat mode: issue-id.md or project/issue-id.md
+        elif path.endswith(".md"):
+            path_without_ext = path[:-3]
+            if self.group_by == "project":
+                parts = path_without_ext.split("/")
+                if len(parts) != 2:  # noqa: PLR2004
+                    msg = f"Invalid path for deletion: {path}"
+                    raise ValueError(msg)
+                issue_identifier = parts[1]
+            else:
+                issue_identifier = path_without_ext
+
+            # Delete the issue
+            issue = await self._fetch_issue_by_identifier(issue_identifier)
+            await self._delete_issue(issue["id"])
+            self.invalidate_cache()
+        else:
+            msg = f"Cannot delete file: {path}"
+            raise ValueError(msg)
+
+    rm_file = sync_wrapper(_rm_file)
+
+    async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
+        """Remove a file or directory."""
+        path = self._strip_protocol(path)
+        if not path:
+            msg = "Cannot delete root path"
+            raise ValueError(msg)
+
+        # Check if it's a file or directory
+        is_file = await self._isfile(path)
+        is_dir = await self._isdir(path)
+
+        if is_file:
+            await self._rm_file(path, **kwargs)
+        elif is_dir:
+            if not recursive:
+                msg = f"Cannot delete directory {path} without recursive=True"
+                raise ValueError(msg)
+
+            # In extended mode, deleting a directory means deleting the issue
+            if self.extended:
+                parts = path.split("/")
+                if self.group_by == "project":
+                    if len(parts) != 2:  # noqa: PLR2004
+                        msg = f"Invalid directory path for deletion: {path}"
+                        raise ValueError(msg)
+                    issue_identifier = parts[1]
+                else:
+                    if len(parts) != 1:
+                        msg = f"Invalid directory path for deletion: {path}"
+                        raise ValueError(msg)
+                    issue_identifier = parts[0]
+
+                # Delete the issue
+                issue = await self._fetch_issue_by_identifier(issue_identifier)
+                await self._delete_issue(issue["id"])
+                self.invalidate_cache()
+            else:
+                msg = f"Cannot delete directory in flat mode: {path}"
+                raise ValueError(msg)
+        else:
+            msg = f"Path not found: {path}"
+            raise FileNotFoundError(msg)
+
+    rm = sync_wrapper(_rm)
+
     def invalidate_cache(self, path: str | None = None) -> None:
         """Clear the directory cache."""
         if path is None:
@@ -1113,7 +1254,7 @@ def _issue_to_info(
 
     return LinearIssueInfo(
         name=name,
-        type=file_type,
+        type=file_type,  # type: ignore[typeddict-item]
         size=len(description.encode()) if file_type == "file" else 0,
         issue_id=issue["id"],
         identifier=identifier,
