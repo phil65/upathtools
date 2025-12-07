@@ -68,7 +68,6 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         sha: str | None = None,
         token: str | None = None,
         timeout: float | None = None,
-        asynchronous: bool = False,
         loop: Any = None,
         client_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -81,12 +80,11 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
             sha: Not used, kept for API compatibility with github fs
             token: GitHub personal access token for authentication
             timeout: Connection timeout in seconds
-            asynchronous: Whether to use async operations
             loop: Event loop for async operations
             client_kwargs: Additional arguments for httpx client
             **kwargs: Additional filesystem options
         """
-        super().__init__(asynchronous=asynchronous, loop=loop, **kwargs)
+        super().__init__(loop=loop, **kwargs)
 
         self.org = org
         self.repo = repo
