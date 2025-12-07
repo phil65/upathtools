@@ -8,7 +8,7 @@ filesystem operations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 from urllib.parse import quote, unquote
 
 from fsspec.asyn import sync_wrapper
@@ -24,11 +24,11 @@ if TYPE_CHECKING:
 class McpInfo(FileInfo, total=False):
     """Info dict for MCP filesystem paths."""
 
-    size: int | None
-    uri: str | None
-    mime_type: str | None
-    description: str | None
-    title: str | None
+    size: Required[int | None]
+    uri: Required[str | None]
+    mime_type: Required[str | None]
+    description: Required[str | None]
+    title: Required[str | None]
 
 
 logger = get_logger(__name__)

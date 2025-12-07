@@ -27,7 +27,7 @@ async def test_mcp_fs():
         resources = await fs._ls("/", detail=True)
         for resource in resources:
             print(f"- {resource['name']}")
-            print(f"  URI: {resource['uri']}")
+            print(f"  URI: {resource.get('uri')}")
             print(f"  Type: {resource.get('mime_type', 'unknown')}")
             if resource.get("description"):
                 print(f"  Description: {resource['description']}")

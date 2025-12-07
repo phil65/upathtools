@@ -207,21 +207,21 @@ def test_openapi_fs_info_method(spec_file):
     root_info = fs.info("/")
     assert root_info["name"] == "Test API"
     assert root_info["type"] == "openapi_spec"
-    assert root_info["version"] == "3.0.1"
-    assert root_info["paths_count"] == 2  # noqa: PLR2004
+    assert root_info.get("version") == "3.0.1"
+    assert root_info.get("paths_count") == 2  # noqa: PLR2004
 
     # Path info
     path_info = fs.info("/paths/users")
     assert path_info["name"] == "/users"
     assert path_info["type"] == "api_path"
-    assert "GET" in path_info["operations"]
-    assert "POST" in path_info["operations"]
+    assert "GET" in path_info.get("operations", [])
+    assert "POST" in path_info.get("operations", [])
 
     # Operation info
     op_info = fs.info("/paths/users/GET")
-    assert op_info["method"] == "GET"
-    assert op_info["operation_id"] == "listUsers"
-    assert op_info["summary"] == "List users"
+    assert op_info.get("method") == "GET"
+    assert op_info.get("operation_id") == "listUsers"
+    assert op_info.get("summary") == "List users"
 
 
 def test_openapi_fs_curl_generation(spec_file):
@@ -291,7 +291,7 @@ def test_openapi_fs_chaining(spec_file):
 
     # Test that we can access via chaining
     with fsspec.open(url, mode="rb") as f:
-        content = f.read().decode()
+        content = f.read().decode()  # pyright: ignore[reportAttributeAccessIssue]
 
     # Should get the raw OpenAPI spec
     import json
