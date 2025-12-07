@@ -60,6 +60,7 @@ typeadapter = "upathtools.filesystems:TypeAdapterFileSystem"
 sqlite = "upathtools.filesystems:SqliteFileSystem"
 ts = "upathtools.filesystems:TreeSitterFileSystem"
 gitlab = "upathtools.filesystems:GitLabFileSystem"
+issues = "upathtools.filesystems:IssueFileSystem"
 
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems:GistPath"
@@ -80,6 +81,7 @@ openapi = "upathtools.filesystems:OpenAPIPath"
 sqlite = "upathtools.filesystems:SqlitePath"
 ts = "upathtools.filesystems:TreeSitterPath"
 gitlab = "upathtools.filesystems:GitLabPath"
+issues = "upathtools.filesystems:IssuePath"
 
 [project.optional-dependencies]
 appwrite = ["appwrite"]
