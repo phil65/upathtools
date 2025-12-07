@@ -7,12 +7,16 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.implementations.local import LocalFileSystem
+from upath.registry import get_upath_class
+
+from upathtools.async_upath import AsyncUPath
 
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
 
     from fsspec.spec import AbstractFileSystem
+    from upath import UPath
 
 
 def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
@@ -53,6 +57,32 @@ class WrapperFileSystem(AsyncFileSystem):
 
             fs = filesystem(protocol=target_protocol, **(target_options or {}))
         self.fs = to_async(fs)
+
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...
+
+    @overload
+    def get_upath(self, path: str | None = None, *, as_async: Literal[False] = False) -> UPath: ...
+
+    @overload
+    def get_upath(
+        self, path: str | None = None, *, as_async: bool = False
+    ) -> UPath | AsyncUPath: ...
+
+    def get_upath(self, path: str | None = None, *, as_async: bool = False) -> UPath | AsyncUPath:
+        """Get a UPath object for the given path.
+
+        Args:
+            path: The path to the file or directory. If None, the root path is returned.
+            as_async: If True, return an AsyncUPath wrapper
+        """
+        upath_cls = get_upath_class(self.protocol)
+        path_obj = upath_cls(path if path is not None else self.root_marker)
+        path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
+
+        if as_async:
+            return AsyncUPath._from_upath(path_obj)
+        return path_obj
 
     def is_local(self) -> bool:
         """Did we read this from the local filesystem?"""
