@@ -77,6 +77,7 @@ class WrapperFileSystem(AsyncFileSystem):
             as_async: If True, return an AsyncUPath wrapper
         """
         upath_cls = get_upath_class(self.protocol)
+        assert upath_cls
         path_obj = upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
 
