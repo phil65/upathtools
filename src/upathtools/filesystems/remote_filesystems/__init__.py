@@ -5,9 +5,19 @@ from upathtools.filesystems.remote_filesystems.gitlab_fs import (
     GitLabInfo,
     GitLabPath,
 )
+from upathtools.filesystems.remote_filesystems.linear_fs import (
+    LinearCommentInfo,
+    LinearIssueFileSystem,
+    LinearIssueInfo,
+    LinearIssuePath,
+)
 
 __all__ = [
     "GitLabFileSystem",
     "GitLabInfo",
     "GitLabPath",
+    "LinearCommentInfo",
+    "LinearIssueFileSystem",
+    "LinearIssueInfo",
+    "LinearIssuePath",
 ]
