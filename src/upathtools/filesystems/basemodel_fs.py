@@ -145,39 +145,37 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         except FileNotFoundError:
             return []
 
-        if field_name:
-            # Check if this field is a nested model
-            if field_name in current_model.model_fields:
-                field_info = current_model.model_fields[field_name]
-                field_type = field_info.annotation
+        if field_name and field_name in current_model.model_fields:
+            field_info = current_model.model_fields[field_name]
+            field_type = field_info.annotation
 
-                # Unwrap Optional, List, etc.
-                origin = get_origin(field_type)
-                if origin is not None:
-                    args = get_args(field_type)
-                    if origin in (list, tuple, set) and args:
-                        field_type = args[0]
-                    elif hasattr(field_type, "__args__"):
-                        field_type = next(
-                            (
-                                arg
-                                for arg in field_type.__args__  # type: ignore
-                                if arg is not type(None) and hasattr(arg, "model_fields")
-                            ),
-                            field_type,
-                        )
+            # Unwrap Optional, List, etc.
+            origin = get_origin(field_type)
+            if origin is not None:
+                args = get_args(field_type)
+                if origin in (list, tuple, set) and args:
+                    field_type = args[0]
+                elif hasattr(field_type, "__args__"):
+                    field_type = next(
+                        (
+                            arg
+                            for arg in field_type.__args__  # type: ignore
+                            if arg is not type(None) and hasattr(arg, "model_fields")
+                        ),
+                        field_type,
+                    )
 
-                # If it's a nested model, list its fields
-                if hasattr(field_type, "model_fields"):
-                    current_model = field_type
-                    field_name = ""  # Now treat it as listing the nested model
-                else:
-                    # It's a regular field - show special paths
-                    items = ["__schema__", "__type__", "__constraints__"]
-                    if field_info.default is not ...:
-                        items.append("__default__")
-                    if field_info.alias:
-                        items.append("__alias__")
+            # If it's a nested model, list its fields
+            if hasattr(field_type, "model_fields"):
+                current_model = field_type  # type: ignore[assignment]
+                field_name = ""  # Now treat it as listing the nested model
+            else:
+                # It's a regular field - show special paths
+                items = ["__schema__", "__type__", "__constraints__"]
+                if field_info.default is not ...:
+                    items.append("__default__")
+                if field_info.alias:
+                    items.append("__alias__")
 
         if not field_name:
             # Listing model root - show all fields plus special paths
@@ -382,8 +380,9 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
                             if arg is not type(None) and hasattr(arg, "model_fields"):
                                 return True
                 return hasattr(field_type, "model_fields")
-            return False
         except FileNotFoundError:
+            return False
+        else:
             return False
 
     def info(self, path: str, **kwargs: Any) -> BaseModelInfo:

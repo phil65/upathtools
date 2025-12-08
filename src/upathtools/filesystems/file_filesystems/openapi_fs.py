@@ -767,7 +767,7 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
-    def isdir(self, path: str) -> bool:
+    def isdir(self, path: str) -> bool:  # noqa: PLR0911
         """Check if path is a directory (has navigable children)."""
         self._load_spec()
         assert self._spec is not None
@@ -786,7 +786,7 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
 
         match parts[0]:
             case "paths":
-                if len(parts) == 2:
+                if len(parts) == 2:  # noqa: PLR2004
                     # /paths/{path} - has operations as children
                     path_key = "/" + parts[1]
                     resolved = self._resolve_path_key(path_key)
@@ -795,7 +795,7 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
                 return False
 
             case "components":
-                if len(parts) == 2:
+                if len(parts) == 2:  # noqa: PLR2004
                     # /components/{type} - has component names as children
                     component_type = parts[1]
                     return (

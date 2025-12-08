@@ -614,7 +614,7 @@ class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             size=len(json.dumps(node)),
         )
 
-    def isdir(self, path: str) -> bool:
+    def isdir(self, path: str) -> bool:  # noqa: PLR0911
         """Check if path is a directory.
 
         Args:
@@ -656,8 +656,9 @@ class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                     in ("properties", "$defs", "definitions", "items", "anyOf", "oneOf", "allOf")
                 )
 
-            return False
         except (FileNotFoundError, KeyError):
+            return False
+        else:
             return False
 
     def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def _skill_info_callback(
+async def _skill_info_callback(  # noqa: PLR0911
     info: dict[str, Any],
     fs: WrapperFileSystem,
 ) -> dict[str, Any]:
