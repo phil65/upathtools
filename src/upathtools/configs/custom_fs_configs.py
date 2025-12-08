@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class CliFilesystemConfig(FileSystemConfig):
     """Configuration for CLI filesystem."""
 
-    fs_type: Literal["cli"] = Field("cli", init=False)
+    type: Literal["cli"] = Field("cli", init=False)
     """CLI filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -40,7 +40,7 @@ class CliFilesystemConfig(FileSystemConfig):
 class DistributionFilesystemConfig(FileSystemConfig):
     """Configuration for Distribution filesystem."""
 
-    fs_type: Literal["distribution"] = Field("distribution", init=False)
+    type: Literal["distribution"] = Field("distribution", init=False)
     """Distribution filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -49,7 +49,7 @@ class DistributionFilesystemConfig(FileSystemConfig):
 class FlatUnionFilesystemConfig(FileSystemConfig):
     """Configuration for FlatUnion filesystem."""
 
-    fs_type: Literal["flatunion"] = Field("flatunion", init=False)
+    type: Literal["flatunion"] = Field("flatunion", init=False)
     """FlatUnion filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "aggregation"
@@ -63,7 +63,7 @@ class FlatUnionFilesystemConfig(FileSystemConfig):
 class GistFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub Gist filesystem."""
 
-    fs_type: Literal["gist"] = Field("gist", init=False)
+    type: Literal["gist"] = Field("gist", init=False)
     """Gist filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -106,7 +106,7 @@ class GistFilesystemConfig(FileSystemConfig):
 class HttpFilesystemConfig(FileSystemConfig):
     """Configuration for HTTP filesystem."""
 
-    fs_type: Literal["http"] = Field("http", init=False)
+    type: Literal["http"] = Field("http", init=False)
     """HTTP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -138,7 +138,7 @@ class MarkdownFilesystemConfig(FileSystemConfig):
     fo: UPath = Field(title="Markdown File Path", examples=["/path/to/file.md"])
     """Path to markdown file"""
 
-    fs_type: Literal["md"] = Field("md", init=False)
+    type: Literal["md"] = Field("md", init=False)
     """Markdown filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -155,7 +155,7 @@ class MarkdownFilesystemConfig(FileSystemConfig):
 class ModuleFilesystemConfig(FileSystemConfig):
     """Configuration for Module filesystem."""
 
-    fs_type: Literal["mod"] = Field("mod", init=False)
+    type: Literal["mod"] = Field("mod", init=False)
     """Module filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -175,7 +175,7 @@ class ModuleFilesystemConfig(FileSystemConfig):
 class PackageFilesystemConfig(FileSystemConfig):
     """Configuration for Package filesystem."""
 
-    fs_type: Literal["pkg"] = Field("pkg", init=False)
+    type: Literal["pkg"] = Field("pkg", init=False)
     """Package filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -192,7 +192,7 @@ class PackageFilesystemConfig(FileSystemConfig):
 class PythonAstFilesystemConfig(FileSystemConfig):
     """Configuration for Python AST filesystem."""
 
-    fs_type: Literal["ast"] = Field("ast", init=False)
+    type: Literal["ast"] = Field("ast", init=False)
     """Python AST filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -212,7 +212,7 @@ class PythonAstFilesystemConfig(FileSystemConfig):
 class UnionFilesystemConfig(FileSystemConfig):
     """Configuration for Union filesystem."""
 
-    fs_type: Literal["union"] = Field("union", init=False)
+    type: Literal["union"] = Field("union", init=False)
     """Union filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "aggregation"
@@ -224,7 +224,7 @@ class UnionFilesystemConfig(FileSystemConfig):
 class WikiFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub Wiki filesystem."""
 
-    fs_type: Literal["wiki"] = Field("wiki", init=False)
+    type: Literal["wiki"] = Field("wiki", init=False)
     """Wiki filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -259,7 +259,7 @@ class WikiFilesystemConfig(FileSystemConfig):
 class AppwriteFilesystemConfig(FileSystemConfig):
     """Configuration for Appwrite storage filesystem."""
 
-    fs_type: Literal["appwrite"] = Field("appwrite", init=False)
+    type: Literal["appwrite"] = Field("appwrite", init=False)
     """Appwrite filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -297,7 +297,7 @@ class AppwriteFilesystemConfig(FileSystemConfig):
 class BaseModelFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel schema filesystem."""
 
-    fs_type: Literal["basemodel"] = Field("basemodel", init=False)
+    type: Literal["basemodel"] = Field("basemodel", init=False)
     """BaseModel filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -314,7 +314,7 @@ class BaseModelFilesystemConfig(FileSystemConfig):
 class HttpxFilesystemConfig(FileSystemConfig):
     """Configuration for HTTPX-based HTTP filesystem."""
 
-    fs_type: Literal["httpx"] = Field("httpx", init=False)
+    type: Literal["httpx"] = Field("httpx", init=False)
     """HTTPX filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -346,7 +346,7 @@ class HttpxFilesystemConfig(FileSystemConfig):
 class McpFilesystemConfig(FileSystemConfig):
     """Configuration for MCP (Model Context Protocol) filesystem."""
 
-    fs_type: Literal["mcp"] = Field("mcp", init=False)
+    type: Literal["mcp"] = Field("mcp", init=False)
     """MCP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -370,7 +370,7 @@ class McpFilesystemConfig(FileSystemConfig):
 class NotionFilesystemConfig(FileSystemConfig):
     """Configuration for Notion filesystem."""
 
-    fs_type: Literal["notion"] = Field("notion", init=False)
+    type: Literal["notion"] = Field("notion", init=False)
     """Notion filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -391,7 +391,7 @@ class NotionFilesystemConfig(FileSystemConfig):
 class OpenApiFilesystemConfig(FileSystemConfig):
     """Configuration for OpenAPI schema filesystem."""
 
-    fs_type: Literal["openapi"] = Field("openapi", init=False)
+    type: Literal["openapi"] = Field("openapi", init=False)
     """OpenAPI filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -414,7 +414,7 @@ class OpenApiFilesystemConfig(FileSystemConfig):
 class JsonSchemaFilesystemConfig(FileSystemConfig):
     """Configuration for JSON Schema filesystem."""
 
-    fs_type: Literal["jsonschema"] = Field("jsonschema", init=False)
+    type: Literal["jsonschema"] = Field("jsonschema", init=False)
     """JSON Schema filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -436,7 +436,7 @@ class JsonSchemaFilesystemConfig(FileSystemConfig):
 class SkillsFilesystemConfig(FileSystemConfig):
     """Configuration for Skills filesystem."""
 
-    fs_type: Literal["skills"] = Field("skills", init=False)
+    type: Literal["skills"] = Field("skills", init=False)
     """Skills filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -452,7 +452,7 @@ class SkillsFilesystemConfig(FileSystemConfig):
 class TypeAdapterFilesystemConfig(FileSystemConfig):
     """Configuration for TypeAdapter filesystem."""
 
-    fs_type: Literal["typeadapter"] = Field("typeadapter", init=False)
+    type: Literal["typeadapter"] = Field("typeadapter", init=False)
     """TypeAdapter filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -472,7 +472,7 @@ class TypeAdapterFilesystemConfig(FileSystemConfig):
 class BeamFilesystemConfig(FileSystemConfig):
     """Configuration for Beam sandbox filesystem."""
 
-    fs_type: Literal["beam"] = Field("beam", init=False)
+    type: Literal["beam"] = Field("beam", init=False)
     """Beam filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -509,7 +509,7 @@ class BeamFilesystemConfig(FileSystemConfig):
 class DaytonaFilesystemConfig(FileSystemConfig):
     """Configuration for Daytona sandbox filesystem."""
 
-    fs_type: Literal["daytona"] = Field("daytona", init=False)
+    type: Literal["daytona"] = Field("daytona", init=False)
     """Daytona filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -529,7 +529,7 @@ class DaytonaFilesystemConfig(FileSystemConfig):
 class E2BFilesystemConfig(FileSystemConfig):
     """Configuration for E2B sandbox filesystem."""
 
-    fs_type: Literal["e2b"] = Field("e2b", init=False)
+    type: Literal["e2b"] = Field("e2b", init=False)
     """E2B filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -560,7 +560,7 @@ class E2BFilesystemConfig(FileSystemConfig):
 class MicrosandboxFilesystemConfig(FileSystemConfig):
     """Configuration for Microsandbox filesystem."""
 
-    fs_type: Literal["microsandbox"] = Field("microsandbox", init=False)
+    type: Literal["microsandbox"] = Field("microsandbox", init=False)
     """Microsandbox filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -609,7 +609,7 @@ class MicrosandboxFilesystemConfig(FileSystemConfig):
 class ModalFilesystemConfig(FileSystemConfig):
     """Configuration for Modal sandbox filesystem."""
 
-    fs_type: Literal["modal"] = Field("modal", init=False)
+    type: Literal["modal"] = Field("modal", init=False)
     """Modal filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -641,7 +641,7 @@ class ModalFilesystemConfig(FileSystemConfig):
 class VercelFilesystemConfig(FileSystemConfig):
     """Configuration for Vercel sandbox filesystem."""
 
-    fs_type: Literal["vercel"] = Field("vercel", init=False)
+    type: Literal["vercel"] = Field("vercel", init=False)
     """Vercel filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -676,7 +676,7 @@ class SRTFilesystemConfig(FileSystemConfig):
     with configurable network and filesystem restrictions.
     """
 
-    fs_type: Literal["srt"] = Field("srt", init=False)
+    type: Literal["srt"] = Field("srt", init=False)
     """SRT filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
@@ -736,7 +736,7 @@ class SRTFilesystemConfig(FileSystemConfig):
 class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel instance filesystem."""
 
-    fs_type: Literal["basemodel_instance"] = Field("basemodel_instance", init=False)
+    type: Literal["basemodel_instance"] = Field("basemodel_instance", init=False)
     """BaseModel instance filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -753,7 +753,7 @@ class BaseModelInstanceFilesystemConfig(FileSystemConfig):
 class AsyncLocalFilesystemConfig(FileSystemConfig):
     """Configuration for async local filesystem."""
 
-    fs_type: Literal["asynclocal"] = Field("asynclocal", init=False)
+    type: Literal["asynclocal"] = Field("asynclocal", init=False)
     """Async local filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -765,7 +765,7 @@ class AsyncLocalFilesystemConfig(FileSystemConfig):
 class OverlayFilesystemConfig(FileSystemConfig):
     """Configuration for overlay filesystem with copy-on-write semantics."""
 
-    fs_type: Literal["overlay"] = Field("overlay", init=False)
+    type: Literal["overlay"] = Field("overlay", init=False)
     """Overlay filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "aggregation"
@@ -781,7 +781,7 @@ class OverlayFilesystemConfig(FileSystemConfig):
 class SqliteFilesystemConfig(FileSystemConfig):
     """Configuration for SQLite database filesystem."""
 
-    fs_type: Literal["sqlite"] = Field("sqlite", init=False)
+    type: Literal["sqlite"] = Field("sqlite", init=False)
     """SQLite filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -801,7 +801,7 @@ class SqliteFilesystemConfig(FileSystemConfig):
 class TreeSitterFilesystemConfig(FileSystemConfig):
     """Configuration for tree-sitter code structure filesystem."""
 
-    fs_type: Literal["treesitter"] = Field("treesitter", init=False)
+    type: Literal["treesitter"] = Field("treesitter", init=False)
     """Tree-sitter filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -828,7 +828,7 @@ class TreeSitterFilesystemConfig(FileSystemConfig):
 class GitLabFilesystemConfig(FileSystemConfig):
     """Configuration for GitLab repository filesystem."""
 
-    fs_type: Literal["gitlab"] = Field("gitlab", init=False)
+    type: Literal["gitlab"] = Field("gitlab", init=False)
     """GitLab filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -864,7 +864,7 @@ class GitLabFilesystemConfig(FileSystemConfig):
 class LinearFilesystemConfig(FileSystemConfig):
     """Configuration for Linear Issues filesystem."""
 
-    fs_type: Literal["linear"] = Field("linear", init=False)
+    type: Literal["linear"] = Field("linear", init=False)
     """Linear filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -902,7 +902,7 @@ class LinearFilesystemConfig(FileSystemConfig):
 class McpToolsFilesystemConfig(FileSystemConfig):
     """Configuration for MCP tools filesystem."""
 
-    fs_type: Literal["mcptools"] = Field("mcptools", init=False)
+    type: Literal["mcptools"] = Field("mcptools", init=False)
     """MCP tools filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -931,7 +931,7 @@ class McpToolsFilesystemConfig(FileSystemConfig):
 # class SkillsFilesystemConfig(FileSystemConfig):
 #     """Configuration for Skills filesystem."""
 
-#     fs_type: Literal["skills"] = Field("skills", init=False)
+#     type_: Literal["skills"] = Field("skills", init=False)
 #     """Skills filesystem type"""
 
 #     _category: ClassVar[FilesystemCategoryType] = "wrapper"

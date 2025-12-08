@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class ArrowFilesystemConfig(FileSystemConfig):
     """Configuration for Arrow filesystem wrapper."""
 
-    fs_type: Literal["arrow"] = Field("arrow", init=False)
+    type: Literal["arrow"] = Field("arrow", init=False)
     """Arrow filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "wrapper"
@@ -29,7 +29,7 @@ class ArrowFilesystemConfig(FileSystemConfig):
 class DataFilesystemConfig(FileSystemConfig):
     """Configuration for Data URL filesystem."""
 
-    fs_type: Literal["data"] = Field("data", init=False)
+    type: Literal["data"] = Field("data", init=False)
     """Data URL filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -38,7 +38,7 @@ class DataFilesystemConfig(FileSystemConfig):
 class DaskWorkerFilesystemConfig(FileSystemConfig):
     """Configuration for Dask worker filesystem."""
 
-    fs_type: Literal["dask"] = Field("dask", init=False)
+    type: Literal["dask"] = Field("dask", init=False)
     """Dask worker filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "wrapper"
@@ -62,7 +62,7 @@ class DaskWorkerFilesystemConfig(FileSystemConfig):
 class FTPFilesystemConfig(FileSystemConfig):
     """Configuration for FTP filesystem."""
 
-    fs_type: Literal["ftp"] = Field("ftp", init=False)
+    type: Literal["ftp"] = Field("ftp", init=False)
     """FTP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -113,7 +113,7 @@ class FTPFilesystemConfig(FileSystemConfig):
 class GitFilesystemConfig(FileSystemConfig):
     """Configuration for Git filesystem."""
 
-    fs_type: Literal["git"] = Field("git", init=False)
+    type: Literal["git"] = Field("git", init=False)
     """Git filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
@@ -141,7 +141,7 @@ class GitFilesystemConfig(FileSystemConfig):
 class GithubFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub filesystem."""
 
-    fs_type: Literal["github"] = Field("github", init=False)
+    type: Literal["github"] = Field("github", init=False)
     """GitHub filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -195,7 +195,7 @@ class GithubFilesystemConfig(FileSystemConfig):
 class HadoopFilesystemConfig(FileSystemConfig):
     """Configuration for Hadoop filesystem."""
 
-    fs_type: Literal["hdfs"] = Field("hdfs", init=False)
+    type: Literal["hdfs"] = Field("hdfs", init=False)
     """Hadoop filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -235,7 +235,7 @@ class HadoopFilesystemConfig(FileSystemConfig):
 class JupyterFilesystemConfig(FileSystemConfig):
     """Configuration for Jupyter notebook/lab filesystem."""
 
-    fs_type: Literal["jupyter"] = Field("jupyter", init=False)
+    type: Literal["jupyter"] = Field("jupyter", init=False)
     """Jupyter filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -253,7 +253,7 @@ class JupyterFilesystemConfig(FileSystemConfig):
 class LibArchiveFilesystemConfig(FileSystemConfig):
     """Configuration for LibArchive filesystem."""
 
-    fs_type: Literal["libarchive"] = Field("libarchive", init=False)
+    type: Literal["libarchive"] = Field("libarchive", init=False)
     """LibArchive filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
@@ -276,7 +276,7 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
 class LocalFilesystemConfig(FileSystemConfig):
     """Configuration for Local filesystem."""
 
-    fs_type: Literal["file"] = Field("file", init=False)
+    type: Literal["file"] = Field("file", init=False)
     """Local filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -293,7 +293,7 @@ class LocalFilesystemConfig(FileSystemConfig):
 class MemoryFilesystemConfig(FileSystemConfig):
     """Configuration for Memory filesystem."""
 
-    fs_type: Literal["memory"] = Field("memory", init=False)
+    type: Literal["memory"] = Field("memory", init=False)
     """Memory filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -302,7 +302,7 @@ class MemoryFilesystemConfig(FileSystemConfig):
 class SFTPFilesystemConfig(FileSystemConfig):
     """Configuration for SFTP filesystem."""
 
-    fs_type: Literal["sftp"] = Field("sftp", init=False)
+    type: Literal["sftp"] = Field("sftp", init=False)
     """SFTP filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -336,7 +336,7 @@ class SFTPFilesystemConfig(FileSystemConfig):
 class SMBFilesystemConfig(FileSystemConfig):
     """Configuration for SMB/CIFS filesystem."""
 
-    fs_type: Literal["smb"] = Field("smb", init=False)
+    type: Literal["smb"] = Field("smb", init=False)
     """SMB filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -372,7 +372,7 @@ class SMBFilesystemConfig(FileSystemConfig):
 class TarFilesystemConfig(FileSystemConfig):
     """Configuration for Tar archive filesystem."""
 
-    fs_type: Literal["tar"] = Field("tar", init=False)
+    type: Literal["tar"] = Field("tar", init=False)
     """Tar filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
@@ -403,7 +403,7 @@ class TarFilesystemConfig(FileSystemConfig):
 class WebHDFSFilesystemConfig(FileSystemConfig):
     """Configuration for WebHDFS filesystem."""
 
-    fs_type: Literal["webhdfs"] = Field("webhdfs", init=False)
+    type: Literal["webhdfs"] = Field("webhdfs", init=False)
     """WebHDFS filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -444,7 +444,7 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
 class ZipFilesystemConfig(FileSystemConfig):
     """Configuration for Zip archive filesystem."""
 
-    fs_type: Literal["zip"] = Field("zip", init=False)
+    type: Literal["zip"] = Field("zip", init=False)
     """Zip filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "archive"
@@ -477,7 +477,7 @@ class ZipFilesystemConfig(FileSystemConfig):
 class AzureBlobFilesystemConfig(FileSystemConfig):
     """Configuration for Azure Blob Storage filesystem."""
 
-    fs_type: Literal["abfs"] = Field("abfs", init=False)
+    type: Literal["abfs"] = Field("abfs", init=False)
     """Azure Blob filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -512,7 +512,7 @@ class AzureBlobFilesystemConfig(FileSystemConfig):
 class GCSFilesystemConfig(FileSystemConfig):
     """Configuration for Google Cloud Storage filesystem."""
 
-    fs_type: Literal["gcs"] = Field("gcs", init=False)
+    type: Literal["gcs"] = Field("gcs", init=False)
     """GCS filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -550,7 +550,7 @@ class GCSFilesystemConfig(FileSystemConfig):
 class HuggingFaceFilesystemConfig(FileSystemConfig):
     """Configuration for HuggingFace Hub filesystem."""
 
-    fs_type: Literal["hf"] = Field("hf", init=False)
+    type: Literal["hf"] = Field("hf", init=False)
     """HuggingFace filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -575,7 +575,7 @@ class HuggingFaceFilesystemConfig(FileSystemConfig):
 class S3FilesystemConfig(FileSystemConfig):
     """Configuration for AWS S3 filesystem."""
 
-    fs_type: Literal["s3"] = Field("s3", init=False)
+    type: Literal["s3"] = Field("s3", init=False)
     """S3 filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -621,7 +621,7 @@ class S3FilesystemConfig(FileSystemConfig):
 class WebdavFilesystemConfig(FileSystemConfig):
     """Configuration for WebDAV filesystem."""
 
-    fs_type: Literal["webdav"] = Field("webdav", init=False)
+    type: Literal["webdav"] = Field("webdav", init=False)
     """WebDAV filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "base"

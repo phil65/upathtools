@@ -13,7 +13,7 @@ from upathtools.configs.fsspec_fs_configs import FsspecFilesystemConfig
 # Combined union of all filesystem config types
 FilesystemConfigType = Annotated[
     CustomFilesystemConfig | FsspecFilesystemConfig | URIFileSystemConfig,
-    Field(discriminator="fs_type"),
+    Field(discriminator="type"),
 ]
 
 __all__ = [

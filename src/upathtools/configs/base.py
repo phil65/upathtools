@@ -27,7 +27,7 @@ class FileSystemConfig(BaseModel):
 
     model_config = ConfigDict(extra="allow", use_attribute_docstrings=True)
 
-    fs_type: str
+    type: str
     """Type of filesystem"""
 
     root_path: str | None = None
@@ -62,33 +62,33 @@ class FileSystemConfig(BaseModel):
         """Return all available filesystem configurations.
 
         Returns:
-            Dictionary mapping fs_type values to configuration classes
+            Dictionary mapping type values to configuration classes
         """
         result = {}
         for subclass in cls.__subclasses__():
             result.update(subclass.get_available_configs())
-            if hasattr(subclass.fs_type, "__args__"):
-                fs_type = subclass.fs_type.__args__[0]  # pyright: ignore
+            if hasattr(subclass.type, "__args__"):
+                fs_type = subclass.type.__args__[0]  # pyright: ignore
                 result[fs_type] = subclass
 
         return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> FileSystemConfig:
-        """Create appropriate config instance based on fs_type.
+        """Create appropriate config instance based on type.
 
         Args:
-            data: Dictionary containing configuration data with fs_type
+            data: Dictionary containing configuration data with type
 
         Returns:
             Instantiated configuration object of the appropriate type
 
         Raises:
-            ValueError: If fs_type is missing or unknown
+            ValueError: If type is missing or unknown
         """
-        fs_type = data.get("fs_type")
+        fs_type = data.get("type")
         if not fs_type:
-            msg = "fs_type must be specified"
+            msg = "type must be specified"
             raise ValueError(msg)
 
         configs = cls.get_available_configs()
@@ -108,7 +108,7 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration.
         """
-        fs_kwargs = self.model_dump(exclude={"fs_type", "root_path", "cwd", "cached"})
+        fs_kwargs = self.model_dump(exclude={"type", "root_path", "cwd", "cached"})
         fs_kwargs = {k: v for k, v in fs_kwargs.items() if v is not None}
 
         # Convert Pydantic types to plain Python types
@@ -118,7 +118,7 @@ class FileSystemConfig(BaseModel):
             elif isinstance(value, AnyUrl):
                 fs_kwargs[key] = str(value)
 
-        fs = fsspec.filesystem(self.fs_type, **fs_kwargs)
+        fs = fsspec.filesystem(self.type, **fs_kwargs)
 
         # Apply path prefix (DirFileSystem wrapper) - sandboxed, can't escape
         if self.root_path:
@@ -164,7 +164,7 @@ class URIFileSystemConfig(FileSystemConfig):
         ```
     """
 
-    fs_type: Literal["uri"] = Field("uri", init=False)
+    type: Literal["uri"] = Field("uri", init=False)
     """URI-based filesystem type."""
 
     uri: str = Field(
