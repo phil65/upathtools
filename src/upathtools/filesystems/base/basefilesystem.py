@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
 
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
@@ -22,6 +22,25 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]
+
+    @classmethod
+    def get_info_fields(cls) -> list[str]:
+        """Get the field names from the TInfoDict type parameter.
+
+        Returns:
+            List of field names defined in the InfoDict type, or empty list if not a TypedDict
+        """
+        # Get the generic arguments from the class
+        if hasattr(cls, "__orig_bases__"):
+            for base in cls.__orig_bases__:  # pyright: ignore[reportAttributeAccessIssue]
+                if get_origin(base) is not None:
+                    args = get_args(base)
+                    if len(args) >= 2:  # noqa: PLR2004
+                        info_dict_type = args[1]
+                        # Check if it's a TypedDict by looking for __annotations__
+                        if hasattr(info_dict_type, "__annotations__"):
+                            return list(info_dict_type.__annotations__.keys())
+        return []
 
     @overload
     async def _glob(
@@ -189,6 +208,25 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]
+
+    @classmethod
+    def get_info_fields(cls) -> list[str]:
+        """Get the field names from the TInfoDict type parameter.
+
+        Returns:
+            List of field names defined in the InfoDict type, or empty list if not a TypedDict
+        """
+        # Get the generic arguments from the class
+        if hasattr(cls, "__orig_bases__"):
+            for base in cls.__orig_bases__:  # pyright: ignore[reportAttributeAccessIssue]
+                if get_origin(base) is not None:
+                    args = get_args(base)
+                    if len(args) >= 2:  # noqa: PLR2004
+                        info_dict_type = args[1]
+                        # Check if it's a TypedDict by looking for __annotations__
+                        if hasattr(info_dict_type, "__annotations__"):
+                            return list(info_dict_type.__annotations__.keys())
+        return []
 
     @overload
     def glob(
