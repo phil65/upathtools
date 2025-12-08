@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from huggingface_hub.hf_file_system import HfFileSystem as _HfFileSystem
+from huggingface_hub.hf_file_system import (  # type: ignore[import-not-found]
+    HfFileSystem as _HfFileSystem,
+)
 from upath.implementations.cloud import HfPath
 
 from upathtools.filesystems.base import BaseFileSystem

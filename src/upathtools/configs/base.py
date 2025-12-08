@@ -58,7 +58,7 @@ class FileSystemConfig(BaseModel):
         return self.category in {"archive", "transform"}
 
     @classmethod
-    def get_available_configs(cls) -> dict[str, type[FileSystemConfig]]:
+    def get_available_configs(cls) -> dict[str, type[FileSystemConfig]]:  # type: ignore[valid-type]
         """Return all available filesystem configurations.
 
         Returns:
@@ -93,7 +93,7 @@ class FileSystemConfig(BaseModel):
 
         configs = cls.get_available_configs()
         if fs_type in configs:
-            return configs[fs_type](**data)
+            return configs[fs_type](**data)  # type: ignore[misc]
         return cls(**data)
 
     @overload
