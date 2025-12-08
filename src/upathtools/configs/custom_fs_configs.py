@@ -411,6 +411,28 @@ class OpenApiFilesystemConfig(FileSystemConfig):
     """Options for target protocol"""
 
 
+class JsonSchemaFilesystemConfig(FileSystemConfig):
+    """Configuration for JSON Schema filesystem."""
+
+    fs_type: Literal["jsonschema"] = Field("jsonschema", init=False)
+    """JSON Schema filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "transform"
+
+    fo: UPath = Field(
+        title="JSON Schema Path",
+        examples=["/path/to/schema.json", "https://example.com/schema.json"],
+    )
+    """Path or URL to JSON Schema file"""
+
+    headers: dict[str, str] | None = Field(
+        default=None,
+        title="HTTP Headers",
+        examples=[{"Authorization": "Bearer token", "Accept": "application/json"}],
+    )
+    """HTTP headers for fetching remote schemas"""
+
+
 class SkillsFilesystemConfig(FileSystemConfig):
     """Configuration for Skills filesystem."""
 
@@ -906,6 +928,7 @@ CustomFilesystemConfig = (
     | GitLabFilesystemConfig
     | HttpFilesystemConfig
     | HttpxFilesystemConfig
+    | JsonSchemaFilesystemConfig
     | MarkdownFilesystemConfig
     | McpFilesystemConfig
     | McpToolsFilesystemConfig

@@ -19,6 +19,7 @@ from .remote_filesystems.notion_fs import NotionFileSystem, NotionPath
 from .remote_filesystems.wiki_fs import WikiFileSystem, WikiPath
 from .remote_filesystems.issue_fs import IssueFileSystem, IssuePath
 
+from .file_filesystems.jsonschema_fs import JsonSchemaFileSystem, JsonSchemaPath
 from .file_filesystems.markdown_fs import MarkdownFileSystem, MarkdownPath
 from .file_filesystems.openapi_fs import OpenAPIFileSystem, OpenAPIPath
 from .file_filesystems.python_ast_fs import PythonAstFileSystem, PythonAstPath
@@ -66,6 +67,8 @@ __all__ = [
     "GitLabPath",
     "IssueFileSystem",
     "IssuePath",
+    "JsonSchemaFileSystem",
+    "JsonSchemaPath",
     "MCPFileSystem",
     "MCPPath",
     "MCPToolsFileSystem",
