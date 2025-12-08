@@ -61,6 +61,7 @@ typeadapter = "upathtools.filesystems:TypeAdapterFileSystem"
 sqlite = "upathtools.filesystems:SqliteFileSystem"
 ts = "upathtools.filesystems:TreeSitterFileSystem"
 gitlab = "upathtools.filesystems:GitLabFileSystem"
+linear = "upathtools.filesystems:LinearIssueFileSystem"
 issues = "upathtools.filesystems:IssueFileSystem"
 
 [project.entry-points."universal_pathlib.implementations"]
@@ -83,6 +84,7 @@ jsonschema = "upathtools.filesystems:JsonSchemaPath"
 sqlite = "upathtools.filesystems:SqlitePath"
 ts = "upathtools.filesystems:TreeSitterPath"
 gitlab = "upathtools.filesystems:GitLabPath"
+linear = "upathtools.filesystems:LinearIssuePath"
 issues = "upathtools.filesystems:IssuePath"
 
 [project.optional-dependencies]

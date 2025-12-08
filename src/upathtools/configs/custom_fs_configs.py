@@ -861,6 +861,44 @@ class GitLabFilesystemConfig(FileSystemConfig):
     """GitLab private access token"""
 
 
+class LinearFilesystemConfig(FileSystemConfig):
+    """Configuration for Linear Issues filesystem."""
+
+    fs_type: Literal["linear"] = Field("linear", init=False)
+    """Linear filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "base"
+
+    api_key: SecretStr | None = Field(
+        default=None,
+        title="API Key",
+        description="Linear API key for authentication (or set LINEAR_API_KEY env var)",
+    )
+    """Linear API key"""
+
+    extended: bool = Field(
+        default=False,
+        title="Extended Mode",
+        description="If True, issues are folders with comments as sub-files",
+    )
+    """Whether to use extended mode with issue directories"""
+
+    group_by: Literal["project"] | None = Field(
+        default=None,
+        title="Group By",
+        description="How to group issues. None for flat, 'project' for project folders",
+    )
+    """Grouping strategy for issues"""
+
+    timeout: float | None = Field(
+        default=None,
+        title="Timeout",
+        description="Connection timeout in seconds",
+        gt=0,
+    )
+    """Request timeout in seconds"""
+
+
 class McpToolsFilesystemConfig(FileSystemConfig):
     """Configuration for MCP tools filesystem."""
 
@@ -929,6 +967,7 @@ CustomFilesystemConfig = (
     | HttpFilesystemConfig
     | HttpxFilesystemConfig
     | JsonSchemaFilesystemConfig
+    | LinearFilesystemConfig
     | MarkdownFilesystemConfig
     | McpFilesystemConfig
     | McpToolsFilesystemConfig
