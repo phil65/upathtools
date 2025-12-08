@@ -146,15 +146,40 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
             return []
 
         if field_name:
-            # Listing a specific field - show special paths
-            items = ["__schema__", "__type__", "__constraints__"]
+            # Check if this field is a nested model
             if field_name in current_model.model_fields:
                 field_info = current_model.model_fields[field_name]
-                if field_info.default is not ...:  # Has a default value
-                    items.append("__default__")
-                if field_info.alias:
-                    items.append("__alias__")
-        else:
+                field_type = field_info.annotation
+
+                # Unwrap Optional, List, etc.
+                origin = get_origin(field_type)
+                if origin is not None:
+                    args = get_args(field_type)
+                    if origin in (list, tuple, set) and args:
+                        field_type = args[0]
+                    elif hasattr(field_type, "__args__"):
+                        field_type = next(
+                            (
+                                arg
+                                for arg in field_type.__args__  # type: ignore
+                                if arg is not type(None) and hasattr(arg, "model_fields")
+                            ),
+                            field_type,
+                        )
+
+                # If it's a nested model, list its fields
+                if hasattr(field_type, "model_fields"):
+                    current_model = field_type
+                    field_name = ""  # Now treat it as listing the nested model
+                else:
+                    # It's a regular field - show special paths
+                    items = ["__schema__", "__type__", "__constraints__"]
+                    if field_info.default is not ...:
+                        items.append("__default__")
+                    if field_info.alias:
+                        items.append("__alias__")
+
+        if not field_name:
             # Listing model root - show all fields plus special paths
             items = list(current_model.model_fields.keys())
             items.extend(["__schema__", "__fields_info__", "__model_config__"])
@@ -331,7 +356,7 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         return json.dumps(field_data, indent=2, default=str).encode()
 
     def isdir(self, path: str) -> bool:
-        """Check if path is a directory (model or nested model)."""
+        """Check if path is a directory (model or nested model field)."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
@@ -339,8 +364,25 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
             return True
 
         try:
-            _current_model, field_name = self._get_nested_model_at_path(path)
-            return bool(not field_name)
+            current_model, field_name = self._get_nested_model_at_path(path)
+            if not field_name:
+                # It's a model path (not a field)
+                return True
+            # Check if the field is a nested model
+            if field_name in current_model.model_fields:
+                field_info = current_model.model_fields[field_name]
+                field_type = field_info.annotation
+                origin = get_origin(field_type)
+                if origin is not None:
+                    args = get_args(field_type)
+                    if origin in (list, tuple, set) and args:
+                        field_type = args[0]
+                    elif hasattr(field_type, "__args__"):
+                        for arg in field_type.__args__:  # type: ignore
+                            if arg is not type(None) and hasattr(arg, "model_fields"):
+                                return True
+                return hasattr(field_type, "model_fields")
+            return False
         except FileNotFoundError:
             return False
 

@@ -614,6 +614,52 @@ class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             size=len(json.dumps(node)),
         )
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if path is a directory (has navigable children), False otherwise
+        """
+        path = self._strip_protocol(path).strip("/")
+
+        if not path:
+            # Root is always a directory
+            return True
+
+        parts = path.split("/")
+
+        # Special files are never directories
+        if parts[-1] in ("__raw__", "__meta__", "__schema__"):
+            return False
+
+        # Check if it's a known directory section at root
+        if len(parts) == 1 and parts[0] in ("properties", "$defs", "definitions"):
+            schema = self._load_schema()
+            return parts[0] in schema
+
+        # Navigate to the node and check if it has children
+        try:
+            node = self._navigate_to_node(parts)
+            if node is None:
+                return False
+
+            if isinstance(node, dict):
+                # It's a directory if it has navigable children
+                return (
+                    "properties" in node
+                    or "items" in node
+                    or any(k in node for k in ("anyOf", "oneOf", "allOf"))
+                    or parts[-1]
+                    in ("properties", "$defs", "definitions", "items", "anyOf", "oneOf", "allOf")
+                )
+
+            return False
+        except (FileNotFoundError, KeyError):
+            return False
+
     def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Open a file for reading."""
         import io

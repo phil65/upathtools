@@ -173,6 +173,37 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
 
         return result
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (BaseModel instance, list, or dict)."""
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+
+        if not path:
+            # Root is always a directory
+            return True
+
+        try:
+            current_obj, field_name = _get_nested_value_at_path(self.instance, path)
+        except FileNotFoundError:
+            return False
+
+        if field_name:
+            # Check if the field value is navigable
+            if not hasattr(current_obj, field_name):
+                return False
+            field_value = getattr(current_obj, field_name)
+            return (
+                _is_basemodel_instance(field_value)
+                or _is_list_like(field_value)
+                or _is_dict_like(field_value)
+            )
+
+        # current_obj itself - check if it's navigable
+        return (
+            _is_basemodel_instance(current_obj)
+            or _is_list_like(current_obj)
+            or _is_dict_like(current_obj)
+        )
+
     def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
         """Get field values, JSON representation, or other information."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]

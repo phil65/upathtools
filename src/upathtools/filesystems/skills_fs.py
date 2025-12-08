@@ -123,8 +123,8 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
             size=info.get("size", 0),
         )
 
-        if info.get("type") == "directory":
-            path = info["name"]
+        path = info["name"]
+        if await self._isdir(path):
             if await self._is_skill_directory(path):
                 skill_metadata = await self._parse_skill_metadata(path)
                 if skill_metadata:
@@ -237,7 +237,7 @@ class SkillsFileSystem(BaseAsyncFileSystem[SkillsPath, SkillsInfo]):
                         "description": entry.get("skill_description", ""),
                         "metadata": entry.get("skill_metadata", {}),
                     })
-                elif entry.get("type") == "directory":
+                elif await self._isdir(entry["name"]):
                     subskills = await self.list_skills(entry["name"])
                     skills.extend(subskills)
 

@@ -255,6 +255,14 @@ class MarkdownFileSystem(BaseFileSystem[MarkdownPath, MarkdownInfo]):
             level=node.level,
         )
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (has children)."""
+        try:
+            node = self._get_node(path)
+            return node.is_dir()
+        except FileNotFoundError:
+            return False
+
     def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to section content."""
         if "w" in mode or "a" in mode:

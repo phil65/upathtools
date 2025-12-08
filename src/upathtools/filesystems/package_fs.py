@@ -161,6 +161,32 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (package).
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if path is a package (has __path__), False otherwise
+        """
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Root is always a directory
+        if not path:
+            return True
+
+        # Construct full module name
+        module_name = self.package
+        if path:
+            module_name = f"{module_name}.{path.replace('/', '.')}"
+
+        try:
+            module = self._get_module(module_name)
+            return hasattr(module, "__path__")
+        except (ImportError, FileNotFoundError):
+            return False
+
     def cat(self, path: str) -> bytes:
         """Get module file content."""
         path = path.removesuffix(".py")

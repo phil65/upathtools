@@ -366,6 +366,22 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
             msg = f"Failed to write content: {e!s}"
             raise OSError(msg) from e
 
+    async def _isdir(self, path: str) -> bool:
+        """Check if path is a directory (has child pages)."""
+        path = self._strip_protocol(path)  # type: ignore
+
+        if not path or path == "/":
+            return True
+
+        page_id = await self._get_page_id_from_path(path)
+        if not page_id:
+            return False
+
+        # Check if page has child pages
+        children = await self.notion.blocks.children.list(block_id=page_id)
+        results = children.get("results", [])
+        return any(block["type"] == "child_page" for block in results)
+
     async def _info(self, path: str, **kwargs: Any) -> NotionInfo:
         """Get info about a page."""
         path = self._strip_protocol(path)  # type: ignore
@@ -398,6 +414,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
     pipe_file = sync_wrapper(_pipe_file)
     info = sync_wrapper(_info)
+    isdir = sync_wrapper(_isdir)
 
 
 class NotionFile:

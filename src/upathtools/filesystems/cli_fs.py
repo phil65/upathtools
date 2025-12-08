@@ -185,6 +185,20 @@ class CliFileSystem(BaseFileSystem[CliPath, CliInfo]):
         except subprocess.CalledProcessError as e:
             raise subprocess.CalledProcessError(e.returncode, e.cmd, e.output, e.stderr) from None
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory.
+
+        Only the root is a directory in CLI filesystem.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if path is root, False otherwise
+        """
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+        return not path
+
     def info(self, path: str, **kwargs: Any) -> CliInfo:
         """Get information about a command.
 

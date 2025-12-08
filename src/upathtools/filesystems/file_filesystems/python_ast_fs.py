@@ -216,6 +216,14 @@ class PythonAstFileSystem(BaseFileSystem[PythonAstPath, PythonAstInfo]):
         size = member.end_line - member.start_line
         return PythonAstInfo(name=member.name, type=member.type, size=size, doc=member.doc)
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory.
+
+        Only the root (module) is a directory; individual members are files.
+        """
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+        return not path
+
 
 if __name__ == "__main__":
     fs = fsspec.filesystem("ast", python_file="duties.py")

@@ -767,6 +767,55 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (has navigable children)."""
+        self._load_spec()
+        assert self._spec is not None
+
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+
+        if not path:
+            # Root is always a directory
+            return True
+
+        parts = path.split("/")
+
+        # Top-level sections are directories
+        if len(parts) == 1:
+            return parts[0] in {"info", "servers", "paths", "components", "tags"}
+
+        match parts[0]:
+            case "paths":
+                if len(parts) == 2:
+                    # /paths/{path} - has operations as children
+                    path_key = "/" + parts[1]
+                    resolved = self._resolve_path_key(path_key)
+                    return (resolved or path_key) in self._spec.paths
+                # /paths/{path}/{method} - operation is a file
+                return False
+
+            case "components":
+                if len(parts) == 2:
+                    # /components/{type} - has component names as children
+                    component_type = parts[1]
+                    return (
+                        self._spec.components is not None
+                        and hasattr(self._spec.components, component_type)
+                        and getattr(self._spec.components, component_type) is not None
+                    )
+                # /components/{type}/{name} - component is a file
+                return False
+
+            case "servers":
+                # /servers is a directory, /servers/{n} is a file
+                return len(parts) == 1
+
+            case "info" | "tags":
+                # These are directories at top level only
+                return len(parts) == 1
+
+        return False
+
 
 if __name__ == "__main__":
     fs = OpenAPIFileSystem("https://petstore3.swagger.io/api/v3/openapi.json")

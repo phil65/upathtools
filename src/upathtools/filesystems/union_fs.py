@@ -246,6 +246,14 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         fs, path = self._get_fs_and_path(path)
         await fs._rm(path, recursive=recursive, **kwargs)
 
+    async def _isdir(self, path: str) -> bool:
+        """Check if path is a directory."""
+        logger.debug("Checking if directory: %s", path)
+        fs, norm_path = self._get_fs_and_path(path)
+        if fs is self:
+            return True
+        return await fs._isdir(norm_path)
+
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file, possibly between filesystems."""
         logger.debug("Copying %s to %s", path1, path2)

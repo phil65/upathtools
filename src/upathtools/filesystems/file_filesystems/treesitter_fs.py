@@ -412,6 +412,14 @@ class TreeSitterFileSystem(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
         source_bytes = self._source.encode()
         return source_bytes[node.start_byte : node.end_byte]
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (has children)."""
+        try:
+            node = self._get_node(path)
+            return node.is_dir()
+        except FileNotFoundError:
+            return False
+
     def info(self, path: str, **kwargs: Any) -> TreeSitterInfo:
         """Get info about a code entity."""
         node = self._get_node(path)

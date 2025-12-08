@@ -222,6 +222,13 @@ class ModuleFileSystem(BaseFileSystem[ModulePath, ModuleInfo]):
         except OSError:
             return self._get_source_from_ast(name)
 
+    def isdir(self, path: str) -> bool:
+        """Check if path is a directory (module root only)."""
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
+        # Only the root is a directory (the module itself)
+        # Individual members (functions/classes) are files
+        return not path
+
 
 def build_module(source: str, path: str) -> ModuleType:
     code = compile(source, path, "exec")
