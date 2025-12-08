@@ -596,7 +596,7 @@ def test_cat_file_range(server):
 
 def test_cat_file_range_numpy(server):
     np = pytest.importorskip("numpy")
-    h = fsspec.filesystem("http", headers={"give_length": "true", "head_ok": "true "})
+    h = fsspec.filesystem("http", headers={"give_length": "true", "head_ok": "true"})
     urla = server.realfile
     assert h.cat(urla, start=np.int8(1), end=np.int8(10)) == data[1:10]
     out = h.cat_ranges([urla, urla], starts=np.array([1, 5]), ends=np.array([10, 15]))
