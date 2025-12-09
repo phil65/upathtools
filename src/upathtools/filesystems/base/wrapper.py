@@ -63,6 +63,9 @@ class WrapperFileSystem(AsyncFileSystem):
         info_callback: InfoCallback | None = None,
         ls_info_callback: LsInfoCallback | None = None,
         on_first_access: OnFirstAccessCallback | None = None,
+        asynchronous: bool = True,
+        loop: Any = None,
+        batch_size: int | None = None,
         **storage_options: Any,
     ) -> None:
         """Initialize wrapper filesystem.
@@ -78,9 +81,14 @@ class WrapperFileSystem(AsyncFileSystem):
                              If not provided, falls back to applying info_callback individually.
             on_first_access: Optional callback for lazy initialization. Called once on first
                             filesystem access. Receives the wrapper filesystem instance.
-            **storage_options: Additional storage options passed to parent.
+            asynchronous: Whether filesystem operations should be async.
+            loop: Event loop to use for async operations.
+            batch_size: Number of operations to batch together for concurrent execution.
+            **storage_options: Additional storage options (skip_instance_cache, etc.).
         """
-        super().__init__(**storage_options)
+        super().__init__(
+            asynchronous=asynchronous, loop=loop, batch_size=batch_size, **storage_options
+        )
 
         if fs is None:
             from fsspec import filesystem
@@ -194,41 +202,163 @@ class WrapperFileSystem(AsyncFileSystem):
             return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
         return result
 
-    async def _cat_file(self, path: str, start=None, end=None, **kwargs: Any) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         self._ensure_initialized()
         return await self.fs._cat_file(path, start=start, end=end, **kwargs)
 
-    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
+    async def _pipe_file(
+        self, path: str, value: bytes, overwrite: bool = True, **kwargs: Any
+    ) -> None:
         self._ensure_initialized()
-        await self.fs._pipe_file(path, value, **kwargs)
+        await self.fs._pipe_file(path, value, overwrite=overwrite, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         self._ensure_initialized()
         await self.fs._rm_file(path, **kwargs)
 
-    async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
+    async def _rm(
+        self,
+        path: str,
+        recursive: bool = False,
+        maxdepth: int | None = None,
+        **kwargs: Any,
+    ) -> None:
         self._ensure_initialized()
-        await self.fs._rm(path, recursive=recursive, **kwargs)
+        await self.fs._rm(path, recursive=recursive, maxdepth=maxdepth, **kwargs)
 
-    async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
+    async def _cp_file(self, path1: str, path2: str, overwrite: bool = True, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._cp_file(path1, path2, **kwargs)
+        await self.fs._cp_file(path1, path2, overwrite=overwrite, **kwargs)
 
-    async def _makedirs(self, path: str, exist_ok: bool = False) -> None:
+    async def _makedirs(self, path: str, exist_ok: bool = False, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._makedirs(path, exist_ok=exist_ok)
+        await self.fs._makedirs(path, exist_ok=exist_ok, **kwargs)
 
-    async def _isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
-        return await self.fs._isdir(path)
+        return await self.fs._isdir(path, **kwargs)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
         return await self.fs._exists(path, **kwargs)
 
+    # Additional filesystem operations with proper signatures
+
+    async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._mkdir(path, create_parents=create_parents, **kwargs)
+
+    async def _rmdir(self, path: str, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._rmdir(path, **kwargs)
+
+    async def _mv(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._mv(path1, path2, recursive=recursive, **kwargs)
+
+    async def _copy(
+        self,
+        path1: str,
+        path2: str,
+        recursive: bool = False,
+        overwrite: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        self._ensure_initialized()
+        await self.fs._copy(path1, path2, recursive=recursive, overwrite=overwrite, **kwargs)
+
+    async def _put_file(
+        self,
+        lpath: str,
+        rpath: str,
+        callback: Any = None,
+        overwrite: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        self._ensure_initialized()
+        await self.fs._put_file(lpath, rpath, callback=callback, overwrite=overwrite, **kwargs)
+
+    async def _get_file(
+        self,
+        rpath: str,
+        lpath: str,
+        callback: Any = None,
+        overwrite: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        self._ensure_initialized()
+        await self.fs._get_file(rpath, lpath, callback=callback, overwrite=overwrite, **kwargs)
+
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | list[dict[str, Any]]:
+        self._ensure_initialized()
+        result = await self.fs._find(
+            path, maxdepth=maxdepth, withdirs=withdirs, detail=detail, **kwargs
+        )
+        if detail and (self._ls_info_callback is not None or self._info_callback is not None):
+            return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
+        return result
+
+    async def _glob(
+        self, path: str, detail: bool = False, **kwargs: Any
+    ) -> list[str] | list[dict[str, Any]]:
+        self._ensure_initialized()
+        result = await self.fs._glob(path, detail=detail, **kwargs)
+        if detail and (self._ls_info_callback is not None or self._info_callback is not None):
+            return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
+        return result
+
+    async def _du(
+        self,
+        path: str,
+        total: bool = True,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        **kwargs: Any,
+    ) -> int | dict[str, int]:
+        self._ensure_initialized()
+        return await self.fs._du(path, total=total, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
+
+    async def _size(self, path: str, **kwargs: Any) -> int:
+        self._ensure_initialized()
+        return await self.fs._size(path, **kwargs)
+
+    async def _isfile(self, path: str, **kwargs: Any) -> bool:
+        self._ensure_initialized()
+        return await self.fs._isfile(path, **kwargs)
+
+    async def _checksum(self, path: str, **kwargs: Any) -> str:
+        self._ensure_initialized()
+        return await self.fs._checksum(path, **kwargs)
+
+    async def _modified(self, path: str, **kwargs: Any) -> Any:
+        self._ensure_initialized()
+        return await self.fs._modified(path, **kwargs)
+
     # Explicit sync wrappers for commonly used methods
     info = sync_wrapper(_info)
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
+    mkdir = sync_wrapper(_mkdir)
+    rmdir = sync_wrapper(_rmdir)
+    mv = sync_wrapper(_mv)
+    copy = sync_wrapper(_copy)
+    put_file = sync_wrapper(_put_file)
+    get_file = sync_wrapper(_get_file)
+    find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
+    glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
+    du = sync_wrapper(_du)  # pyright: ignore[reportAssignmentType]
+    size = sync_wrapper(_size)
+    isfile = sync_wrapper(_isfile)
+    checksum = sync_wrapper(_checksum)
+    modified = sync_wrapper(_modified)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__qualname__}(fs={self.fs})"
