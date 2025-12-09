@@ -34,6 +34,7 @@ from upathtools.filesystems import SqliteFileSystem, SqlitePath
 from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 from upathtools.filesystems import GistFileSystem, GistPath
 from upathtools.filesystems import WikiFileSystem, WikiPath
+from upath.types import JoinablePathLike
 
 
 def register_http_filesystems() -> None:
@@ -93,6 +94,7 @@ __all__ = [
     "GistPath",
     "HTTPFileSystem",
     "HttpPath",
+    "JoinablePathLike",
     "MarkdownFileSystem",
     "MarkdownPath",
     "ModuleFileSystem",
