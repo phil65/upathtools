@@ -43,6 +43,7 @@ from .flat_union_fs import FlatUnionFileSystem, FlatUnionPath
 from .union_fs import UnionFileSystem, UnionPath
 from .module_fs import ModuleFileSystem, ModulePath
 from .package_fs import PackageFileSystem, PackagePath
+from .httpx_fs import HTTPFileSystem, HttpPath
 
 __all__ = [
     "E2BFS",
@@ -67,6 +68,8 @@ __all__ = [
     "GistPath",
     "GitLabFileSystem",
     "GitLabPath",
+    "HTTPFileSystem",
+    "HttpPath",
     "IssueFileSystem",
     "IssuePath",
     "JsonSchemaFileSystem",
