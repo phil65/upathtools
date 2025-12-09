@@ -30,6 +30,8 @@ if TYPE_CHECKING:
         [list[dict[str, Any]], "WrapperFileSystem"],
         list[dict[str, Any]] | Awaitable[list[dict[str, Any]]],
     ]
+    # Callback for lazy initialization: called once on first access
+    OnFirstAccessCallback = Callable[["WrapperFileSystem"], None]
 
 
 def _to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
@@ -60,6 +62,7 @@ class WrapperFileSystem(AsyncFileSystem):
         target_options: dict[str, Any] | None = None,
         info_callback: InfoCallback | None = None,
         ls_info_callback: LsInfoCallback | None = None,
+        on_first_access: OnFirstAccessCallback | None = None,
         **storage_options: Any,
     ) -> None:
         """Initialize wrapper filesystem.
@@ -73,6 +76,8 @@ class WrapperFileSystem(AsyncFileSystem):
             ls_info_callback: Optional callback to enrich batch of info dicts. Receives
                              (infos, fs) and returns enriched list. Can be sync or async.
                              If not provided, falls back to applying info_callback individually.
+            on_first_access: Optional callback for lazy initialization. Called once on first
+                            filesystem access. Receives the wrapper filesystem instance.
             **storage_options: Additional storage options passed to parent.
         """
         super().__init__(**storage_options)
@@ -84,13 +89,29 @@ class WrapperFileSystem(AsyncFileSystem):
         self.fs = _to_async(fs)
         self._info_callback = info_callback
         self._ls_info_callback = ls_info_callback
+        self._on_first_access = on_first_access
+        self._initialized = on_first_access is None
 
     def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to wrapped filesystem."""
         # Avoid infinite recursion for attributes accessed during __init__
-        if name in ("fs", "_info_callback", "_ls_info_callback"):
+        if name in (
+            "fs",
+            "_info_callback",
+            "_ls_info_callback",
+            "_on_first_access",
+            "_initialized",
+        ):
             raise AttributeError(name)
         return getattr(self.fs, name)
+
+    def _ensure_initialized(self) -> None:
+        """Run lazy initialization callback if not yet initialized."""
+        if self._initialized:
+            return
+        self._initialized = True
+        if self._on_first_access is not None:
+            self._on_first_access(self)
 
     # Callback helpers
 
@@ -113,6 +134,8 @@ class WrapperFileSystem(AsyncFileSystem):
         if self._info_callback is not None:
             return list(await asyncio.gather(*[self._apply_info_callback(i) for i in infos]))
         return infos
+
+    # Core async methods with lazy init
 
     # UPath helper
 
@@ -150,6 +173,7 @@ class WrapperFileSystem(AsyncFileSystem):
     # Async methods that need callback application
 
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+        self._ensure_initialized()
         info = await self.fs._info(path, **kwargs)
         return await self._apply_info_callback(info)
 
@@ -164,10 +188,43 @@ class WrapperFileSystem(AsyncFileSystem):
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[str] | list[dict[str, Any]]:
+        self._ensure_initialized()
         result = await self.fs._ls(path, detail=detail, **kwargs)
         if detail and (self._ls_info_callback is not None or self._info_callback is not None):
             return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
         return result
+
+    async def _cat_file(self, path: str, start=None, end=None, **kwargs: Any) -> bytes:
+        self._ensure_initialized()
+        return await self.fs._cat_file(path, start=start, end=end, **kwargs)
+
+    async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._pipe_file(path, value, **kwargs)
+
+    async def _rm_file(self, path: str, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._rm_file(path, **kwargs)
+
+    async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._rm(path, recursive=recursive, **kwargs)
+
+    async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
+        self._ensure_initialized()
+        await self.fs._cp_file(path1, path2, **kwargs)
+
+    async def _makedirs(self, path: str, exist_ok: bool = False) -> None:
+        self._ensure_initialized()
+        await self.fs._makedirs(path, exist_ok=exist_ok)
+
+    async def _isdir(self, path: str) -> bool:
+        self._ensure_initialized()
+        return await self.fs._isdir(path)
+
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
+        self._ensure_initialized()
+        return await self.fs._exists(path, **kwargs)
 
     # Explicit sync wrappers for commonly used methods
     info = sync_wrapper(_info)
