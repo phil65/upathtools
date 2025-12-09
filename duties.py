@@ -11,19 +11,19 @@ from duty import duty  # pyright: ignore[reportMissingImports]
 def build(ctx, *args: str):
     """Build a MkNodes page."""
     args_str = " " + " ".join(args) if args else ""
-    ctx.run(f"uv run mknodes build{args_str}")
+    ctx.run(f"uv run mkdocs-mknodes build{args_str}")
 
 
 @duty(capture=False)
 def serve(ctx, *args: str):
     """Serve a MkNodes page."""
     args_str = " " + " ".join(args) if args else ""
-    ctx.run(f"uv run mknodes serve{args_str}")
+    ctx.run(f"uv run mkdocs-mknodes serve{args_str}")
 
 
 @duty(capture=False)
 def test(ctx, *args: str):
-    """Serve a MkNodes page."""
+    """Run tests."""
     args_str = " " + " ".join(args) if args else ""
     ctx.run(f"uv run pytest{args_str}")
 
@@ -71,6 +71,9 @@ def version(
         msg = "Cannot release with uncommitted changes. Please commit or stash first."
         raise RuntimeError(msg)
 
+    print("Running prek hooks...")
+    ctx.run("prek run --all-files")
+
     # Read current version
     old_version = ctx.run("uv version --short", capture=True).strip()
     print(f"Current version: {old_version}")
@@ -78,7 +81,9 @@ def version(
     new_version = ctx.run("uv version --short", capture=True).strip()
     print(f"New version: {new_version}")
     ctx.run("git add pyproject.toml")
-    ctx.run(f'git commit -m "chore: bump version {old_version} -> {new_version}"')
+    ctx.run(
+        f'git commit --no-verify -m "chore: bump version {old_version} -> {new_version}"{args_str}'
+    )
 
     # Create and push tag
     tag = f"v{new_version}"
