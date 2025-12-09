@@ -853,12 +853,8 @@ class GitLabFilesystemConfig(FileSystemConfig):
     )
     """GitLab instance URL"""
 
-    private_token: SecretStr | None = Field(
-        default=None,
-        title="Private Token",
-        description="GitLab private/personal access token (or set GITLAB_TOKEN env var)",
-    )
-    """GitLab private access token"""
+    private_token: SecretStr | None = Field(default=None, title="Private Token")
+    """GitLab private/personal access token (or set GITLAB_TOKEN env var)"""
 
 
 class LinearFilesystemConfig(FileSystemConfig):
@@ -869,33 +865,22 @@ class LinearFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "base"
 
-    api_key: SecretStr | None = Field(
-        default=None,
-        title="API Key",
-        description="Linear API key for authentication (or set LINEAR_API_KEY env var)",
-    )
-    """Linear API key"""
+    api_key: SecretStr | None = Field(default=None, title="API Key")
+    """Linear API key for authentication (or set LINEAR_API_KEY env var)"""
 
-    extended: bool = Field(
-        default=False,
-        title="Extended Mode",
-        description="If True, issues are folders with comments as sub-files",
-    )
-    """Whether to use extended mode with issue directories"""
+    extended: bool = Field(default=False, title="Extended Mode")
+    """Whether to use extended mode with issue directories.
 
-    group_by: Literal["project"] | None = Field(
-        default=None,
-        title="Group By",
-        description="How to group issues. None for flat, 'project' for project folders",
-    )
-    """Grouping strategy for issues"""
+    If True, issues are folders with comments as sub-files
+    """
 
-    timeout: float | None = Field(
-        default=None,
-        title="Timeout",
-        description="Connection timeout in seconds",
-        gt=0,
-    )
+    group_by: Literal["project"] | None = Field(default=None, title="Group By")
+    """Grouping strategy for issues.
+
+    How to group issues. None for flat, 'project' for project folders
+    """
+
+    timeout: float | None = Field(default=None, title="Timeout", gt=0)
     """Request timeout in seconds"""
 
 
@@ -921,10 +906,7 @@ class McpToolsFilesystemConfig(FileSystemConfig):
     )
     """Command to start MCP server"""
 
-    stubs_only: bool = Field(
-        default=False,
-        title="Stubs Only",
-    )
+    stubs_only: bool = Field(default=False, title="Stubs Only")
     """If True, generate type stubs without implementation"""
 
 
