@@ -40,6 +40,7 @@ from .basemodel_instance_fs import BaseModelInstanceFileSystem, BaseModelInstanc
 from .cli_fs import CliFileSystem, CliPath
 from .distribution_fs import DistributionFileSystem, DistributionPath
 from .flat_union_fs import FlatUnionFileSystem, FlatUnionPath
+from .union_fs import UnionFileSystem, UnionPath
 from .module_fs import ModuleFileSystem, ModulePath
 from .package_fs import PackageFileSystem, PackagePath
 
@@ -98,6 +99,8 @@ __all__ = [
     "TreeSitterPath",
     "TypeAdapterFileSystem",
     "TypeAdapterPath",
+    "UnionFileSystem",
+    "UnionPath",
     "VercelFS",
     "VercelPath",
     "WikiFileSystem",
