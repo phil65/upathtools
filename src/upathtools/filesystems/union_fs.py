@@ -65,6 +65,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
     protocol = "union"
     root_marker = "/"
     upath_cls = UnionPath
+    cachable = False  # Underlying filesystems handle their own caching
 
     def __init__(
         self,

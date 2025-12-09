@@ -94,6 +94,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
     protocol = "flat-union"
     upath_cls = FlatUnionPath
     root_marker = "/"
+    cachable = False  # Underlying filesystems handle their own caching
 
     def __init__(
         self,
