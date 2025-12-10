@@ -64,6 +64,9 @@ gitlab = "upathtools.filesystems:GitLabFileSystem"
 linear = "upathtools.filesystems:LinearIssueFileSystem"
 issues = "upathtools.filesystems:IssueFileSystem"
 
+[project.entry-points."jinjarope.environment"]
+schemez = "upathtools.filetree:setup_jinjarope_filters"
+
 [project.entry-points."universal_pathlib.implementations"]
 gist = "upathtools.filesystems:GistPath"
 wiki = "upathtools.filesystems:WikiPath"
