@@ -1,23 +1,5 @@
 # Quick Start
 
-Get up and running with UPathTools in minutes.
-
-## Installation
-
-```bash
-pip install upathtools
-```
-
-With optional dependencies:
-
-```bash
-# HTTP support
-pip install upathtools[httpx]
-
-# All extras
-pip install upathtools[all]
-```
-
 ## Basic Usage
 
 ### AsyncUPath - Async File Operations
@@ -165,94 +147,6 @@ async def main():
     print(combined)
 ```
 
-## Specialized Filesystems
-
-### Browse Python Modules
-
-```python
-from upathtools.filesystems import ModuleFileSystem
-
-fs = ModuleFileSystem(module_name="requests")
-files = fs.ls("/")
-```
-
-### Access SQLite as Filesystem
-
-```python
-from upathtools.filesystems import SqliteFileSystem
-
-fs = SqliteFileSystem(db_path="data.db")
-tables = fs.ls("/")  # List tables
-```
-
-### Parse Python AST
-
-```python
-from upathtools.filesystems import PythonAstFileSystem
-
-fs = PythonAstFileSystem(file_path="module.py")
-classes = fs.ls("/classes/")
-functions = fs.ls("/functions/")
-```
-
-### HTTP with Better Typing
-
-```python
-from upathtools import register_http_filesystems
-
-# Replace fsspec's HTTP with improved version
-register_http_filesystems()
-
-# Now use with UPath
-from upath import UPath
-path = UPath("https://example.com/data.json")
-```
-
-### Aggregate Multiple Sources
-
-```python
-from upathtools.filesystems import UnionFileSystem
-
-fs = UnionFileSystem(
-    filesystems=[
-        ("file:///overlay", {}),  # Higher priority
-        ("file:///base", {}),     # Lower priority
-    ]
-)
-```
-
-## Custom Filesystem
-
-```python
-from typing import TypedDict
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
-
-# Define info structure
-class MyInfo(TypedDict):
-    name: str
-    size: int
-    type: str
-
-# Create path class
-class MyPath(BaseUPath[MyInfo]):
-    pass
-
-# Create filesystem
-class MyFS(BaseAsyncFileSystem[MyPath, MyInfo]):
-    protocol = "my"
-    upath_cls = MyPath
-    
-    async def _ls(self, path: str, detail: bool = True):
-        if detail:
-            return [MyInfo(name="file.txt", size=100, type="file")]
-        return ["file.txt"]
-    
-    async def _info(self, path: str):
-        return MyInfo(name="file.txt", size=100, type="file")
-    
-    async def _cat_file(self, path: str):
-        return b"content"
-```
 
 ## Cheat Sheet
 
@@ -292,20 +186,7 @@ class MyFS(BaseAsyncFileSystem[MyPath, MyInfo]):
 | Multi-glob | `multi_glob(keep_globs=[...])` |
 | Clean dir | `clean_directory(path)` |
 
-### Registration
 
-```python
-from upathtools import (
-    register_all_filesystems,
-    register_http_filesystems
-)
-
-# Register all
-register_all_filesystems()
-
-# Register HTTP only
-register_http_filesystems()
-```
 
 ## Next Steps
 
@@ -314,54 +195,3 @@ register_http_filesystems()
 - [Base Classes](base-classes.md) - Build custom filesystems
 - [Helpers](helpers.md) - All utility functions
 - [Filesystems](filesystems.md) - Complete filesystem catalog
-
-## Tips
-
-1. **Always use async for I/O operations** - Much faster for remote filesystems
-2. **Use `load_parallel=True`** - When reading multiple files
-3. **Define TypedDict** - For type-safe custom filesystems
-4. **Register filesystems** - For convenient UPath usage
-5. **Use helpers** - They handle edge cases and parent directories
-
-## Common Gotchas
-
-### Parent Directory Creation
-
-```python
-# Bad - fails if parent doesn't exist
-with open("/deep/path/file.txt", "w") as f:
-    f.write("content")
-
-# Good - creates parents automatically
-from upathtools.helpers import write_file
-write_file("content", "/deep/path/file.txt")
-```
-
-### Async Context
-
-```python
-# Bad - mixing sync and async
-path = AsyncUPath("/tmp/file.txt")
-content = path.read_text()  # Wrong!
-
-# Good - use async consistently
-content = await path.aread_text()
-```
-
-### Type Safety
-
-```python
-# Bad - untyped info dict
-fs = fsspec.filesystem("file")
-info = fs.info("/path")  # dict[str, Any]
-size = info.get("size", 0)
-
-# Good - typed info dict
-class MyInfo(TypedDict):
-    name: str
-    size: int
-
-fs = MyFileSystem()
-info = await fs._info("/path")  # MyInfo
-size = info["size"]  # Type-safe!
-```
