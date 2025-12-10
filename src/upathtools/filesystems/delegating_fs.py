@@ -225,16 +225,20 @@ class DelegatingFileSystem(AsyncFileSystem):
         if not candidates:
             return None
 
-        # Read content (needed for both single and multiple candidates)
-        content = await self.fs._cat_file(file_path)
-
-        # If only one candidate, use it directly
+        # If only one candidate, try from_filesystem_async first (for read-write access)
         if len(candidates) == 1:
-            file_fs = candidates[0].from_content(content)
+            fs_class = candidates[0]
+            try:
+                file_fs = await fs_class.from_filesystem_async(file_path, self.fs)
+            except AttributeError:
+                content = await self.fs._cat_file(file_path)
+                file_fs = fs_class.from_content(content)
             self._fs_cache[file_path] = file_fs
             return file_fs
 
-        # Multiple candidates - probe to find the best match
+        # Multiple candidates - need to probe content to find the best match
+        content = await self.fs._cat_file(file_path)
+
         best_match: FileFSClass | None = None
         maybe_match: FileFSClass | None = None
 
@@ -250,7 +254,11 @@ class DelegatingFileSystem(AsyncFileSystem):
         if matched_class is None:
             return None
 
-        file_fs = matched_class.from_content(content)
+        # Use from_filesystem_async if available (for read-write access)
+        try:
+            file_fs = await matched_class.from_filesystem_async(file_path, self.fs)
+        except AttributeError:
+            file_fs = matched_class.from_content(content)
         self._fs_cache[file_path] = file_fs
         return file_fs
 

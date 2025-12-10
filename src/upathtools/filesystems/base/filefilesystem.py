@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from enum import Enum
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from upath import UPath
 
 from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem, BaseFileSystem
+
+
+if TYPE_CHECKING:
+    from fsspec.asyn import AsyncFileSystem
+    from fsspec.spec import AbstractFileSystem
 
 
 class ProbeResult(Enum):
@@ -137,6 +142,36 @@ class BaseFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
         ...
 
     @classmethod
+    def from_filesystem(
+        cls,
+        path: str,
+        fs: AbstractFileSystem,
+        **kwargs: Any,
+    ) -> BaseFileFileSystem[TPath, TInfoDict]:
+        """Create filesystem instance with access to a parent filesystem.
+
+        This method allows the file filesystem to access the source file
+        through the parent filesystem, enabling read-write operations for
+        filesystems that need direct file access (e.g., SQLite).
+
+        Args:
+            path: Path to the file within the parent filesystem.
+            fs: Parent filesystem to read/write through.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance.
+
+        Note:
+            Default implementation reads content via from_content.
+            Subclasses that need direct file access should override this.
+        """
+        content = fs.cat_file(path)
+        if isinstance(content, str):
+            content = content.encode()
+        return cls.from_content(content, **kwargs)
+
+    @classmethod
     def from_content(
         cls,
         content: bytes,
@@ -195,6 +230,58 @@ class BaseAsyncFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
             Configured filesystem instance.
         """
         ...
+
+    @classmethod
+    async def from_filesystem_async(
+        cls,
+        path: str,
+        fs: AsyncFileSystem,
+        **kwargs: Any,
+    ) -> BaseAsyncFileFileSystem[TPath, TInfoDict]:
+        """Create filesystem instance with access to a parent filesystem (async).
+
+        Args:
+            path: Path to the file within the parent filesystem.
+            fs: Parent async filesystem to read/write through.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance.
+
+        Note:
+            Default implementation reads content via from_content.
+            Subclasses that need direct file access should override this.
+        """
+        content = await fs._cat_file(path)
+        if isinstance(content, str):
+            content = content.encode()
+        return cls.from_content(content, **kwargs)
+
+    @classmethod
+    def from_filesystem(
+        cls,
+        path: str,
+        fs: AbstractFileSystem,
+        **kwargs: Any,
+    ) -> BaseAsyncFileFileSystem[TPath, TInfoDict]:
+        """Create filesystem instance with access to a parent filesystem.
+
+        Args:
+            path: Path to the file within the parent filesystem.
+            fs: Parent filesystem to read/write through.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance.
+
+        Note:
+            Default implementation reads content via from_content.
+            Subclasses that need direct file access should override this.
+        """
+        content = fs.cat_file(path)
+        if isinstance(content, str):
+            content = content.encode()
+        return cls.from_content(content, **kwargs)
 
     @classmethod
     def from_content(

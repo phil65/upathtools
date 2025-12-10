@@ -17,6 +17,7 @@ from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, File
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from fsspec.asyn import AsyncFileSystem
     from sqlalchemy.ext.asyncio import AsyncEngine
 
 
@@ -72,22 +73,29 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         db_path: str = "",
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
+        parent_fs: AsyncFileSystem | None = None,
+        parent_path: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
 
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file (local path or temp file)
             target_protocol: Protocol for source database file
             target_options: Options for target protocol
+            parent_fs: Parent filesystem for read-write access (optional)
+            parent_path: Path within parent filesystem (optional)
             **kwargs: Additional filesystem options
         """
         super().__init__(**kwargs)
         self.db_path = db_path
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
+        self._parent_fs = parent_fs
+        self._parent_path = parent_path
         self._engine: AsyncEngine | None = None
         self._temp_file: str | None = None
+        self._is_temp_copy = False
 
     @classmethod
     def from_file(
@@ -103,6 +111,39 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         )
 
     @classmethod
+    async def from_filesystem_async(
+        cls,
+        path: str,
+        fs: AsyncFileSystem,
+        **kwargs: Any,
+    ) -> SqliteFileSystem:
+        """Create filesystem instance with parent filesystem access.
+
+        For local files, uses the file directly. For remote files,
+        creates a temp copy but retains parent fs reference for potential
+        write-back operations.
+        """
+        from fsspec.implementations.local import LocalFileSystem
+
+        # Check if parent fs is local - if so, use file directly
+        underlying = getattr(fs, "fs", None)
+        if isinstance(fs, LocalFileSystem) or isinstance(underlying, LocalFileSystem):
+            return cls(db_path=path, parent_fs=fs, parent_path=path, **kwargs)
+
+        # Remote file - download to temp, keep parent reference for write-back
+        content = await fs._cat_file(path)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+            if isinstance(content, str):
+                content = content.encode()
+            tmp.write(content)
+            tmp_name = tmp.name
+
+        instance = cls(db_path=tmp_name, parent_fs=fs, parent_path=path, **kwargs)
+        instance._temp_file = tmp_name
+        instance._is_temp_copy = True
+        return instance
+
+    @classmethod
     def from_content(
         cls,
         content: bytes,
@@ -110,22 +151,37 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
     ) -> SqliteFileSystem:
         """Create filesystem instance from raw SQLite database content.
 
-        Args:
-            content: Raw SQLite database content as bytes.
-            **kwargs: Additional filesystem options.
-
-        Returns:
-            Configured filesystem instance with database in temp file.
+        Note: This creates a read-only temp copy. Use from_filesystem_async
+        for read-write access to remote databases.
         """
-        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+            tmp.write(content)
+            tmp_name = tmp.name
+        instance = cls(db_path=tmp_name, **kwargs)
+        instance._temp_file = tmp_name
+        instance._is_temp_copy = True
+        return instance
 
-        # Write content to temp file since SQLite needs a file
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")  # noqa: SIM115
-        tmp.write(content)
-        tmp.close()
-        fs = cls(db_path=tmp.name, **kwargs)
-        fs._temp_file = tmp.name
-        return fs
+    async def sync_to_parent(self) -> None:
+        """Write temp database back to parent filesystem.
+
+        Only applicable when created via from_filesystem_async with a remote fs.
+        """
+        import asyncio
+        from pathlib import Path
+
+        if not self._is_temp_copy or self._parent_fs is None or self._parent_path is None:
+            return
+
+        # Use asyncio executor to avoid blocking
+        content = await asyncio.get_event_loop().run_in_executor(
+            None, Path(self.db_path).read_bytes
+        )
+
+        try:
+            await self._parent_fs._pipe_file(self._parent_path, content)
+        except AttributeError:
+            self._parent_fs.pipe_file(self._parent_path, content)
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
