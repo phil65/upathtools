@@ -11,6 +11,7 @@ Filesystems in UPathTools are organized into several categories:
 - **Development**: Tools for developers (CLI commands, module/package browsing, distributions)
 - **Aggregation**: Combine multiple filesystems (Union, FlatUnion)
 - **Wrappers**: Enhance existing filesystems with additional functionality
+- **Delegating**: Automatically delegate to file-based filesystems based on file extensions
 
 ## Virtual Filesystems
 
@@ -187,6 +188,109 @@ json_data = fs.get_upath("curl https://api.example.com/data").read_text()
 - Testing CLI tools
 - Scripting automation
 - Command output processing
+
+## Delegating Filesystem
+
+### DelegatingFileSystem
+
+Automatically delegates to file-based sub-filesystems based on file extensions and content:
+
+```python
+from upathtools.filesystems import DelegatingFileSystem
+
+# Wrap any filesystem with auto-delegation
+fs = DelegatingFileSystem(target_protocol="file", target_options={"path": "/data"})
+
+# Access files normally - delegation is automatic
+regular_file = fs.cat_file("document.txt")  # Normal file access
+
+# Use :: separator to access internal structure of supported files
+markdown_section = fs.cat_file("README.md::Introduction")  # Markdown header
+sqlite_table = fs.cat_file("data.db::users")  # SQLite table
+python_class = fs.cat_file("module.py::MyClass")  # Python AST node
+```
+
+**How it works:**
+
+1. **Extension Detection**: Checks file extension against registered file filesystems
+2. **Content Probing**: For ambiguous extensions (e.g., `.json`), probes content to find best match
+3. **Automatic Caching**: File filesystem instances are cached for performance
+4. **Read-Write Support**: Supports write-back to parent filesystem when possible
+
+**Path Format:**
+```
+{file_path}::{internal_path}
+```
+
+**Examples:**
+
+```python
+# Markdown files - access headers as paths
+content = fs.cat_file("docs/README.md::Quick Start")
+
+# SQLite databases - access tables and queries
+users = fs.cat_file("app.db::users")
+user_count = fs.cat_file("app.db::SELECT COUNT(*) FROM users")
+
+# Python modules - browse AST structure
+class_def = fs.cat_file("src/main.py::classes/MyClass")
+functions = fs.ls("src/main.py::functions/")
+
+# JSON Schema - browse schema structure
+properties = fs.ls("schema.json::properties/")
+```
+
+**Supported File Types:**
+- **Markdown** (`.md`, `.markdown`) → MarkdownFileSystem
+- **SQLite** (`.db`, `.sqlite`, `.sqlite3`) → SqliteFileSystem  
+- **Python** (`.py`) → PythonAstFileSystem
+- **JSON Schema** (`.json`) → JsonSchemaFileSystem
+- **OpenAPI** (`.json`, `.yaml`, `.yml`) → OpenAPIFileSystem
+- **Tree-sitter** (various) → TreeSitterFileSystem
+
+**Registration:**
+
+```python
+from upathtools.filesystems.delegating_fs import register_file_filesystem
+
+@register_file_filesystem
+class MyCustomFileSystem(BaseAsyncFileFileSystem):
+    supported_extensions = frozenset(["myext"])
+    priority = 50  # Lower = higher priority
+    
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        # Custom content detection logic
+        if content.startswith(b"MYFORMAT"):
+            return ProbeResult.SUPPORTED
+        return ProbeResult.UNSUPPORTED
+```
+
+**Advanced Usage:**
+
+```python
+# Custom parent filesystem
+from fsspec import filesystem
+parent_fs = filesystem("s3", bucket="my-bucket")
+fs = DelegatingFileSystem(fs=parent_fs)
+
+# Access remote files with delegation
+data = fs.cat_file("s3://my-bucket/data.db::table_name")
+
+# Clear cache when files change
+fs.clear_cache()
+
+# Get registered filesystems
+from upathtools.filesystems.delegating_fs import get_registered_filesystems
+registered = get_registered_filesystems()
+```
+
+**Use Cases:**
+- **Data Exploration**: Browse structured files without knowing their format
+- **ETL Pipelines**: Process mixed file types uniformly
+- **Documentation Systems**: Access markdown headers programmatically
+- **Database Analysis**: Query SQLite files through filesystem interface
+- **Code Analysis**: Browse Python modules as directory structures
 
 ## Aggregation Filesystems
 
@@ -388,6 +492,7 @@ class MyFS(BaseAsyncFileSystem[MyPath, MyInfo]):
 | UnionFileSystem | ✓ | ✓ | Layer filesystems |
 | CliFileSystem | ✓ | ✗ | CLI output access |
 | GistFileSystem | ✓ | ✓ | GitHub Gists |
+| DelegatingFileSystem | ✓ | Partial | Auto-delegate to file formats |
 
 ## Best Practices
 

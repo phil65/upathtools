@@ -121,9 +121,8 @@ dev = [
 ]
 benchmark = ["pyinstrument"]
 docs = [
-  "mkdocs-material",
-  "mkdocs-mknodes",
   # Only add below (Copier)
+  "zensical>=0.0.11",
 ]
 lint = [
   "mypy; python_version >= '3.14'",
