@@ -66,7 +66,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     priority: ClassVar[int] = 50  # Higher priority than generic JSON handlers
 
     @classmethod
-    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:  # noqa: PLR0911
         """Probe content to check if it's a JSON Schema.
 
         Looks for JSON Schema indicators like $schema, $defs, or type with properties.
@@ -82,7 +82,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                     import yaml
 
                     data = yaml.safe_load(text)
-                except (ImportError, Exception):
+                except Exception:  # noqa: BLE001
                     return ProbeResult.UNSUPPORTED
 
             if not isinstance(data, dict):
@@ -99,8 +99,9 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             if "allOf" in data or "anyOf" in data or "oneOf" in data:
                 return ProbeResult.MAYBE
 
+        except Exception:  # noqa: BLE001
             return ProbeResult.UNSUPPORTED
-        except Exception:
+        else:
             return ProbeResult.UNSUPPORTED
 
     def __init__(

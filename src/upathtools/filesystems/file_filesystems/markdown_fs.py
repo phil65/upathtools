@@ -103,9 +103,10 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
                     return ProbeResult.MAYBE
 
             # Extension matches but no clear markdown indicators
-            return ProbeResult.MAYBE
-        except (UnicodeDecodeError, Exception):
+        except Exception:  # noqa: BLE001
             return ProbeResult.UNSUPPORTED
+        else:
+            return ProbeResult.MAYBE
 
     def __init__(
         self,
