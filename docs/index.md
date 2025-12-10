@@ -106,29 +106,18 @@ uv add upathtools[httpx]
 uv add upathtools[all]
 ```
 
-/// mknodes
-{{ "upathtools"| MkDependencyTable }}
-///
+## Extras
 
+/// mknodes
+{{ "extras"| MkDependencyGroups }}
+///
 
 
 ## Architecture Overview
 
-```
-upathtools/
-├── filesystems/
-│   ├── base/              # Generic base classes
-│   │   ├── basefilesystem.py    # BaseFileSystem[TPath, TInfoDict]
-│   │   ├── baseupath.py         # BaseUPath with async methods
-│   │   └── wrapper.py           # WrapperFileSystem base
-│   ├── file_filesystems/  # Virtual file-like filesystems
-│   ├── remote_filesystems/  # HTTP, Git, GitHub, etc.
-│   └── ...                # Other specialized implementations
-├── async_upath.py         # AsyncUPath wrapper
-├── delegating_fs.py         # Delegating FS
-├── async_ops.py           # Batch async operations
-└── helpers.py             # Utility functions
-```
+/// mknodes
+{{ "src/upathtools/"| MkTreeView(exclude_patterns=["*.pyc", "__pycache__"]) }}
+///
 
 ## Next Steps
 
@@ -137,6 +126,16 @@ upathtools/
 - [**Base Classes**](base-classes.md) - Build your own filesystems
 - [**Helpers**](helpers.md) - Utility functions and tools
 - [**Filesystems**](filesystems.md) - Overview of available implementations
+
+
+
+
+## Dependencies
+
+/// mknodes
+{{ "upathtools"| MkDependencyTable }}
+///
+
 
 ## License
 

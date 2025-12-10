@@ -380,7 +380,7 @@ class NotionFilesystemConfig(FileSystemConfig):
 
     parent_page_id: str = Field(
         title="Parent Page ID",
-        examples=["64b1f2c8e8c9a1234567890"],
+        examples=["64b1f2c8e8c9a123456789012345"],
         pattern=r"^[a-f0-9\-]+$",
         min_length=32,
         max_length=36,
