@@ -30,13 +30,21 @@ class FileSystemConfig(BaseModel):
     type: str
     """Type of filesystem"""
 
-    root_path: str | None = None
+    root_path: str | None = Field(
+        default=None,
+        title="Root Path",
+        examples=["/data", "/app/uploads", "C:\\Documents"],
+    )
     """Root directory to restrict filesystem access to (wraps in DirFileSystem)."""
 
-    cwd: str | None = None
+    cwd: str | None = Field(
+        default=None,
+        title="Working Directory",
+        examples=["/workspace", "/tmp", "data/"],
+    )
     """Working directory for relative path operations (uses fs.chdir)."""
 
-    cached: bool = False
+    cached: bool = Field(default=False, title="Enable Caching")
     """Whether to wrap in CachingFileSystem."""
 
     _category: ClassVar[FilesystemCategoryType] = "base"
@@ -168,11 +176,16 @@ class URIFileSystemConfig(FileSystemConfig):
     """URI-based filesystem type."""
 
     uri: str = Field(
+        title="Resource URI",
         examples=["file:///path/to/docs", "s3://bucket/data", "https://example.com"],
     )
     """URI defining the resource location and protocol."""
 
-    storage_options: dict[str, Any] = Field(default_factory=dict)
+    storage_options: dict[str, Any] = Field(
+        default_factory=dict,
+        title="Storage Options",
+        examples=[{"key": "access_key", "secret": "secret_key"}, {"token": "auth_token"}],
+    )
     """Protocol-specific storage options passed to fsspec."""
 
     @overload
@@ -219,10 +232,14 @@ class PathConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid", use_attribute_docstrings=True)
 
-    filesystem: FileSystemConfig
+    filesystem: FileSystemConfig = Field(title="Filesystem Configuration")
     """Configuration for the filesystem"""
 
-    path: str = "/"
+    path: str = Field(
+        default="/",
+        title="Path",
+        examples=["/", "/data", "subfolder/files"],
+    )
     """Path within the filesystem"""
 
     def create_upath(self) -> UPath:
