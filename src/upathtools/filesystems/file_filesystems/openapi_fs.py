@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
 
 import fsspec
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -58,11 +58,99 @@ class OpenAPIPath(BaseUPath[OpenApiInfo]):
         return "/" if path == "." else path
 
 
-class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
+class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
     """Filesystem for browsing OpenAPI specifications and API documentation."""
 
     protocol = "openapi"
     upath_cls = OpenAPIPath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({"yaml", "yml", "json"})
+    priority: ClassVar[int] = 40  # Higher priority than JSON Schema for API specs
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:  # noqa: PLR0911
+        """Probe content to check if it's an OpenAPI specification.
+
+        Looks for OpenAPI indicators like openapi version field or swagger field.
+        """
+        try:
+            text = content.decode("utf-8")
+            # Try JSON first
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                # Try YAML
+                try:
+                    import yaml
+
+                    data = yaml.safe_load(text)
+                except Exception:  # noqa: BLE001
+                    return ProbeResult.UNSUPPORTED
+
+            if not isinstance(data, dict):
+                return ProbeResult.UNSUPPORTED
+
+            # Strong indicators of OpenAPI
+            if "openapi" in data:
+                version = str(data.get("openapi", ""))
+                if version.startswith("3."):
+                    return ProbeResult.SUPPORTED
+            if "swagger" in data:
+                version = str(data.get("swagger", ""))
+                if version.startswith("2."):
+                    return ProbeResult.SUPPORTED
+
+            # Weaker indicators - has paths and info like an API spec
+            if "paths" in data and "info" in data:
+                return ProbeResult.MAYBE
+
+        except Exception:  # noqa: BLE001
+            return ProbeResult.UNSUPPORTED
+        else:
+            return ProbeResult.UNSUPPORTED
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        **kwargs: Any,
+    ) -> OpenAPIFileSystem:
+        """Create filesystem instance from raw OpenAPI spec content.
+
+        Args:
+            content: Raw OpenAPI spec content as bytes (JSON or YAML).
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with pre-loaded spec.
+        """
+        from openapi3 import OpenAPI
+
+        fs = cls(spec_url="<content>", **kwargs)
+        text = content.decode("utf-8")
+        # Try JSON first, then YAML
+        try:
+            spec_dict = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                import yaml
+
+                spec_dict = yaml.safe_load(text)
+            except ImportError as exc:
+                msg = "PyYAML required for YAML content"
+                raise ImportError(msg) from exc
+        fs._spec = OpenAPI(spec_dict, validate=True)
+        return fs
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> OpenAPIFileSystem:
+        """Create filesystem instance from an OpenAPI spec file path."""
+        return cls(spec_url=path, **kwargs)
 
     def __init__(
         self,
@@ -657,7 +745,7 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
-    async def _cat_file(
+    def cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
     ) -> bytes:
         """Async version of cat for fsspec compatibility."""
@@ -665,6 +753,19 @@ class OpenAPIFileSystem(BaseAsyncFileSystem[OpenAPIPath, OpenApiInfo]):
         if start is not None or end is not None:
             return content[start:end]
         return content
+
+    def exists(self, path: str, **kwargs: Any) -> bool:
+        """Check if path exists in OpenAPI spec."""
+        try:
+            self.info(path, **kwargs)
+        except FileNotFoundError:
+            return False
+        else:
+            return True
+
+    def isfile(self, path: str, **kwargs: Any) -> bool:
+        """Check if path is a file (not a directory)."""
+        return not self.isdir(path)
 
     def info(self, path: str, **kwargs: Any) -> OpenApiInfo:
         """Get detailed info about an OpenAPI element."""

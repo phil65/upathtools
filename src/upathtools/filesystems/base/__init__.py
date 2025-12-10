@@ -13,6 +13,12 @@ from upathtools.filesystems.base.file_objects import (
     BufferedWriter,
     FileInfo,
 )
+from upathtools.filesystems.base.filefilesystem import (
+    BaseAsyncFileFileSystem,
+    BaseFileFileSystem,
+    FileFileSystemMixin,
+    ProbeResult,
+)
 from upathtools.filesystems.base.wrapper import WrapperFileSystem
 
 __all__ = [
@@ -21,10 +27,14 @@ __all__ = [
     "AsyncReadable",
     "AsyncSeekable",
     "AsyncWritable",
+    "BaseAsyncFileFileSystem",
     "BaseAsyncFileSystem",
+    "BaseFileFileSystem",
     "BaseFileSystem",
     "BaseUPath",
     "BufferedWriter",
+    "FileFileSystemMixin",
     "FileInfo",
+    "ProbeResult",
     "WrapperFileSystem",
 ]

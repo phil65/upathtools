@@ -5,11 +5,11 @@ from __future__ import annotations
 import io
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal, Required, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, FileInfo, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -66,11 +66,46 @@ class MarkdownPath(BaseUPath[MarkdownInfo]):
         yield from super().iterdir()
 
 
-class MarkdownFileSystem(BaseFileSystem[MarkdownPath, MarkdownInfo]):
+class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
     upath_cls = MarkdownPath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({"md", "markdown", "mdown", "mkd"})
+    priority: ClassVar[int] = 50
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        """Probe content to check if it's a markdown document.
+
+        Looks for markdown indicators like headers (#) or common markdown syntax.
+        """
+        if not cls.supports_extension(extension):
+            return ProbeResult.UNSUPPORTED
+
+        try:
+            text = content.decode("utf-8")
+            # Check for markdown headers
+            header_pattern = re.compile(r"^#{1,6}\s+.+$", re.MULTILINE)
+            if header_pattern.search(text):
+                return ProbeResult.SUPPORTED
+
+            # Check for other common markdown patterns
+            markdown_patterns = [
+                r"^\s*[-*+]\s+",  # Unordered lists
+                r"^\s*\d+\.\s+",  # Ordered lists
+                r"\[.+\]\(.+\)",  # Links
+                r"```",  # Code blocks
+                r"^\s*>\s+",  # Blockquotes
+            ]
+            for pattern in markdown_patterns:
+                if re.search(pattern, text, re.MULTILINE):
+                    return ProbeResult.MAYBE
+
+            # Extension matches but no clear markdown indicators
+            return ProbeResult.MAYBE
+        except (UnicodeDecodeError, Exception):
+            return ProbeResult.UNSUPPORTED
 
     def __init__(
         self,
@@ -93,6 +128,39 @@ class MarkdownFileSystem(BaseFileSystem[MarkdownPath, MarkdownInfo]):
         self.target_options = target_options or {}
         self._content: str | None = None
         self._root: MarkdownNode | None = None
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        **kwargs: Any,
+    ) -> MarkdownFileSystem:
+        """Create filesystem instance from raw markdown content.
+
+        Args:
+            content: Raw markdown content as bytes.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with pre-loaded content.
+        """
+        fs = cls(fo="<content>", **kwargs)
+        fs._content = content.decode("utf-8")
+        fs._parse_content()
+        return fs
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> MarkdownFileSystem:
+        """Create filesystem instance from a markdown file path."""
+        return cls(
+            fo=path, target_protocol=target_protocol, target_options=target_options, **kwargs
+        )
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:

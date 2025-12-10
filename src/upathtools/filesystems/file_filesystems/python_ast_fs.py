@@ -6,11 +6,11 @@ import ast
 from dataclasses import dataclass
 import io
 import os
-from typing import Any, Literal, TypedDict, overload
+from typing import Any, ClassVar, Literal, TypedDict, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
 
 
 NodeType = Literal["function", "class", "import", "assign"]
@@ -47,11 +47,31 @@ class PythonAstPath(BaseUPath[PythonAstInfo]):
         yield from super().iterdir()
 
 
-class PythonAstFileSystem(BaseFileSystem[PythonAstPath, PythonAstInfo]):
+class PythonAstFileSystem(BaseFileFileSystem[PythonAstPath, PythonAstInfo]):
     """Browse Python modules statically using AST."""
 
     protocol = "ast"
     upath_cls = PythonAstPath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({"py", "pyi"})
+    priority: ClassVar[int] = 80  # Lower priority than TreeSitter for same extensions
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        """Probe content to check if it's valid Python source code.
+
+        Attempts to parse the content as Python AST.
+        """
+        if not cls.supports_extension(extension):
+            return ProbeResult.UNSUPPORTED
+        try:
+            text = content.decode("utf-8")
+            ast.parse(text)
+        except (SyntaxError, UnicodeDecodeError):
+            return ProbeResult.UNSUPPORTED
+        except Exception:  # noqa: BLE001
+            return ProbeResult.MAYBE
+        else:
+            return ProbeResult.SUPPORTED
 
     def __init__(
         self,
@@ -76,6 +96,42 @@ class PythonAstFileSystem(BaseFileSystem[PythonAstPath, PythonAstInfo]):
         self.target_options = target_options or {}
         self._source: str | None = None
         self._members: dict[str, ModuleMember] = {}
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        **kwargs: Any,
+    ) -> PythonAstFileSystem:
+        """Create filesystem instance from raw Python source content.
+
+        Args:
+            content: Raw Python source code as bytes.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with pre-loaded content.
+        """
+        fs = cls(python_file="<content>", **kwargs)
+        fs._source = content.decode("utf-8")
+        fs._analyze_source()
+        return fs
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> PythonAstFileSystem:
+        """Create filesystem instance from a Python file path."""
+        return cls(
+            python_file=path,
+            target_protocol=target_protocol,
+            target_options=target_options,
+            **kwargs,
+        )
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:

@@ -6,12 +6,12 @@ import asyncio
 import csv
 import io
 import tempfile
-from typing import TYPE_CHECKING, Any, Literal, Required, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload
 
 import fsspec
 from fsspec.asyn import sync_wrapper
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, FileInfo, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -38,11 +38,34 @@ class SqlitePath(BaseUPath[SqliteInfo]):
         yield from super().iterdir()
 
 
-class SqliteFileSystem(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
+class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
     """Filesystem for browsing SQLite databases."""
 
     protocol = "sqlite"
     upath_cls = SqlitePath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({"db", "sqlite", "sqlite3"})
+    priority: ClassVar[int] = 50
+
+    # SQLite magic bytes: "SQLite format 3\x00"
+    SQLITE_MAGIC = b"SQLite format 3\x00"
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        """Probe content to check if it's a SQLite database.
+
+        Checks for SQLite magic bytes at the start of the file.
+        """
+        if len(content) >= 16 and content[:16] == cls.SQLITE_MAGIC:  # noqa: PLR2004
+            return ProbeResult.SUPPORTED
+        # Extension matches but no magic bytes - might be empty or corrupted
+        if cls.supports_extension(extension):
+            return ProbeResult.MAYBE
+        return ProbeResult.UNSUPPORTED
+
+    @classmethod
+    def get_probe_size(cls) -> int | None:
+        """Only need first 16 bytes to check SQLite magic."""
+        return 16
 
     def __init__(
         self,
@@ -65,6 +88,44 @@ class SqliteFileSystem(BaseAsyncFileSystem[SqlitePath, SqliteInfo]):
         self.target_options = target_options or {}
         self._engine: AsyncEngine | None = None
         self._temp_file: str | None = None
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> SqliteFileSystem:
+        """Create filesystem instance from a SQLite database file path."""
+        return cls(
+            db_path=path, target_protocol=target_protocol, target_options=target_options, **kwargs
+        )
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        **kwargs: Any,
+    ) -> SqliteFileSystem:
+        """Create filesystem instance from raw SQLite database content.
+
+        Args:
+            content: Raw SQLite database content as bytes.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with database in temp file.
+        """
+        import tempfile
+
+        # Write content to temp file since SQLite needs a file
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")  # noqa: SIM115
+        tmp.write(content)
+        tmp.close()
+        fs = cls(db_path=tmp.name, **kwargs)
+        fs._temp_file = tmp.name
+        return fs
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:

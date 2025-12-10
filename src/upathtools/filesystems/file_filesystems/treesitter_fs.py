@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import io
 import os
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, FileInfo, ProbeResult
 
 
 LANGUAGE_MAP = {
@@ -102,11 +102,87 @@ class TreeSitterPath(BaseUPath[TreeSitterInfo]):
         yield from super().iterdir()
 
 
-class TreeSitterFileSystem(BaseFileSystem[TreeSitterPath, TreeSitterInfo]):
+class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
     """Browse source code structure using tree-sitter."""
 
     protocol = "ts"
     upath_cls = TreeSitterPath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({
+        "py",
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "c",
+        "cpp",
+        "cc",
+        "cxx",
+        "h",
+        "hpp",
+        "java",
+        "rs",
+        "go",
+        "rb",
+        "php",
+        "cs",
+    })
+    priority: ClassVar[int] = 70  # Higher priority than PythonAstFileSystem for Python files
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        """Probe content to check if tree-sitter can parse it.
+
+        For supported extensions, assumes content is valid source code.
+        """
+        if not cls.supports_extension(extension):
+            return ProbeResult.UNSUPPORTED
+
+        # Tree-sitter is lenient and can parse most source files
+        # Check that content is valid UTF-8 text
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            return ProbeResult.UNSUPPORTED
+        else:
+            return ProbeResult.SUPPORTED
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        language: str = "python",
+        **kwargs: Any,
+    ) -> TreeSitterFileSystem:
+        """Create filesystem instance from raw source code content.
+
+        Args:
+            content: Raw source code as bytes.
+            language: Programming language (e.g., 'python', 'javascript').
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with pre-loaded content.
+        """
+        fs = cls(source_file="<content>", language=language, **kwargs)
+        fs._source = content.decode("utf-8")
+        fs._parse_source()
+        return fs
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> TreeSitterFileSystem:
+        """Create filesystem instance from a source file path."""
+        return cls(
+            source_file=path,
+            target_protocol=target_protocol,
+            target_options=target_options,
+            **kwargs,
+        )
 
     def __init__(
         self,

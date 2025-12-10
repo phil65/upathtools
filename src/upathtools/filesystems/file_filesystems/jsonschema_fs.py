@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal, Required, TypedDict, overload
+from typing import Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
 
 
 class JsonSchemaInfo(TypedDict, total=False):
@@ -44,7 +44,7 @@ class JsonSchemaPath(BaseUPath[JsonSchemaInfo]):
         return "/" if path == "." else path
 
 
-class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
+class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     """Filesystem for browsing JSON Schema specifications.
 
     Provides a virtual filesystem interface to explore JSON Schema documents,
@@ -62,6 +62,46 @@ class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
     protocol = "jsonschema"
     upath_cls = JsonSchemaPath
+    supported_extensions: ClassVar[frozenset[str]] = frozenset({"json", "yaml", "yml"})
+    priority: ClassVar[int] = 50  # Higher priority than generic JSON handlers
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        """Probe content to check if it's a JSON Schema.
+
+        Looks for JSON Schema indicators like $schema, $defs, or type with properties.
+        """
+        try:
+            text = content.decode("utf-8")
+            # Try JSON first
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                # Try YAML
+                try:
+                    import yaml
+
+                    data = yaml.safe_load(text)
+                except (ImportError, Exception):
+                    return ProbeResult.UNSUPPORTED
+
+            if not isinstance(data, dict):
+                return ProbeResult.UNSUPPORTED
+
+            # Strong indicators of JSON Schema
+            if "$schema" in data and "json-schema" in str(data.get("$schema", "")).lower():
+                return ProbeResult.SUPPORTED
+            if "$defs" in data or "definitions" in data:
+                return ProbeResult.SUPPORTED
+            # Weaker indicators - looks like a schema definition
+            if "type" in data and "properties" in data:
+                return ProbeResult.MAYBE
+            if "allOf" in data or "anyOf" in data or "oneOf" in data:
+                return ProbeResult.MAYBE
+
+            return ProbeResult.UNSUPPORTED
+        except Exception:
+            return ProbeResult.UNSUPPORTED
 
     def __init__(
         self,
@@ -88,6 +128,47 @@ class JsonSchemaFileSystem(BaseFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         self.schema_url = url
         self.headers = headers or {}
         self._schema: dict[str, Any] | None = None
+
+    @classmethod
+    def from_content(
+        cls,
+        content: bytes,
+        **kwargs: Any,
+    ) -> JsonSchemaFileSystem:
+        """Create filesystem instance from raw JSON Schema content.
+
+        Args:
+            content: Raw JSON Schema content as bytes (JSON or YAML).
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with pre-loaded schema.
+        """
+        fs = cls(schema_url="<content>", **kwargs)
+        text = content.decode("utf-8")
+        # Try JSON first, then YAML
+        try:
+            fs._schema = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                import yaml
+
+                fs._schema = yaml.safe_load(text)
+            except ImportError as exc:
+                msg = "PyYAML required for YAML content"
+                raise ImportError(msg) from exc
+        return fs
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> JsonSchemaFileSystem:
+        """Create filesystem instance from a JSON Schema file path."""
+        return cls(schema_url=path, **kwargs)
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
