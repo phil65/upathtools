@@ -4,7 +4,7 @@ repo_url: "https://github.com/phil65/upathtools/"
 site_url: https://phil65.github.io/upathtools/
 site_author: "Philipp Temminghoff"
 copyright: Copyright &copy; 2024 Philipp Temminghoff
-
+edit_uri: edit/main/docs/
 theme:
   name: material
   custom_dir: overrides
