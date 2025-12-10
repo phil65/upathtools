@@ -121,6 +121,7 @@ dev = [
 ]
 benchmark = ["pyinstrument"]
 docs = [
+  "pymdown-extensions",
   # Only add below (Copier)
   "zensical>=0.0.11",
 ]
