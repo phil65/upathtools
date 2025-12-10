@@ -244,7 +244,7 @@ class UnionFilesystemConfig(FileSystemConfig):
 class WikiFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub Wiki filesystem."""
 
-    model_config = ConfigDict(json_schema_extra={"title": "Wikipedia Configuration"})
+    model_config = ConfigDict(json_schema_extra={"title": "GitHub Wiki Configuration"})
 
     type: Literal["wiki"] = Field("wiki", init=False)
     """Wiki filesystem type"""
