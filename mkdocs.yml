@@ -86,17 +86,10 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - sane_lists # this means you can start a list from any number
-
+  - mknodes.mdext:
+      context: true
   - toc:
       permalink: true
-
-nav:
-  - Home: index.md
-  - Quick Start: quickstart.md
-  - Async Operations: async.md
-  - Base Classes: base-classes.md
-  - Filesystems: filesystems.md
-  - Helpers: helpers.md
 
 extra:
   social:
