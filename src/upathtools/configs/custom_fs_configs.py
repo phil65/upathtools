@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field
 from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import (
     FilesystemCategoryType,  # noqa: TC001
     FileSystemConfig,
 )
-
-
-if TYPE_CHECKING:
-    from pydantic import SecretStr
 
 
 class CliFilesystemConfig(FileSystemConfig):
@@ -66,51 +62,6 @@ class FlatUnionFilesystemConfig(FileSystemConfig):
     """List of filesystem identifiers to include in the union"""
 
 
-class GistFilesystemConfig(FileSystemConfig):
-    """Configuration for GitHub Gist filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "GitHub Gist Configuration"})
-
-    type: Literal["gist"] = Field("gist", init=False)
-    """Gist filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    gist_id: str | None = Field(
-        default=None,
-        title="Gist ID",
-        examples=["abc123"],
-        pattern=r"^[a-f0-9]+$",
-        min_length=1,
-    )
-    """Specific gist ID to access"""
-
-    username: str | None = Field(
-        default=None,
-        title="GitHub Username",
-        examples=["phil65"],
-        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-])*[a-zA-Z0-9]$|^[a-zA-Z0-9]$",
-        min_length=1,
-        max_length=39,
-    )
-    """GitHub username for listing all gists"""
-
-    token: SecretStr | None = Field(default=None, title="GitHub Token", examples=["abc123"])
-    """GitHub personal access token for authentication"""
-
-    sha: str | None = Field(
-        default=None,
-        title="Gist Revision",
-        examples=["abc123"],
-        pattern=r"^[a-f0-9]+$",
-        min_length=1,
-    )
-    """Specific revision of a gist"""
-
-    timeout: int | None = Field(default=None, ge=0, title="Connection Timeout")
-    """Connection timeout in seconds"""
-
-
 class HttpFilesystemConfig(FileSystemConfig):
     """Configuration for HTTP filesystem."""
 
@@ -142,50 +93,6 @@ class HttpFilesystemConfig(FileSystemConfig):
     """Whether URLs are already encoded"""
 
 
-class MarkdownFilesystemConfig(FileSystemConfig):
-    """Configuration for Markdown filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Markdown Configuration"})
-
-    fo: UPath = Field(title="Markdown File Path", examples=["/path/to/file.md"])
-    """Path to markdown file"""
-
-    type: Literal["md"] = Field("md", init=False)
-    """Markdown filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class ModuleFilesystemConfig(FileSystemConfig):
-    """Configuration for Module filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Module Configuration"})
-
-    type: Literal["mod"] = Field("mod", init=False)
-    """Module filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(title="Python File Path", examples=["/path/to/module.py"])
-    """Path to Python file"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
 class PackageFilesystemConfig(FileSystemConfig):
     """Configuration for Package filesystem."""
 
@@ -205,28 +112,6 @@ class PackageFilesystemConfig(FileSystemConfig):
     """Name of the package to browse"""
 
 
-class PythonAstFilesystemConfig(FileSystemConfig):
-    """Configuration for Python AST filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Python AST Configuration"})
-
-    type: Literal["ast"] = Field("ast", init=False)
-    """Python AST filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(title="Python File Path", examples=["/path/to/script.py"])
-    """Path to Python file"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
 class UnionFilesystemConfig(FileSystemConfig):
     """Configuration for Union filesystem."""
 
@@ -239,83 +124,6 @@ class UnionFilesystemConfig(FileSystemConfig):
 
     filesystems: dict[str, Any] = Field(title="Filesystem Configurations")
     """Dictionary mapping protocol names to filesystem configurations"""
-
-
-class WikiFilesystemConfig(FileSystemConfig):
-    """Configuration for GitHub Wiki filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "GitHub Wiki Configuration"})
-
-    type: Literal["wiki"] = Field("wiki", init=False)
-    """Wiki filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    owner: str = Field(
-        title="Repository Owner",
-        examples=["microsoft", "facebook", "phil65"],
-        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-])*[a-zA-Z0-9]$|^[a-zA-Z0-9]$",
-        min_length=1,
-        max_length=39,
-    )
-    """GitHub repository owner/organization"""
-
-    repo: str = Field(
-        title="Repository Name",
-        examples=["vscode", "react", "upathtools"],
-        pattern=r"^[a-zA-Z0-9\._\-]+$",
-        min_length=1,
-        max_length=100,
-    )
-    """GitHub repository name"""
-
-    token: SecretStr | None = Field(default=None, title="GitHub Token")
-    """GitHub personal access token for authentication"""
-
-    timeout: int | None = Field(
-        default=None, ge=0, title="Connection Timeout", examples=[30, 60, 120]
-    )
-    """Connection timeout in seconds"""
-
-
-class AppwriteFilesystemConfig(FileSystemConfig):
-    """Configuration for Appwrite storage filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Appwrite Configuration"})
-
-    type: Literal["appwrite"] = Field("appwrite", init=False)
-    """Appwrite filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    endpoint: str | None = Field(
-        default=None,
-        title="Appwrite Endpoint",
-        examples=["https://cloud.appwrite.io/v1"],
-    )
-    """Appwrite API endpoint"""
-
-    project: str | None = Field(
-        default=None,
-        title="Project ID",
-        examples=["64b1f2c8e8c9a"],
-        min_length=1,
-    )
-    """Appwrite project ID"""
-
-    key: SecretStr | None = Field(default=None, title="API Key")
-    """Appwrite API key"""
-
-    bucket_id: str | None = Field(
-        default=None,
-        title="Bucket ID",
-        examples=["default", "images", "documents"],
-        min_length=1,
-    )
-    """Default bucket ID for operations"""
-
-    self_signed: bool = Field(default=False, title="Allow Self-Signed Certificates")
-    """Whether to allow self-signed certificates"""
 
 
 class BaseModelFilesystemConfig(FileSystemConfig):
@@ -371,104 +179,6 @@ class HttpxFilesystemConfig(FileSystemConfig):
     """HTTP request timeout in seconds"""
 
 
-class McpFilesystemConfig(FileSystemConfig):
-    """Configuration for MCP (Model Context Protocol) filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "MCP Configuration"})
-
-    type: Literal["mcp"] = Field("mcp", init=False)
-    """MCP filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    url: str | None = Field(
-        default=None,
-        title="MCP Server URL",
-        examples=["ws://localhost:8000", "wss://mcp.example.com"],
-    )
-    """MCP server URL"""
-
-    server_cmd: list[str] | None = Field(
-        default=None,
-        title="Server Command",
-        examples=[["python", "-m", "my_mcp_server"]],
-        min_length=1,
-    )
-    """Command to start MCP server"""
-
-
-class NotionFilesystemConfig(FileSystemConfig):
-    """Configuration for Notion filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Notion Configuration"})
-
-    type: Literal["notion"] = Field("notion", init=False)
-    """Notion filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    token: SecretStr = Field(title="Integration Token")
-    """Notion integration token"""
-
-    parent_page_id: str = Field(
-        title="Parent Page ID",
-        examples=["64b1f2c8e8c9a123456789012345"],
-        pattern=r"^[a-f0-9\-]+$",
-        min_length=32,
-        max_length=36,
-    )
-    """ID of the parent page where new pages will be created"""
-
-
-class OpenApiFilesystemConfig(FileSystemConfig):
-    """Configuration for OpenAPI schema filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "OpenAPI Configuration"})
-
-    type: Literal["openapi"] = Field("openapi", init=False)
-    """OpenAPI filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(
-        title="OpenAPI Spec Path",
-        examples=["/path/to/openapi.yaml", "/path/to/spec.json"],
-    )
-    """Path to OpenAPI specification file"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "http", "s3"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class JsonSchemaFilesystemConfig(FileSystemConfig):
-    """Configuration for JSON Schema filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "JSON Schema Configuration"})
-
-    type: Literal["jsonschema"] = Field("jsonschema", init=False)
-    """JSON Schema filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(
-        title="JSON Schema Path",
-        examples=["/path/to/schema.json", "https://example.com/schema.json"],
-    )
-    """Path or URL to JSON Schema file"""
-
-    headers: dict[str, str] | None = Field(
-        default=None,
-        title="HTTP Headers",
-        examples=[{"Authorization": "Bearer token", "Accept": "application/json"}],
-    )
-    """HTTP headers for fetching remote schemas"""
-
-
 class SkillsFilesystemConfig(FileSystemConfig):
     """Configuration for Skills filesystem."""
 
@@ -504,287 +214,6 @@ class TypeAdapterFilesystemConfig(FileSystemConfig):
         min_length=1,
     )
     """TypeAdapter class import path"""
-
-
-# Sandbox Filesystem Configurations
-
-
-class BeamFilesystemConfig(FileSystemConfig):
-    """Configuration for Beam sandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Beam Configuration"})
-
-    type: Literal["beam"] = Field("beam", init=False)
-    """Beam filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    sandbox_id: str | None = Field(
-        default=None,
-        title="Sandbox ID",
-        examples=["sb-abc123456789"],
-        min_length=1,
-    )
-    """Existing sandbox ID to connect to"""
-
-    cpu: float = Field(default=1.0, gt=0, title="CPU Allocation", examples=[0.5, 1.0, 2.0])
-    """CPU allocation for new sandboxes"""
-
-    memory: int = Field(default=128, gt=0, title="Memory (MB)", examples=[128, 512, 1024])
-    """Memory allocation for new sandboxes in MB"""
-
-    gpu_count: int = Field(default=0, ge=0, title="GPU Count", examples=[0, 1, 2])
-    """Number of GPUs for new sandboxes"""
-
-    keep_warm_seconds: int = Field(
-        default=600, ge=0, title="Keep Warm Duration", examples=[300, 600, 1800]
-    )
-    """How long to keep sandbox alive in seconds"""
-
-    timeout: float = Field(default=300, gt=0, title="Timeout", examples=[60, 300, 600])
-    """Default timeout for operations in seconds"""
-
-    env_variables: dict[str, str] | None = Field(default=None, title="Environment Variables")
-    """Environment variables for new sandboxes"""
-
-
-class DaytonaFilesystemConfig(FileSystemConfig):
-    """Configuration for Daytona sandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Daytona Configuration"})
-
-    type: Literal["daytona"] = Field("daytona", init=False)
-    """Daytona filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    sandbox_id: str | None = Field(
-        default=None,
-        title="Sandbox ID",
-        examples=["daytona-workspace-123"],
-        min_length=1,
-    )
-    """Existing sandbox ID to connect to"""
-
-    timeout: float = Field(default=600, gt=0, title="Timeout", examples=[300, 600, 1200])
-    """Default timeout for operations in seconds"""
-
-
-class E2BFilesystemConfig(FileSystemConfig):
-    """Configuration for E2B sandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "E2B Configuration"})
-
-    type: Literal["e2b"] = Field("e2b", init=False)
-    """E2B filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    api_key: SecretStr = Field(title="E2B API Key")
-    """E2B API key for authentication"""
-
-    template: str = Field(
-        default="code-interpreter-v1",
-        title="Template",
-        examples=["code-interpreter-v1", "base", "python"],
-        min_length=1,
-    )
-    """E2B template to use for sandboxes"""
-
-    sandbox_id: str | None = Field(
-        default=None,
-        title="Sandbox ID",
-        examples=["e2b-sb-abc123456789"],
-        min_length=1,
-    )
-    """Existing sandbox ID to connect to"""
-
-    timeout: float = Field(default=60, gt=0, title="Timeout", examples=[30, 60, 120])
-    """Default timeout for operations in seconds"""
-
-
-class MicrosandboxFilesystemConfig(FileSystemConfig):
-    """Configuration for Microsandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Microsandbox Configuration"})
-
-    type: Literal["microsandbox"] = Field("microsandbox", init=False)
-    """Microsandbox filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    server_url: str | None = Field(
-        default=None,
-        title="Server URL",
-        examples=["http://localhost:8080", "https://microsandbox.example.com"],
-    )
-    """Microsandbox server URL"""
-
-    namespace: str = Field(
-        default="default",
-        title="Namespace",
-        examples=["default", "production", "staging"],
-        min_length=1,
-    )
-    """Sandbox namespace"""
-
-    name: str | None = Field(
-        default=None,
-        title="Sandbox Name",
-        examples=["my-sandbox", "data-processor"],
-        min_length=1,
-    )
-    """Sandbox name"""
-
-    api_key: SecretStr | None = Field(default=None, title="API Key")
-    """API key for authentication"""
-
-    image: str | None = Field(
-        default=None,
-        title="Docker Image",
-        examples=["python:3.11", "ubuntu:22.04", "node:18"],
-        min_length=1,
-    )
-    """Docker image to use"""
-
-    memory: int = Field(default=512, gt=0, title="Memory Limit (MB)", examples=[256, 512, 1024])
-    """Memory limit in MB"""
-
-    cpus: float = Field(default=1.0, gt=0, title="CPU Limit", examples=[0.5, 1.0, 2.0])
-    """CPU limit"""
-
-
-class ModalFilesystemConfig(FileSystemConfig):
-    """Configuration for Modal sandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Modal Configuration"})
-
-    type: Literal["modal"] = Field("modal", init=False)
-    """Modal filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    app_name: str = Field(
-        title="Modal App Name",
-        examples=["my-app", "data-processing", "ml-pipeline"],
-        pattern=r"^[a-zA-Z0-9\-_]+$",
-        min_length=1,
-        max_length=64,
-    )
-    """Modal application name"""
-
-    sandbox_id: str | None = Field(
-        default=None,
-        title="Sandbox ID",
-        examples=["sb-abc123456789"],
-        min_length=1,
-    )
-    """Existing sandbox ID to connect to"""
-
-    timeout: float = Field(default=600, gt=0, title="Timeout", examples=[300, 600, 1200])
-    """Default timeout for operations in seconds"""
-
-    idle_timeout: float = Field(default=300, gt=0, title="Idle Timeout", examples=[60, 300, 600])
-    """Sandbox idle timeout in seconds"""
-
-
-class VercelFilesystemConfig(FileSystemConfig):
-    """Configuration for Vercel sandbox filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Vercel Configuration"})
-
-    type: Literal["vercel"] = Field("vercel", init=False)
-    """Vercel filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    template: str = Field(
-        default="code-interpreter-v1",
-        title="Template",
-        examples=["code-interpreter-v1", "node", "python"],
-        min_length=1,
-    )
-    """Vercel template to use for sandboxes"""
-
-    sandbox_id: str | None = Field(
-        default=None,
-        title="Sandbox ID",
-        examples=["vercel-sb-123"],
-        min_length=1,
-    )
-    """Existing sandbox ID to connect to"""
-
-    api_key: SecretStr | None = Field(default=None, title="API Key")
-    """Vercel API key for authentication"""
-
-    timeout: float = Field(default=60, gt=0, title="Timeout", examples=[30, 60, 120])
-    """Default timeout for operations in seconds"""
-
-
-class SRTFilesystemConfig(FileSystemConfig):
-    """Configuration for SRT (Sandbox Runtime) filesystem.
-
-    Uses Anthropic's sandbox-runtime for sandboxed local filesystem access
-    with configurable network and filesystem restrictions.
-    """
-
-    model_config = ConfigDict(json_schema_extra={"title": "SRT Configuration"})
-
-    type: Literal["srt"] = Field("srt", init=False)
-    """SRT filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "sandbox"
-
-    allowed_domains: list[str] = Field(
-        default_factory=list,
-        title="Allowed Domains",
-        examples=[["github.com", "*.github.com", "pypi.org"]],
-    )
-    """Domains that can be accessed. Empty = no network access."""
-
-    denied_domains: list[str] = Field(
-        default_factory=list,
-        title="Denied Domains",
-        examples=[["malicious.com"]],
-    )
-    """Domains explicitly blocked."""
-
-    allow_unix_sockets: list[str] = Field(
-        default_factory=list,
-        title="Allowed Unix Sockets",
-        examples=[["/var/run/docker.sock"]],
-    )
-    """Unix socket paths to allow."""
-
-    allow_all_unix_sockets: bool = Field(default=False, title="Allow All Unix Sockets")
-    """Allow all Unix sockets (less secure)."""
-
-    allow_local_binding: bool = Field(default=False, title="Allow Local Binding")
-    """Allow binding to localhost ports."""
-
-    deny_read: list[str] = Field(
-        default_factory=lambda: ["~/.ssh", "~/.aws", "~/.gnupg"],
-        title="Deny Read Paths",
-        examples=[["~/.ssh", "~/.aws"]],
-    )
-    """Paths blocked from reading."""
-
-    allow_write: list[str] = Field(
-        default_factory=lambda: ["."],
-        title="Allow Write Paths",
-        examples=[["."], [".", "/tmp"]],
-    )
-    """Paths where writes are permitted."""
-
-    deny_write: list[str] = Field(
-        default_factory=list,
-        title="Deny Write Paths",
-        examples=[[".env", "secrets/"]],
-    )
-    """Paths denied within allowed write paths."""
-
-    timeout: float = Field(default=30, gt=0, title="Timeout", examples=[30, 60, 120])
-    """Default timeout for operations in seconds."""
 
 
 class BaseModelInstanceFilesystemConfig(FileSystemConfig):
@@ -838,148 +267,6 @@ class OverlayFilesystemConfig(FileSystemConfig):
     """List of filesystem identifiers, first is writable upper layer"""
 
 
-class SqliteFilesystemConfig(FileSystemConfig):
-    """Configuration for SQLite database filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "SQLite Configuration"})
-
-    type: Literal["sqlite"] = Field("sqlite", init=False)
-    """SQLite filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    db_path: str = Field(title="Database Path", examples=["/path/to/database.db"])
-    """Path to SQLite database file"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source database file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class TreeSitterFilesystemConfig(FileSystemConfig):
-    """Configuration for tree-sitter code structure filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "TreeSitter Configuration"})
-
-    type: Literal["treesitter"] = Field("treesitter", init=False)
-    """Tree-sitter filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    source_file: str = Field(title="Source File Path", examples=["/path/to/code.py"])
-    """Path to source code file"""
-
-    language: str | None = Field(
-        default=None,
-        title="Language",
-        examples=["python", "javascript", "rust"],
-    )
-    """Programming language (auto-detected from extension if not specified)"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class GitLabFilesystemConfig(FileSystemConfig):
-    """Configuration for GitLab repository filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "GitLab Configuration"})
-
-    type: Literal["gitlab"] = Field("gitlab", init=False)
-    """GitLab filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    project_id: str | int = Field(
-        title="Project ID",
-        examples=["mygroup/myproject", 12345],
-    )
-    """GitLab project ID or path (e.g., 'namespace/project')"""
-
-    ref: str | None = Field(
-        default=None,
-        title="Git Reference",
-        examples=["main", "v1.0.0", "abc123"],
-    )
-    """Git ref (branch, tag, commit SHA). Uses default branch if not specified"""
-
-    url: str = Field(
-        default="https://gitlab.com",
-        title="GitLab URL",
-        examples=["https://gitlab.com", "https://gitlab.example.com"],
-    )
-    """GitLab instance URL"""
-
-    private_token: SecretStr | None = Field(default=None, title="Private Token")
-    """GitLab private/personal access token (or set GITLAB_TOKEN env var)"""
-
-
-class LinearFilesystemConfig(FileSystemConfig):
-    """Configuration for Linear Issues filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Linear Configuration"})
-
-    type: Literal["linear"] = Field("linear", init=False)
-    """Linear filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    api_key: SecretStr | None = Field(default=None, title="API Key")
-    """Linear API key for authentication (or set LINEAR_API_KEY env var)"""
-
-    extended: bool = Field(default=False, title="Extended Mode")
-    """Whether to use extended mode with issue directories.
-
-    If True, issues are folders with comments as sub-files
-    """
-
-    group_by: Literal["project"] | None = Field(default=None, title="Group By")
-    """Grouping strategy for issues.
-
-    How to group issues. None for flat, 'project' for project folders
-    """
-
-    timeout: float | None = Field(default=None, title="Timeout", gt=0)
-    """Request timeout in seconds"""
-
-
-class McpToolsFilesystemConfig(FileSystemConfig):
-    """Configuration for MCP tools filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "MCP Tools Configuration"})
-
-    type: Literal["mcptools"] = Field("mcptools", init=False)
-    """MCP tools filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "base"
-
-    url: str | None = Field(
-        default=None,
-        title="MCP Server URL",
-        examples=["http://localhost:8000/mcp"],
-    )
-    """URL of MCP server"""
-
-    server_cmd: list[str] | None = Field(
-        default=None,
-        title="Server Command",
-        examples=[["uvx", "mcp-server-fetch"]],
-    )
-    """Command to start MCP server"""
-
-    stubs_only: bool = Field(default=False, title="Stubs Only")
-    """If True, generate type stubs without implementation"""
-
-
 # class SkillsFilesystemConfig(FileSystemConfig):
 #     """Configuration for Skills filesystem."""
 
@@ -1004,40 +291,18 @@ class McpToolsFilesystemConfig(FileSystemConfig):
 
 
 CustomFilesystemConfig = (
-    AppwriteFilesystemConfig
-    | AsyncLocalFilesystemConfig
+    AsyncLocalFilesystemConfig
     | BaseModelFilesystemConfig
     | BaseModelInstanceFilesystemConfig
-    | BeamFilesystemConfig
     | CliFilesystemConfig
-    | DaytonaFilesystemConfig
     | DistributionFilesystemConfig
-    | E2BFilesystemConfig
     | FlatUnionFilesystemConfig
-    | GistFilesystemConfig
-    | GitLabFilesystemConfig
     | HttpFilesystemConfig
     | HttpxFilesystemConfig
-    | JsonSchemaFilesystemConfig
-    | LinearFilesystemConfig
-    | MarkdownFilesystemConfig
-    | McpFilesystemConfig
-    | McpToolsFilesystemConfig
-    | MicrosandboxFilesystemConfig
-    | ModalFilesystemConfig
-    | ModuleFilesystemConfig
-    | NotionFilesystemConfig
-    | OpenApiFilesystemConfig
     | OverlayFilesystemConfig
     | PackageFilesystemConfig
-    | PythonAstFilesystemConfig
     | SkillsFilesystemConfig
-    | SqliteFilesystemConfig
-    | SRTFilesystemConfig
-    | TreeSitterFilesystemConfig
     | TypeAdapterFilesystemConfig
     | UnionFilesystemConfig
-    | VercelFilesystemConfig
-    | WikiFilesystemConfig
 )
 """Union of all custom filesystem configurations."""
