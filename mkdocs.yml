@@ -91,6 +91,18 @@ markdown_extensions:
   - toc:
       permalink: true
 
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          options:
+            docstring_style: google
+            inherited_members: true
+            show_source: false
+
 extra:
   social:
     - icon: fontawesome/brands/github
