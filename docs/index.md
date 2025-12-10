@@ -9,16 +9,16 @@
 - **Async filesystem operations**: Batch file reading with configurable parallelism
 - **Automatic fallback**: Thread-pool execution for filesystems without native async support
 
-### 🎯 Better Type Safety
-- **Generic filesystem base classes** with typed info dictionaries
+### 🎯 Type Safety
+- **Generic filesystem base classes** with typed info dictionaries / UPath subclasses
 - **Type-safe path classes** specific to each filesystem
 - **Proper overloads** for detail/non-detail variants of operations
 
 ### 📦 Specialized Filesystems
 - **Virtual filesystems**: Browse Python AST, module structures, SQLite databases
 - **Developer tools**: CLI command output, Git repositories, package metadata
-- **Aggregation**: Union and flat-union filesystems for merging multiple sources
-- **Remote**: GitHub Gists, wikis, improved HTTP/HTTPS support
+- **Aggregation**: Filesystem wrappers to compose multiple filesystems into one
+- **Remote**: GitHub Gists / Issues / Wiki, Notion, Linear and multiple other remote filesystems
 
 ### 🛠️ Utility Functions
 - **Async batch operations**: `read_folder()`, `list_files()`, `read_folder_as_text()`
@@ -80,16 +80,7 @@ info = path.info()
 # info has type-safe fields specific to ModuleFileSystem
 ```
 
-## Why UPathTools?
-
-### Problem: fsspec lacks async and type safety
-
-Standard fsspec filesystems:
-- Return generic `dict[str, Any]` for file info
-- No async operation support
-- Limited type hints for path operations
-
-### Solution: Generic base classes with full typing
+### Generic base classes with full typing
 
 UPathTools provides:
 
@@ -109,18 +100,17 @@ class MyFileSystem[MyPath, MyInfoDict](BaseAsyncFileSystem):
 ## Installation
 
 ```bash
-pip install upathtools
-```
-
-For optional dependencies:
-
-```bash
-# HTTP support with httpx
-pip install upathtools[httpx]
+uv add upathtools[httpx]
 
 # All optional dependencies
-pip install upathtools[all]
+uv add upathtools[all]
 ```
+
+/// mknodes
+{{ "upathtools"| MkDependencyTable }}
+///
+
+
 
 ## Architecture Overview
 
@@ -135,6 +125,7 @@ upathtools/
 │   ├── remote_filesystems/  # HTTP, Git, GitHub, etc.
 │   └── ...                # Other specialized implementations
 ├── async_upath.py         # AsyncUPath wrapper
+├── delegating_fs.py         # Delegating FS
 ├── async_ops.py           # Batch async operations
 └── helpers.py             # Utility functions
 ```

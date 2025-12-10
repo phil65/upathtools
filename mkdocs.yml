@@ -55,42 +55,40 @@ theme:
   # - search.share
 
 markdown_extensions:
-  - tables
+  - abbr
   - admonition
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
-  - pymdownx.details
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
   - pymdownx.caret
-  - pymdownx.critic
-  - pymdownx.mark
-  - pymdownx.superfences
-  - pymdownx.snippets
-  - pymdownx.tilde
-  - pymdownx.inlinehilite
-  - pymdownx.highlight:
-      pygments_lang_class: true
-  - pymdownx.extra:
-      pymdownx.superfences:
-        custom_fences:
-          - name: mermaid
-            class: mermaid
-            format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.details
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
-      options:
-        custom_icons:
-          - docs/.overrides/.icons
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
-  - sane_lists # this means you can start a list from any number
-  - mknodes.mdext:
-      context: true
-  - toc:
-      permalink: true
-
+  - pymdownx.tilde
+  - mknodes.mdext
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 plugins:
   - mkdocstrings:
       handlers:
