@@ -121,6 +121,7 @@ dev = [
 ]
 benchmark = ["pyinstrument"]
 docs = [
+  "mknodes>=2.2.0",
   "pymdown-extensions",
   # Only add below (Copier)
   "zensical>=0.0.11",
@@ -352,3 +353,8 @@ python-platform = "all"
 
 [tool.uv]
 default-groups = ["dev", "lint", "docs"]
+override-dependencies = [
+  "logfire>=4.0.0",
+  # "llmling-agent>=1.15.0",
+  "protobuf>=5.0.0"
+]  # required bc of beam
