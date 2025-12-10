@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import AnyUrl, Field, SecretStr
+from pydantic import AnyUrl, ConfigDict, Field, SecretStr
 from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig  # noqa: TC001
@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 class ArrowFilesystemConfig(FileSystemConfig):
     """Configuration for Arrow filesystem wrapper."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Arrow Configuration"})
+
     type: Literal["arrow"] = Field("arrow", init=False)
     """Arrow filesystem type"""
 
@@ -26,6 +28,8 @@ class ArrowFilesystemConfig(FileSystemConfig):
 class DataFilesystemConfig(FileSystemConfig):
     """Configuration for Data URL filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Data URL Configuration"})
+
     type: Literal["data"] = Field("data", init=False)
     """Data URL filesystem type"""
 
@@ -34,6 +38,8 @@ class DataFilesystemConfig(FileSystemConfig):
 
 class DaskWorkerFilesystemConfig(FileSystemConfig):
     """Configuration for Dask worker filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Dask Worker Configuration"})
 
     type: Literal["dask"] = Field("dask", init=False)
     """Dask worker filesystem type"""
@@ -58,6 +64,8 @@ class DaskWorkerFilesystemConfig(FileSystemConfig):
 
 class FTPFilesystemConfig(FileSystemConfig):
     """Configuration for FTP filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "FTP Configuration"})
 
     type: Literal["ftp"] = Field("ftp", init=False)
     """FTP filesystem type"""
@@ -110,6 +118,8 @@ class FTPFilesystemConfig(FileSystemConfig):
 class GitFilesystemConfig(FileSystemConfig):
     """Configuration for Git filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Git Configuration"})
+
     type: Literal["git"] = Field("git", init=False)
     """Git filesystem type"""
 
@@ -137,6 +147,8 @@ class GitFilesystemConfig(FileSystemConfig):
 
 class GithubFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "GitHub Configuration"})
 
     type: Literal["github"] = Field("github", init=False)
     """GitHub filesystem type"""
@@ -192,6 +204,8 @@ class GithubFilesystemConfig(FileSystemConfig):
 class HadoopFilesystemConfig(FileSystemConfig):
     """Configuration for Hadoop filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Hadoop Configuration"})
+
     type: Literal["hdfs"] = Field("hdfs", init=False)
     """Hadoop filesystem type"""
 
@@ -232,6 +246,8 @@ class HadoopFilesystemConfig(FileSystemConfig):
 class JupyterFilesystemConfig(FileSystemConfig):
     """Configuration for Jupyter notebook/lab filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Jupyter Configuration"})
+
     type: Literal["jupyter"] = Field("jupyter", init=False)
     """Jupyter filesystem type"""
 
@@ -249,6 +265,8 @@ class JupyterFilesystemConfig(FileSystemConfig):
 
 class LibArchiveFilesystemConfig(FileSystemConfig):
     """Configuration for LibArchive filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "LibArchive Configuration"})
 
     type: Literal["libarchive"] = Field("libarchive", init=False)
     """LibArchive filesystem type"""
@@ -273,6 +291,8 @@ class LibArchiveFilesystemConfig(FileSystemConfig):
 class LocalFilesystemConfig(FileSystemConfig):
     """Configuration for Local filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Local Filesystem Configuration"})
+
     type: Literal["file"] = Field("file", init=False)
     """Local filesystem type"""
 
@@ -290,6 +310,8 @@ class LocalFilesystemConfig(FileSystemConfig):
 class MemoryFilesystemConfig(FileSystemConfig):
     """Configuration for Memory filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Memory Filesystem Configuration"})
+
     type: Literal["memory"] = Field("memory", init=False)
     """Memory filesystem type"""
 
@@ -298,6 +320,8 @@ class MemoryFilesystemConfig(FileSystemConfig):
 
 class SFTPFilesystemConfig(FileSystemConfig):
     """Configuration for SFTP filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "SFTP Configuration"})
 
     type: Literal["sftp"] = Field("sftp", init=False)
     """SFTP filesystem type"""
@@ -332,6 +356,8 @@ class SFTPFilesystemConfig(FileSystemConfig):
 
 class SMBFilesystemConfig(FileSystemConfig):
     """Configuration for SMB/CIFS filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "SMB Configuration"})
 
     type: Literal["smb"] = Field("smb", init=False)
     """SMB filesystem type"""
@@ -369,6 +395,8 @@ class SMBFilesystemConfig(FileSystemConfig):
 class TarFilesystemConfig(FileSystemConfig):
     """Configuration for Tar archive filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "TAR Archive Configuration"})
+
     type: Literal["tar"] = Field("tar", init=False)
     """Tar filesystem type"""
 
@@ -399,6 +427,8 @@ class TarFilesystemConfig(FileSystemConfig):
 
 class WebHDFSFilesystemConfig(FileSystemConfig):
     """Configuration for WebHDFS filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "WebHDFS Configuration"})
 
     type: Literal["webhdfs"] = Field("webhdfs", init=False)
     """WebHDFS filesystem type"""
@@ -441,6 +471,8 @@ class WebHDFSFilesystemConfig(FileSystemConfig):
 class ZipFilesystemConfig(FileSystemConfig):
     """Configuration for Zip archive filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "ZIP Archive Configuration"})
+
     type: Literal["zip"] = Field("zip", init=False)
     """Zip filesystem type"""
 
@@ -473,6 +505,8 @@ class ZipFilesystemConfig(FileSystemConfig):
 
 class AzureBlobFilesystemConfig(FileSystemConfig):
     """Configuration for Azure Blob Storage filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Azure Blob Storage Configuration"})
 
     type: Literal["abfs"] = Field("abfs", init=False)
     """Azure Blob filesystem type"""
@@ -508,6 +542,8 @@ class AzureBlobFilesystemConfig(FileSystemConfig):
 
 class GCSFilesystemConfig(FileSystemConfig):
     """Configuration for Google Cloud Storage filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Google Cloud Storage Configuration"})
 
     type: Literal["gcs"] = Field("gcs", init=False)
     """GCS filesystem type"""
@@ -547,6 +583,8 @@ class GCSFilesystemConfig(FileSystemConfig):
 class HuggingFaceFilesystemConfig(FileSystemConfig):
     """Configuration for HuggingFace Hub filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "HuggingFace Hub Configuration"})
+
     type: Literal["hf"] = Field("hf", init=False)
     """HuggingFace filesystem type"""
 
@@ -571,6 +609,8 @@ class HuggingFaceFilesystemConfig(FileSystemConfig):
 
 class S3FilesystemConfig(FileSystemConfig):
     """Configuration for AWS S3 filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Amazon S3 Configuration"})
 
     type: Literal["s3"] = Field("s3", init=False)
     """S3 filesystem type"""
@@ -617,6 +657,8 @@ class S3FilesystemConfig(FileSystemConfig):
 
 class WebdavFilesystemConfig(FileSystemConfig):
     """Configuration for WebDAV filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "WebDAV Configuration"})
 
     type: Literal["webdav"] = Field("webdav", init=False)
     """WebDAV filesystem type"""

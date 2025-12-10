@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 from upath import UPath  # noqa: TC002
 
 from upathtools.configs.base import (
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 class CliFilesystemConfig(FileSystemConfig):
     """Configuration for CLI filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "CLI Configuration"})
 
     type: Literal["cli"] = Field("cli", init=False)
     """CLI filesystem type"""
@@ -40,6 +42,8 @@ class CliFilesystemConfig(FileSystemConfig):
 class DistributionFilesystemConfig(FileSystemConfig):
     """Configuration for Distribution filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Distribution Configuration"})
+
     type: Literal["distribution"] = Field("distribution", init=False)
     """Distribution filesystem type"""
 
@@ -48,6 +52,8 @@ class DistributionFilesystemConfig(FileSystemConfig):
 
 class FlatUnionFilesystemConfig(FileSystemConfig):
     """Configuration for FlatUnion filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Flat Union Configuration"})
 
     type: Literal["flatunion"] = Field("flatunion", init=False)
     """FlatUnion filesystem type"""
@@ -62,6 +68,8 @@ class FlatUnionFilesystemConfig(FileSystemConfig):
 
 class GistFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub Gist filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "GitHub Gist Configuration"})
 
     type: Literal["gist"] = Field("gist", init=False)
     """Gist filesystem type"""
@@ -106,6 +114,8 @@ class GistFilesystemConfig(FileSystemConfig):
 class HttpFilesystemConfig(FileSystemConfig):
     """Configuration for HTTP filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "HTTP Configuration"})
+
     type: Literal["http"] = Field("http", init=False)
     """HTTP filesystem type"""
 
@@ -135,6 +145,8 @@ class HttpFilesystemConfig(FileSystemConfig):
 class MarkdownFilesystemConfig(FileSystemConfig):
     """Configuration for Markdown filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Markdown Configuration"})
+
     fo: UPath = Field(title="Markdown File Path", examples=["/path/to/file.md"])
     """Path to markdown file"""
 
@@ -154,6 +166,8 @@ class MarkdownFilesystemConfig(FileSystemConfig):
 
 class ModuleFilesystemConfig(FileSystemConfig):
     """Configuration for Module filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Module Configuration"})
 
     type: Literal["mod"] = Field("mod", init=False)
     """Module filesystem type"""
@@ -175,6 +189,8 @@ class ModuleFilesystemConfig(FileSystemConfig):
 class PackageFilesystemConfig(FileSystemConfig):
     """Configuration for Package filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Package Configuration"})
+
     type: Literal["pkg"] = Field("pkg", init=False)
     """Package filesystem type"""
 
@@ -191,6 +207,8 @@ class PackageFilesystemConfig(FileSystemConfig):
 
 class PythonAstFilesystemConfig(FileSystemConfig):
     """Configuration for Python AST filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Python AST Configuration"})
 
     type: Literal["ast"] = Field("ast", init=False)
     """Python AST filesystem type"""
@@ -212,6 +230,8 @@ class PythonAstFilesystemConfig(FileSystemConfig):
 class UnionFilesystemConfig(FileSystemConfig):
     """Configuration for Union filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Union Configuration"})
+
     type: Literal["union"] = Field("union", init=False)
     """Union filesystem type"""
 
@@ -223,6 +243,8 @@ class UnionFilesystemConfig(FileSystemConfig):
 
 class WikiFilesystemConfig(FileSystemConfig):
     """Configuration for GitHub Wiki filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Wikipedia Configuration"})
 
     type: Literal["wiki"] = Field("wiki", init=False)
     """Wiki filesystem type"""
@@ -258,6 +280,8 @@ class WikiFilesystemConfig(FileSystemConfig):
 
 class AppwriteFilesystemConfig(FileSystemConfig):
     """Configuration for Appwrite storage filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Appwrite Configuration"})
 
     type: Literal["appwrite"] = Field("appwrite", init=False)
     """Appwrite filesystem type"""
@@ -297,6 +321,8 @@ class AppwriteFilesystemConfig(FileSystemConfig):
 class BaseModelFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel schema filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "BaseModel Configuration"})
+
     type: Literal["basemodel"] = Field("basemodel", init=False)
     """BaseModel filesystem type"""
 
@@ -313,6 +339,8 @@ class BaseModelFilesystemConfig(FileSystemConfig):
 
 class HttpxFilesystemConfig(FileSystemConfig):
     """Configuration for HTTPX-based HTTP filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "HTTPX Configuration"})
 
     type: Literal["httpx"] = Field("httpx", init=False)
     """HTTPX filesystem type"""
@@ -346,6 +374,8 @@ class HttpxFilesystemConfig(FileSystemConfig):
 class McpFilesystemConfig(FileSystemConfig):
     """Configuration for MCP (Model Context Protocol) filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "MCP Configuration"})
+
     type: Literal["mcp"] = Field("mcp", init=False)
     """MCP filesystem type"""
 
@@ -370,6 +400,8 @@ class McpFilesystemConfig(FileSystemConfig):
 class NotionFilesystemConfig(FileSystemConfig):
     """Configuration for Notion filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Notion Configuration"})
+
     type: Literal["notion"] = Field("notion", init=False)
     """Notion filesystem type"""
 
@@ -390,6 +422,8 @@ class NotionFilesystemConfig(FileSystemConfig):
 
 class OpenApiFilesystemConfig(FileSystemConfig):
     """Configuration for OpenAPI schema filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "OpenAPI Configuration"})
 
     type: Literal["openapi"] = Field("openapi", init=False)
     """OpenAPI filesystem type"""
@@ -414,6 +448,8 @@ class OpenApiFilesystemConfig(FileSystemConfig):
 class JsonSchemaFilesystemConfig(FileSystemConfig):
     """Configuration for JSON Schema filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "JSON Schema Configuration"})
+
     type: Literal["jsonschema"] = Field("jsonschema", init=False)
     """JSON Schema filesystem type"""
 
@@ -436,6 +472,8 @@ class JsonSchemaFilesystemConfig(FileSystemConfig):
 class SkillsFilesystemConfig(FileSystemConfig):
     """Configuration for Skills filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Skills Configuration"})
+
     type: Literal["skills"] = Field("skills", init=False)
     """Skills filesystem type"""
 
@@ -451,6 +489,8 @@ class SkillsFilesystemConfig(FileSystemConfig):
 
 class TypeAdapterFilesystemConfig(FileSystemConfig):
     """Configuration for TypeAdapter filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "TypeAdapter Configuration"})
 
     type: Literal["typeadapter"] = Field("typeadapter", init=False)
     """TypeAdapter filesystem type"""
@@ -471,6 +511,8 @@ class TypeAdapterFilesystemConfig(FileSystemConfig):
 
 class BeamFilesystemConfig(FileSystemConfig):
     """Configuration for Beam sandbox filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Beam Configuration"})
 
     type: Literal["beam"] = Field("beam", init=False)
     """Beam filesystem type"""
@@ -509,6 +551,8 @@ class BeamFilesystemConfig(FileSystemConfig):
 class DaytonaFilesystemConfig(FileSystemConfig):
     """Configuration for Daytona sandbox filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Daytona Configuration"})
+
     type: Literal["daytona"] = Field("daytona", init=False)
     """Daytona filesystem type"""
 
@@ -528,6 +572,8 @@ class DaytonaFilesystemConfig(FileSystemConfig):
 
 class E2BFilesystemConfig(FileSystemConfig):
     """Configuration for E2B sandbox filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "E2B Configuration"})
 
     type: Literal["e2b"] = Field("e2b", init=False)
     """E2B filesystem type"""
@@ -559,6 +605,8 @@ class E2BFilesystemConfig(FileSystemConfig):
 
 class MicrosandboxFilesystemConfig(FileSystemConfig):
     """Configuration for Microsandbox filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Microsandbox Configuration"})
 
     type: Literal["microsandbox"] = Field("microsandbox", init=False)
     """Microsandbox filesystem type"""
@@ -609,6 +657,8 @@ class MicrosandboxFilesystemConfig(FileSystemConfig):
 class ModalFilesystemConfig(FileSystemConfig):
     """Configuration for Modal sandbox filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Modal Configuration"})
+
     type: Literal["modal"] = Field("modal", init=False)
     """Modal filesystem type"""
 
@@ -640,6 +690,8 @@ class ModalFilesystemConfig(FileSystemConfig):
 
 class VercelFilesystemConfig(FileSystemConfig):
     """Configuration for Vercel sandbox filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Vercel Configuration"})
 
     type: Literal["vercel"] = Field("vercel", init=False)
     """Vercel filesystem type"""
@@ -675,6 +727,8 @@ class SRTFilesystemConfig(FileSystemConfig):
     Uses Anthropic's sandbox-runtime for sandboxed local filesystem access
     with configurable network and filesystem restrictions.
     """
+
+    model_config = ConfigDict(json_schema_extra={"title": "SRT Configuration"})
 
     type: Literal["srt"] = Field("srt", init=False)
     """SRT filesystem type"""
@@ -736,6 +790,8 @@ class SRTFilesystemConfig(FileSystemConfig):
 class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel instance filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "BaseModel Instance Configuration"})
+
     type: Literal["basemodel_instance"] = Field("basemodel_instance", init=False)
     """BaseModel instance filesystem type"""
 
@@ -753,6 +809,8 @@ class BaseModelInstanceFilesystemConfig(FileSystemConfig):
 class AsyncLocalFilesystemConfig(FileSystemConfig):
     """Configuration for async local filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Async Local Configuration"})
+
     type: Literal["asynclocal"] = Field("asynclocal", init=False)
     """Async local filesystem type"""
 
@@ -764,6 +822,8 @@ class AsyncLocalFilesystemConfig(FileSystemConfig):
 
 class OverlayFilesystemConfig(FileSystemConfig):
     """Configuration for overlay filesystem with copy-on-write semantics."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Overlay Configuration"})
 
     type: Literal["overlay"] = Field("overlay", init=False)
     """Overlay filesystem type"""
@@ -780,6 +840,8 @@ class OverlayFilesystemConfig(FileSystemConfig):
 
 class SqliteFilesystemConfig(FileSystemConfig):
     """Configuration for SQLite database filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "SQLite Configuration"})
 
     type: Literal["sqlite"] = Field("sqlite", init=False)
     """SQLite filesystem type"""
@@ -800,6 +862,8 @@ class SqliteFilesystemConfig(FileSystemConfig):
 
 class TreeSitterFilesystemConfig(FileSystemConfig):
     """Configuration for tree-sitter code structure filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "TreeSitter Configuration"})
 
     type: Literal["treesitter"] = Field("treesitter", init=False)
     """Tree-sitter filesystem type"""
@@ -827,6 +891,8 @@ class TreeSitterFilesystemConfig(FileSystemConfig):
 
 class GitLabFilesystemConfig(FileSystemConfig):
     """Configuration for GitLab repository filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "GitLab Configuration"})
 
     type: Literal["gitlab"] = Field("gitlab", init=False)
     """GitLab filesystem type"""
@@ -860,6 +926,8 @@ class GitLabFilesystemConfig(FileSystemConfig):
 class LinearFilesystemConfig(FileSystemConfig):
     """Configuration for Linear Issues filesystem."""
 
+    model_config = ConfigDict(json_schema_extra={"title": "Linear Configuration"})
+
     type: Literal["linear"] = Field("linear", init=False)
     """Linear filesystem type"""
 
@@ -886,6 +954,8 @@ class LinearFilesystemConfig(FileSystemConfig):
 
 class McpToolsFilesystemConfig(FileSystemConfig):
     """Configuration for MCP tools filesystem."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "MCP Tools Configuration"})
 
     type: Literal["mcptools"] = Field("mcptools", init=False)
     """MCP tools filesystem type"""
