@@ -113,7 +113,7 @@ uv add upathtools[all]
 ///
 
 
-## Architecture Overview
+## Package Overview
 
 /// mknodes
 {{ "src/upathtools/"| MkTreeView(exclude_patterns=["*.pyc", "__pycache__"]) }}
