@@ -268,11 +268,12 @@ class DirectoryTree:
         # Check if root directory is empty after filtering
         if self.options.hide_empty and self._is_directory_empty_after_filters(self.root_path):
             icon = self.DIRECTORY if self.options.show_icons else ""
-            yield f"{icon} {self.root_path.name} (empty)"
+            # TODO: not sure if backticks should be optional
+            yield f"{icon} `{self.root_path.name} (empty)`"
             return
 
         root_icon = self.DIRECTORY if self.options.show_icons else ""
-        yield f"{root_icon} {self.root_path.name}"
+        yield f"{root_icon} `{self.root_path.name}`"
 
         for prefix, path, _is_last in self._get_tree_entries(self.root_path):
             info = _get_path_info(path)
@@ -291,7 +292,7 @@ class DirectoryTree:
                 details.append(permissions)
 
             details_str = f" ({', '.join(details)})" if details else ""
-            yield f"{prefix}{icon} {path.name}{details_str}"
+            yield f"{prefix}{icon} `{path.name}{details_str}`"
 
 
 def get_directory_tree(
