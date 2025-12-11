@@ -139,7 +139,7 @@ class FileSystemConfig(BaseModel):
         # Apply caching wrapper
         if self.cached:
             fs = fsspec.filesystem("filecache", fs=fs)
-        if not isinstance(fs, AsyncFileSystem):
+        if not isinstance(fs, AsyncFileSystem) and ensure_async:
             fs = AsyncFileSystemWrapper(fs)
         return fs
 
@@ -153,7 +153,13 @@ class FileSystemConfig(BaseModel):
             UPath object for the specified path
         """
         fs = self.create_fs()
-        return UPath(path or fs.root_marker, fs=fs)
+        from upathtools.filesystems.base import BaseAsyncFileSystem, BaseFileSystem
+
+        if isinstance(fs, BaseFileSystem | BaseAsyncFileSystem):
+            return fs.get_upath(path)
+        p = UPath(path or fs.root_marker)
+        p._fs_cached = fs  # pyright: ignore[reportAttributeAccessIssue]
+        return p
 
 
 class URIFileSystemConfig(FileSystemConfig):
@@ -211,15 +217,12 @@ class URIFileSystemConfig(FileSystemConfig):
             path = f"{parsed.netloc}{parsed.path}" if parsed.netloc else parsed.path
 
         fs = fsspec.filesystem(protocol, **self.storage_options)
-
         # Apply root_path restriction if set, otherwise use URI path
         effective_root = self.root_path or path
         if effective_root:
             fs = fsspec.filesystem("dir", path=effective_root, fs=fs)
-
         if self.cwd:
             fs = fs.chdir(self.cwd)
-
         if self.cached:
             fs = fsspec.filesystem("filecache", fs=fs)
         if not isinstance(fs, AsyncFileSystem) and ensure_async:
@@ -230,7 +233,11 @@ class URIFileSystemConfig(FileSystemConfig):
 class PathConfig(BaseModel):
     """Configuration that combines a filesystem with a specific path."""
 
-    model_config = ConfigDict(extra="forbid", use_attribute_docstrings=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        use_attribute_docstrings=True,
+        json_schema_extra={"x-doc-title": "Path Configuration"},
+    )
 
     filesystem: FileSystemConfig = Field(title="Filesystem Configuration")
     """Configuration for the filesystem"""
