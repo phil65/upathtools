@@ -116,10 +116,10 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration.
         """
-        fs_kwargs = self.model_dump(exclude={"type", "root_path", "cwd", "cached"})
-        fs_kwargs = {k: v for k, v in fs_kwargs.items() if v is not None}
-
-        # Convert Pydantic types to plain Python types
+        fs_kwargs = self.model_dump(
+            exclude={"type", "root_path", "cwd", "cached"},
+            exclude_none=True,
+        )
         for key, value in fs_kwargs.items():
             if isinstance(value, SecretStr):
                 fs_kwargs[key] = value.get_secret_value()
@@ -127,7 +127,6 @@ class FileSystemConfig(BaseModel):
                 fs_kwargs[key] = str(value)
 
         fs = fsspec.filesystem(self.type, **fs_kwargs)
-
         # Apply path prefix (DirFileSystem wrapper) - sandboxed, can't escape
         if self.root_path:
             fs = fsspec.filesystem("dir", path=self.root_path, fs=fs)
