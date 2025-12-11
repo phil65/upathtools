@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import fsspec
 from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
+from fsspec.implementations.cached import WholeFileCacheFileSystem
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, SecretStr
 from upath import UPath
 
@@ -37,13 +38,6 @@ class FileSystemConfig(BaseModel):
     )
     """Root directory to restrict filesystem access to (wraps in DirFileSystem)."""
 
-    cwd: str | None = Field(
-        default=None,
-        title="Working Directory",
-        examples=["/workspace", "/tmp", "data/"],
-    )
-    """Working directory for relative path operations (uses fs.chdir)."""
-
     cached: bool = Field(default=False, title="Enable Caching")
     """Whether to wrap in CachingFileSystem."""
 
@@ -54,55 +48,6 @@ class FileSystemConfig(BaseModel):
     def category(self) -> FilesystemCategoryType:
         """Get the category of this filesystem."""
         return self._category
-
-    @property
-    def is_typically_layered(self) -> bool:
-        """Whether this filesystem type is typically used as a layer on top of another."""
-        return self.category in {"archive", "transform", "wrapper"}
-
-    @property
-    def requires_target_fs(self) -> bool:
-        """Whether this filesystem type typically requires a target filesystem."""
-        return self.category in {"archive", "transform"}
-
-    @classmethod
-    def get_available_configs(cls) -> dict[str, type[FileSystemConfig]]:  # type: ignore[valid-type]
-        """Return all available filesystem configurations.
-
-        Returns:
-            Dictionary mapping type values to configuration classes
-        """
-        result = {}
-        for subclass in cls.__subclasses__():
-            result.update(subclass.get_available_configs())
-            if hasattr(subclass.type, "__args__"):
-                fs_type = subclass.type.__args__[0]  # pyright: ignore
-                result[fs_type] = subclass
-
-        return result
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> FileSystemConfig:
-        """Create appropriate config instance based on type.
-
-        Args:
-            data: Dictionary containing configuration data with type
-
-        Returns:
-            Instantiated configuration object of the appropriate type
-
-        Raises:
-            ValueError: If type is missing or unknown
-        """
-        fs_type = data.get("type")
-        if not fs_type:
-            msg = "type must be specified"
-            raise ValueError(msg)
-
-        configs = cls.get_available_configs()
-        if fs_type in configs:
-            return configs[fs_type](**data)  # type: ignore[misc]
-        return cls(**data)
 
     @overload
     def create_fs(self, ensure_async: Literal[False] = ...) -> AbstractFileSystem: ...
@@ -130,14 +75,10 @@ class FileSystemConfig(BaseModel):
         # Apply path prefix (DirFileSystem wrapper) - sandboxed, can't escape
         if self.root_path:
             fs = fsspec.filesystem("dir", path=self.root_path, fs=fs)
-
-        # Apply cwd for relative path convenience
-        if self.cwd:
-            fs = fs.chdir(self.cwd)
-
         # Apply caching wrapper
+
         if self.cached:
-            fs = fsspec.filesystem("filecache", fs=fs)
+            fs = WholeFileCacheFileSystem(fs=fs)
         if not isinstance(fs, AsyncFileSystem) and ensure_async:
             fs = AsyncFileSystemWrapper(fs)
         return fs
@@ -220,10 +161,8 @@ class URIFileSystemConfig(FileSystemConfig):
         effective_root = self.root_path or path
         if effective_root:
             fs = fsspec.filesystem("dir", path=effective_root, fs=fs)
-        if self.cwd:
-            fs = fs.chdir(self.cwd)
         if self.cached:
-            fs = fsspec.filesystem("filecache", fs=fs)
+            fs = WholeFileCacheFileSystem(fs=fs)
         if not isinstance(fs, AsyncFileSystem) and ensure_async:
             fs = AsyncFileSystemWrapper(fs)
         return fs
@@ -258,4 +197,3 @@ if __name__ == "__main__":
 
     zip_config = ZipFilesystemConfig(fo=UPath("C:/Users/phili/Downloads/tags.zip"))
     fs = zip_config.create_fs()
-    print(fs.ls("tags/"))
