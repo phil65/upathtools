@@ -34,7 +34,6 @@ from .sandbox_filesystems.vercel_fs import VercelFS, VercelPath
 from .sandbox_filesystems.microsandbox_fs import MicrosandboxFS, MicrosandboxPath
 
 from .basemodel_fs import BaseModelFileSystem, BaseModelPath
-from .typeadapter_fs import TypeAdapterFileSystem, TypeAdapterPath
 from .basemodel_instance_fs import BaseModelInstanceFileSystem, BaseModelInstancePath
 from .distribution_fs import DistributionFileSystem, DistributionPath
 from .flat_union_fs import FlatUnionFileSystem, FlatUnionPath
@@ -96,8 +95,6 @@ __all__ = [
     "SqlitePath",
     "TreeSitterFileSystem",
     "TreeSitterPath",
-    "TypeAdapterFileSystem",
-    "TypeAdapterPath",
     "UnionFileSystem",
     "UnionPath",
     "VercelFS",

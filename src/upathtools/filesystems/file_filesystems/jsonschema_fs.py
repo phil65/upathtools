@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import importlib
 import json
-from typing import Any, ClassVar, Literal, Required, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
 
 import fsspec
 
 from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
+
+
+if TYPE_CHECKING:
+    from pydantic import TypeAdapter
 
 
 class JsonSchemaInfo(TypedDict, total=False):
@@ -108,6 +113,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         self,
         schema_url: str = "",
         headers: dict[str, str] | None = None,
+        resolve_refs: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -115,6 +121,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         Args:
             schema_url: URL or file path to JSON Schema
             headers: HTTP headers for fetching remote schemas
+            resolve_refs: If True, transparently resolve $ref when navigating
             kwargs: Additional keyword arguments for the filesystem
         """
         super().__init__(**kwargs)
@@ -128,6 +135,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
         self.schema_url = url
         self.headers = headers or {}
+        self.resolve_refs = resolve_refs
         self._schema: dict[str, Any] | None = None
 
     @classmethod
@@ -161,6 +169,54 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         return fs
 
     @classmethod
+    def from_type(
+        cls,
+        model: Any,
+        resolve_refs: bool = True,
+        **kwargs: Any,
+    ) -> JsonSchemaFileSystem:
+        """Create filesystem from a Python type using Pydantic TypeAdapter.
+
+        Supports any TypeAdapter-compatible type including:
+        - Pydantic BaseModel classes
+        - Standard Python dataclasses
+        - TypedDict definitions
+        - Other structured types
+
+        Args:
+            model: Any type supported by TypeAdapter, or import path string
+                   (e.g., "mypackage.MyModel")
+            resolve_refs: If True (default), transparently resolve $ref when
+                          navigating. Recommended for type-generated schemas.
+            **kwargs: Additional filesystem options.
+
+        Returns:
+            Configured filesystem instance with generated schema.
+        """
+        from pydantic import TypeAdapter
+
+        if isinstance(model, str):
+            model = cls._import_type(model)
+
+        adapter: TypeAdapter[Any] = TypeAdapter(model)
+        schema = adapter.json_schema()
+
+        fs = cls(schema_url="<generated-from-type>", resolve_refs=resolve_refs, **kwargs)
+        fs._schema = schema
+        return fs
+
+    @staticmethod
+    def _import_type(import_path: str) -> Any:
+        """Import a type from a string path."""
+        try:
+            module_path, class_name = import_path.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            return getattr(module, class_name)
+        except (ImportError, AttributeError, ValueError) as exc:
+            msg = f"Could not import type from {import_path}"
+            raise FileNotFoundError(msg) from exc
+
+    @classmethod
     def from_file(
         cls,
         path: str,
@@ -174,6 +230,20 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         path = path.removeprefix("jsonschema://")
+
+        # Check for query parameters at the end
+        if "?" in path:
+            schema_part, query_part = path.rsplit("?", 1)
+            result: dict[str, Any] = {"schema_url": schema_part}
+
+            from urllib.parse import parse_qs
+
+            params = parse_qs(query_part)
+            if "resolve_refs" in params:
+                result["resolve_refs"] = params["resolve_refs"][0].lower() in ("true", "1", "yes")
+
+            return result
+
         return {"schema_url": path}
 
     def _load_schema(self) -> dict[str, Any]:
@@ -216,6 +286,9 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
         for part in path_parts:
             if isinstance(current, dict):
+                # Resolve $ref if enabled
+                if self.resolve_refs:
+                    current = self._resolve_ref(current)
                 if part in current or (part.startswith("$") and part in current):
                     current = current[part]
                 else:
@@ -223,7 +296,42 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             else:
                 return None
 
+        # Final resolution
+        if self.resolve_refs and isinstance(current, dict):
+            current = self._resolve_ref(current)
+
         return current if isinstance(current, dict) else None
+
+    def _resolve_ref(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """Resolve a $ref in the schema if present."""
+        if "$ref" not in schema:
+            return schema
+
+        ref = schema["$ref"]
+        if not ref.startswith("#/"):
+            return schema  # Only resolve local refs
+
+        # Parse ref path (e.g., "#/$defs/Address" -> ["$defs", "Address"])
+        ref_parts = ref[2:].split("/")
+        root_schema = self._load_schema()
+        resolved = root_schema
+
+        for part in ref_parts:
+            if isinstance(resolved, dict) and part in resolved:
+                resolved = resolved[part]
+            else:
+                return schema  # Can't resolve, return original
+
+        if isinstance(resolved, dict):
+            # Merge any additional properties from the original schema
+            # (excluding $ref itself)
+            merged = dict(resolved)
+            for k, v in schema.items():
+                if k != "$ref":
+                    merged[k] = v
+            return merged
+
+        return schema
 
     def _get_type_string(self, schema: dict[str, Any]) -> str | None:  # noqa: PLR0911
         """Get a human-readable type string from a schema."""
@@ -455,6 +563,10 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         detail: bool,
     ) -> list[JsonSchemaInfo] | list[str]:
         """List contents of a schema node (property or definition)."""
+        # Resolve $ref if enabled
+        if self.resolve_refs:
+            schema = self._resolve_ref(schema)
+
         if not remaining_parts:
             # List available sub-sections of this schema
             items = []
@@ -621,6 +733,10 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         while i < len(parts):
             part = parts[i]
 
+            # Resolve $ref if enabled
+            if self.resolve_refs and isinstance(current, dict):
+                current = self._resolve_ref(current)
+
             if isinstance(current, dict):
                 if part in current:
                     current = current[part]
@@ -642,6 +758,10 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                 return None
 
             i += 1
+
+        # Final resolution
+        if self.resolve_refs and isinstance(current, dict):
+            current = self._resolve_ref(current)
 
         return current
 

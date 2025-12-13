@@ -23,7 +23,6 @@ from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
 from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
-from upathtools.filesystems import CliFileSystem, CliPath
 from upathtools.filesystems import DistributionFileSystem, DistributionPath
 from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
 from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
@@ -47,8 +46,6 @@ def register_http_filesystems() -> None:
 def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
     register_http_filesystems()
-    register_implementation("cli", CliFileSystem, clobber=True)
-    registry.register_implementation("cli", CliPath, clobber=True)
 
     register_implementation("distribution", DistributionFileSystem, clobber=True)
     registry.register_implementation("distribution", DistributionPath, clobber=True)
@@ -80,8 +77,6 @@ def register_all_filesystems() -> None:
 
 __all__ = [
     "AsyncUPath",
-    "CliFileSystem",
-    "CliPath",
     "DistributionFileSystem",
     "DistributionPath",
     "FlatUnionFileSystem",

@@ -324,17 +324,6 @@ fs = BaseModelFileSystem(model=User)
 fields = fs.ls("/fields/")
 ```
 
-### TypeAdapterFileSystem
-
-Work with Pydantic TypeAdapter schemas:
-
-```python
-from upathtools.filesystems import TypeAdapterFileSystem
-from pydantic import TypeAdapter
-
-adapter = TypeAdapter(list[dict[str, str]])
-fs = TypeAdapterFileSystem(adapter=adapter)
-```
 
 ## Registration
 

@@ -92,8 +92,8 @@ def test_module_not_found(example_package: str) -> None:
         fs.cat("nonexistent")
 
 
-def test_chained_ast_access(example_package: str, tmp_path: Path) -> None:
-    """Test chaining PackageFileSystem with PythonAstFileSystem."""
+def test_chained_treesitter_access(example_package: str, tmp_path: Path) -> None:
+    """Test chaining PackageFileSystem with TreeSitterFileSystem."""
     # First get the module path through PackageFileSystem
     pkg_fs = fsspec.filesystem("pkg", package=example_package)
     module_content = pkg_fs.cat("core")
@@ -102,25 +102,25 @@ def test_chained_ast_access(example_package: str, tmp_path: Path) -> None:
     temp_file = tmp_path / "temp_module.py"
     temp_file.write_bytes(module_content)
 
-    # Then analyze it with PythonAstFileSystem
-    ast_fs = fsspec.filesystem("ast", python_file=str(temp_file))
+    # Then analyze it with TreeSitterFileSystem
+    ts_fs = fsspec.filesystem("ts", source_file=str(temp_file))
 
     # Check if we can list the members
-    members = ast_fs.ls("/", detail=True)
-    assert len(members) == 2  # example_func and ExampleClass  # noqa: PLR2004
+    members = ts_fs.ls("/", detail=True)
+    assert len(members) >= 2  # example_func and ExampleClass (plus possibly imports)
 
     # Verify function details
     func = next(m for m in members if m["name"] == "example_func")
-    assert func["type"] == "function"
+    assert func["node_type"] == "function_definition"
     assert "Example function" in (func["doc"] or "")
 
     # Verify class details
     cls = next(m for m in members if m["name"] == "ExampleClass")
-    assert cls["type"] == "class"
+    assert cls["node_type"] == "class_definition"
     assert "Example class" in (cls["doc"] or "")
 
     # Get function source
-    func_source = ast_fs.cat("example_func").decode()
+    func_source = ts_fs.cat("example_func").decode()
     assert "def example_func():" in func_source
     assert 'return "Hello"' in func_source
 

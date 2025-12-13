@@ -197,25 +197,6 @@ class SkillsFilesystemConfig(FileSystemConfig):
     """Directory containing skill definitions"""
 
 
-class TypeAdapterFilesystemConfig(FileSystemConfig):
-    """Configuration for TypeAdapter filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "TypeAdapter Configuration"})
-
-    type: Literal["typeadapter"] = Field("typeadapter", init=False)
-    """TypeAdapter filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    type_adapter: str = Field(
-        title="TypeAdapter Import Path",
-        examples=["mypackage.MyTypeAdapter", "pydantic.TypeAdapter"],
-        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$",
-        min_length=1,
-    )
-    """TypeAdapter class import path"""
-
-
 class BaseModelInstanceFilesystemConfig(FileSystemConfig):
     """Configuration for Pydantic BaseModel instance filesystem."""
 
@@ -302,7 +283,6 @@ CustomFilesystemConfig = (
     | OverlayFilesystemConfig
     | PackageFilesystemConfig
     | SkillsFilesystemConfig
-    | TypeAdapterFilesystemConfig
     | UnionFilesystemConfig
 )
 """Union of all custom filesystem configurations."""
