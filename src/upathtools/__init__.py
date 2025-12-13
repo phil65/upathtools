@@ -29,7 +29,8 @@ from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
 from upathtools.filesystems import ModuleFileSystem, ModulePath
 from upathtools.filesystems import PackageFileSystem, PackagePath
 from upathtools.filesystems import SqliteFileSystem, SqlitePath
-from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
+from upathtools.filesystems import UnionFileSystem, UnionPath
+from upathtools.filesystems import OverlayFileSystem, OverlayPath
 from upathtools.filesystems import GistFileSystem, GistPath
 from upathtools.filesystems import WikiFileSystem, WikiPath
 from upath.types import JoinablePathLike
@@ -90,6 +91,8 @@ __all__ = [
     "MarkdownPath",
     "ModuleFileSystem",
     "ModulePath",
+    "OverlayFileSystem",
+    "OverlayPath",
     "PackageFileSystem",
     "PackagePath",
     "SqliteFileSystem",

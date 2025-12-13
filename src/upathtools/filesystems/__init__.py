@@ -36,8 +36,9 @@ from .sandbox_filesystems.microsandbox_fs import MicrosandboxFS, MicrosandboxPat
 from .basemodel_fs import BaseModelFileSystem, BaseModelPath
 from .basemodel_instance_fs import BaseModelInstanceFileSystem, BaseModelInstancePath
 from .distribution_fs import DistributionFileSystem, DistributionPath
-from .flat_union_fs import FlatUnionFileSystem, FlatUnionPath
-from .union_fs import UnionFileSystem, UnionPath
+from .combining_filesystems import FlatUnionFileSystem, FlatUnionPath
+from .combining_filesystems import OverlayFileSystem, OverlayPath
+from .combining_filesystems import UnionFileSystem, UnionPath
 from .module_fs import ModuleFileSystem, ModulePath
 from .package_fs import PackageFileSystem, PackagePath
 from .httpx_fs import HTTPFileSystem, HttpPath
@@ -87,6 +88,8 @@ __all__ = [
     "NotionPath",
     "OpenAPIFileSystem",
     "OpenAPIPath",
+    "OverlayFileSystem",
+    "OverlayPath",
     "PackageFileSystem",
     "PackagePath",
     "SqliteFileSystem",
