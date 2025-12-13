@@ -80,11 +80,7 @@ class JsonSchemaFilesystemConfig(FileBasedConfig):
     )
     """HTTP headers for fetching remote schemas"""
 
-    resolve_refs: bool = Field(
-        default=False,
-        title="Resolve References",
-        description="If True, transparently resolve $ref when navigating",
-    )
+    resolve_refs: bool = Field(default=False, title="Resolve References")
     """Whether to automatically resolve $ref references in the schema"""
 
 
