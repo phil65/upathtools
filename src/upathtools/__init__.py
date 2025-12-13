@@ -17,7 +17,7 @@ __license__ = "MIT"
 __url__ = "https://github.com/phil65/upathtools"
 
 from fsspec import register_implementation
-from upath import registry
+from upath import registry, UPath
 
 from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
@@ -91,6 +91,7 @@ __all__ = [
     "PackagePath",
     "SqliteFileSystem",
     "SqlitePath",
+    "UPath",
     "UnionFileSystem",
     "UnionPath",
     "WikiFileSystem",
