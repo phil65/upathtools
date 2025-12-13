@@ -61,10 +61,7 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration.
         """
-        fs_kwargs = self.model_dump(
-            exclude={"type", "root_path", "cwd", "cached"},
-            exclude_none=True,
-        )
+        fs_kwargs = self.model_dump(exclude={"type", "root_path", "cached"}, exclude_none=True)
         for key, value in fs_kwargs.items():
             if isinstance(value, SecretStr):
                 fs_kwargs[key] = value.get_secret_value()
