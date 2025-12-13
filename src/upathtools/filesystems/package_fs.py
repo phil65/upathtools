@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import os
 import pkgutil
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
@@ -93,16 +93,13 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
-        # Construct full module name
-        module_name = self.package
+        module_name = self.package  # Construct full module name
         if path:
             module_name = f"{module_name}.{path.replace('/', '.')}"
 
         try:
             module = self._get_module(module_name)
             contents: list[str | PackageInfo] = []
-
             if hasattr(module, "__path__"):
                 # List submodules if it's a package
                 for item in pkgutil.iter_modules(module.__path__):
@@ -171,13 +168,9 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
             True if path is a package (has __path__), False otherwise
         """
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
-        # Root is always a directory
-        if not path:
+        if not path:  # Root is always a directory
             return True
-
-        # Construct full module name
-        module_name = self.package
+        module_name = self.package  # Construct full module name
         if path:
             module_name = f"{module_name}.{path.replace('/', '.')}"
 
@@ -191,7 +184,6 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
         """Get module file content."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
         # Construct full module name
         module_name = self.package
         if path:
@@ -202,7 +194,6 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
             if not module.__file__:
                 msg = f"No source file for {path}"
                 raise FileNotFoundError(msg)
-
             with fsspec.open(module.__file__, "rb") as f:
                 return f.read()  # type: ignore
         except ImportError as exc:

@@ -153,31 +153,7 @@ pages = fs.ls("/")
 content = fs.get_upath("/Home").read_text()
 ```
 
-## Development Tools
-
-### CliFileSystem
-
-Execute CLI commands and access output as files:
-
-```python
-from upathtools.filesystems import CliFileSystem, CliPath
-
-# Run commands through filesystem
-fs = CliFileSystem()
-
-# Command output as files
-output = fs.get_upath("ls -la").read_text()
-json_data = fs.get_upath("curl https://api.example.com/data").read_text()
-```
-
-**Use Cases:**
-- Testing CLI tools
-- Scripting automation
-- Command output processing
-
 ## Delegating Filesystem
-
-### DelegatingFileSystem
 
 Automatically delegates to file-based sub-filesystems based on file extensions and content:
 

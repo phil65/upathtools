@@ -36,7 +36,6 @@ from .sandbox_filesystems.microsandbox_fs import MicrosandboxFS, MicrosandboxPat
 from .basemodel_fs import BaseModelFileSystem, BaseModelPath
 from .typeadapter_fs import TypeAdapterFileSystem, TypeAdapterPath
 from .basemodel_instance_fs import BaseModelInstanceFileSystem, BaseModelInstancePath
-from .cli_fs import CliFileSystem, CliPath
 from .distribution_fs import DistributionFileSystem, DistributionPath
 from .flat_union_fs import FlatUnionFileSystem, FlatUnionPath
 from .union_fs import UnionFileSystem, UnionPath
