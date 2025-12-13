@@ -114,6 +114,8 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         schema_url: str = "",
         headers: dict[str, str] | None = None,
         resolve_refs: bool = False,
+        target_protocol: str | None = None,
+        target_options: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -122,6 +124,8 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             schema_url: URL or file path to JSON Schema
             headers: HTTP headers for fetching remote schemas
             resolve_refs: If True, transparently resolve $ref when navigating
+            target_protocol: Protocol for source file (e.g., 's3', 'file')
+            target_options: Options for target protocol
             kwargs: Additional keyword arguments for the filesystem
         """
         super().__init__(**kwargs)
@@ -136,6 +140,8 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         self.schema_url = url
         self.headers = headers or {}
         self.resolve_refs = resolve_refs
+        self.target_protocol = target_protocol
+        self.target_options = target_options or {}
         self._schema: dict[str, Any] | None = None
 
     @classmethod
@@ -260,7 +266,12 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                 response.raise_for_status()
                 self._schema = response.json()
             else:
-                with fsspec.open(self.schema_url, "r") as f:
+                with fsspec.open(
+                    self.schema_url,
+                    "r",
+                    protocol=self.target_protocol,
+                    **self.target_options,
+                ) as f:
                     content = f.read()  # pyright: ignore[reportAttributeAccessIssue]
                 if self.schema_url.endswith((".yaml", ".yml")):
                     try:
