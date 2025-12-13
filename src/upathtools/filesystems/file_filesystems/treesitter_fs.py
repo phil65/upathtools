@@ -341,7 +341,11 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
         return None
 
     def _node_might_have_children(self, node) -> bool:
-        """Check if a node type typically contains other named entities."""
+        """Check if a node type typically contains other named entities.
+
+        Functions/methods are treated as leaf nodes (files, not directories).
+        Only structural containers like classes and modules have children.
+        """
         node_type = node.type.lower()
         container_patterns = [
             "class",
@@ -349,11 +353,6 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
             "interface",
             "module",
             "namespace",
-            "function",
-            "method",
-            "procedure",
-            "block",
-            "body",
         ]
         return any(pattern in node_type for pattern in container_patterns)
 
