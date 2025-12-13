@@ -12,23 +12,45 @@ from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, FileInfo,
 
 
 LANGUAGE_MAP = {
+    # Python
     ".py": "python",
+    ".pyi": "python",
+    # JavaScript/TypeScript
     ".js": "javascript",
-    ".ts": "typescript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
     ".jsx": "javascript",
+    ".ts": "typescript",
     ".tsx": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
+    # C/C++
     ".c": "c",
+    ".h": "c",
     ".cpp": "cpp",
     ".cc": "cpp",
     ".cxx": "cpp",
-    ".h": "c",
     ".hpp": "cpp",
-    ".java": "java",
+    ".hxx": "cpp",
+    # Rust
     ".rs": "rust",
+    # Go
     ".go": "go",
+    # Java
+    ".java": "java",
+    # Config/Data formats
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".toml": "toml",
+    # Shell/Ops
+    ".sh": "bash",
+    ".bash": "bash",
+    # Other languages
     ".rb": "ruby",
     ".php": "php",
     ".cs": "c_sharp",
+    ".sql": "sql",
 }
 
 if TYPE_CHECKING:
@@ -108,23 +130,45 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
     protocol = "ts"
     upath_cls = TreeSitterPath
     supported_extensions: ClassVar[frozenset[str]] = frozenset({
+        # Python
         "py",
+        "pyi",
+        # JavaScript/TypeScript
         "js",
-        "ts",
+        "mjs",
+        "cjs",
         "jsx",
+        "ts",
         "tsx",
+        "mts",
+        "cts",
+        # C/C++
         "c",
+        "h",
         "cpp",
         "cc",
         "cxx",
-        "h",
         "hpp",
-        "java",
+        "hxx",
+        # Rust
         "rs",
+        # Go
         "go",
+        # Java
+        "java",
+        # Config/Data
+        "json",
+        "yaml",
+        "yml",
+        "toml",
+        # Shell/Ops
+        "sh",
+        "bash",
+        # Other
         "rb",
         "php",
         "cs",
+        "sql",
     })
     priority: ClassVar[int] = 70
 
