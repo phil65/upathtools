@@ -26,7 +26,6 @@ from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 from upathtools.filesystems import DistributionFileSystem, DistributionPath
 from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
 from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
-from upathtools.filesystems import ModuleFileSystem, ModulePath
 from upathtools.filesystems import PackageFileSystem, PackagePath
 from upathtools.filesystems import SqliteFileSystem, SqlitePath
 from upathtools.filesystems import UnionFileSystem, UnionPath
@@ -57,9 +56,6 @@ def register_all_filesystems() -> None:
     register_implementation("md", MarkdownFileSystem, clobber=True)
     registry.register_implementation("md", MarkdownPath, clobber=True)
 
-    register_implementation("mod", ModuleFileSystem, clobber=True)
-    registry.register_implementation("mod", ModulePath, clobber=True)
-
     register_implementation("pkg", PackageFileSystem, clobber=True)
     registry.register_implementation("pkg", PackagePath, clobber=True)
 
@@ -89,8 +85,6 @@ __all__ = [
     "JoinablePathLike",
     "MarkdownFileSystem",
     "MarkdownPath",
-    "ModuleFileSystem",
-    "ModulePath",
     "OverlayFileSystem",
     "OverlayPath",
     "PackageFileSystem",

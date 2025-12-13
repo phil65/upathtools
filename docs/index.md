@@ -66,20 +66,6 @@ async def main():
 asyncio.run(main())
 ```
 
-### Type-Safe Filesystem Access
-
-```python
-from upathtools.filesystems import ModuleFileSystem, ModulePath
-
-# Browse a Python module as a filesystem
-fs = ModuleFileSystem(module_name="upathtools")
-path: ModulePath = fs.get_upath("async_upath.py")
-
-# Typed info dictionaries
-info = path.info()
-# info has type-safe fields specific to ModuleFileSystem
-```
-
 ### Generic base classes with full typing
 
 UPathTools provides:
@@ -181,22 +167,6 @@ async def main():
     )
 
 asyncio.run(main())
-```
-
-### Type-Safe Filesystems
-
-```python
-from upathtools.filesystems import ModuleFileSystem
-
-# Browse Python modules as filesystems
-fs = ModuleFileSystem(module_name="upathtools")
-
-# List module contents
-files = fs.ls("/", detail=True)
-
-# Read file with type safety
-path = fs.get_upath("async_upath.py")
-code = path.read_text()
 ```
 
 ## Common Patterns

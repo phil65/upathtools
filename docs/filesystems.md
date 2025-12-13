@@ -15,23 +15,6 @@ Filesystems in UPathTools are organized into several categories:
 
 ## Virtual Filesystems
 
-### ModuleFileSystem
-
-Browse Python module contents as a filesystem:
-
-```python
-from upathtools.filesystems import ModuleFileSystem, ModulePath
-
-# Browse a Python module
-fs = ModuleFileSystem(module_name="upathtools")
-
-# List module contents
-files = fs.ls("/", detail=True)
-
-# Get path to specific file
-path: ModulePath = fs.get_upath("async_upath.py")
-content = path.read_text()
-```
 
 ### PackageFileSystem
 
@@ -364,23 +347,6 @@ register_http_filesystems()
 
 ## Common Patterns
 
-### Read-Only Access
-
-Most virtual filesystems are read-only:
-
-```python
-fs = ModuleFileSystem(module_name="upathtools")
-
-# Reading works
-content = fs.cat_file("/file.py")
-
-# Writing raises NotImplementedError
-try:
-    fs.pipe_file("/new.py", b"code")
-except NotImplementedError:
-    print("Filesystem is read-only")
-```
-
 ### Async Operations
 
 All filesystems support async via AsyncUPath:
@@ -438,7 +404,6 @@ class MyFS(BaseAsyncFileSystem[MyPath, MyInfo]):
 | Filesystem | Async | Writable | Use Case |
 |------------|-------|----------|----------|
 | HTTPFileSystem | ✓ | ✗ | Remote file access |
-| ModuleFileSystem | ✓ | ✗ | Browse Python modules |
 | SQLiteFileSystem | ✓ | ✗ | Query databases |
 | UnionFileSystem | ✓ | ✓ | Layer filesystems |
 | CliFileSystem | ✓ | ✗ | CLI output access |

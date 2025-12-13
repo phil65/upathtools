@@ -339,9 +339,8 @@ tree = get_directory_tree(
 Filesystems provide `get_tree()` method:
 
 ```python
-from upathtools.filesystems import ModuleFileSystem
 
-fs = ModuleFileSystem(module_name="upathtools")
+fs = SomeFileSystem(...)
 tree = fs.get_tree(
     path="/",
     show_size=True,
@@ -350,22 +349,7 @@ tree = fs.get_tree(
 print(tree)
 ```
 
-## Helper Patterns
-
-### Safe File Writing
-
-```python
-from upathtools.helpers import write_file, to_upath
-
-def safe_write(content: str, path: str) -> None:
-    """Write with error handling."""
-    try:
-        write_file(content, path)
-    except PermissionError:
-        print(f"Permission denied: {path}")
-    except OSError as e:
-        print(f"OS error: {e}")
-```
+## Helpers
 
 ### Batch Copying
 
@@ -385,69 +369,3 @@ def copy_source_files(src_dir: str, dst_dir: str) -> None:
         dst = f"{dst_dir}/{file}"
         copy(src, dst)
 ```
-
-### Filesystem Conversion
-
-```python
-from upathtools.helpers import to_upath, upath_to_fs
-
-def get_parent_fs(file_path: str):
-    """Get filesystem rooted at file's parent directory."""
-    path = to_upath(file_path)
-    parent = path.parent
-    return upath_to_fs(parent, asynchronous=True)
-```
-
-### Type-Safe Path Handling
-
-```python
-from upathtools.helpers import to_upath
-from typing import Union
-import os
-
-def process_any_path(path: Union[str, os.PathLike, UPath]) -> str:
-    """Handle various path types safely."""
-    upath = to_upath(path)
-    return upath.read_text()
-```
-
-## Best Practices
-
-1. **Use to_upath() for path normalization**
-   ```python
-   def my_function(path: str | UPath):
-       path = to_upath(path)  # Now guaranteed to be UPath
-   ```
-
-2. **Use write_file() instead of manual open()**
-   ```python
-   # Good - handles parent directories
-   write_file(content, path)
-   
-   # Avoid - might fail if parent doesn't exist
-   with open(path, "w") as f:
-       f.write(content)
-   ```
-
-3. **Use multi_glob() for complex file finding**
-   ```python
-   # Better than manual filtering
-   files = multi_glob(
-       keep_globs=["**/*.py"],
-       drop_globs=["**/test_*.py"]
-   )
-   ```
-
-4. **Use upath_to_fs() for directory operations**
-   ```python
-   # Get filesystem for directory-level operations
-   fs = upath_to_fs(path.parent)
-   all_files = fs.ls("/")
-   ```
-
-5. **Prefer async variants for I/O**
-   ```python
-   # Use async operations for better performance
-   async def main():
-       files = await read_folder("data/", load_parallel=True)
-   ```

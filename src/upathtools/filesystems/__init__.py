@@ -39,7 +39,6 @@ from .distribution_fs import DistributionFileSystem, DistributionPath
 from .combining_filesystems import FlatUnionFileSystem, FlatUnionPath
 from .combining_filesystems import OverlayFileSystem, OverlayPath
 from .combining_filesystems import UnionFileSystem, UnionPath
-from .module_fs import ModuleFileSystem, ModulePath
 from .package_fs import PackageFileSystem, PackagePath
 from .httpx_fs import HTTPFileSystem, HttpPath
 
@@ -82,8 +81,6 @@ __all__ = [
     "MicrosandboxPath",
     "ModalFS",
     "ModalPath",
-    "ModuleFileSystem",
-    "ModulePath",
     "NotionFileSystem",
     "NotionPath",
     "OpenAPIFileSystem",

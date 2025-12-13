@@ -7,10 +7,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict, Field
 from upath import UPath  # noqa: TC002
 
-from upathtools.configs.base import (
-    FilesystemCategoryType,  # noqa: TC001
-    FileSystemConfig,
-)
+from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig  # noqa: TC001
 
 
 class MarkdownFilesystemConfig(FileSystemConfig):
@@ -25,28 +22,6 @@ class MarkdownFilesystemConfig(FileSystemConfig):
     """Markdown filesystem type"""
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class ModuleFilesystemConfig(FileSystemConfig):
-    """Configuration for Module filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Module Configuration"})
-
-    type: Literal["mod"] = Field("mod", init=False)
-    """Module filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(title="Python File Path", examples=["/path/to/module.py"])
-    """Path to Python file"""
 
     target_protocol: str | None = Field(
         default=None, title="Target Protocol", examples=["file", "s3", "http"]
@@ -160,7 +135,6 @@ class TreeSitterFilesystemConfig(FileSystemConfig):
 FileBasedFilesystemConfig = (
     JsonSchemaFilesystemConfig
     | MarkdownFilesystemConfig
-    | ModuleFilesystemConfig
     | OpenApiFilesystemConfig
     | SqliteFilesystemConfig
     | TreeSitterFilesystemConfig
