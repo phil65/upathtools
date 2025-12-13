@@ -261,7 +261,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                 self._schema = response.json()
             else:
                 with fsspec.open(self.schema_url, "r") as f:
-                    content = f.read()
+                    content = f.read()  # pyright: ignore[reportAttributeAccessIssue]
                 if self.schema_url.endswith((".yaml", ".yml")):
                     try:
                         import yaml
@@ -406,7 +406,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[JsonSchemaInfo] | list[str]:
         """List JSON Schema contents."""
         schema = self._load_schema()
-        path = self._strip_protocol(path).strip("/")
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root level - show available sections
@@ -693,7 +693,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     def cat(self, path: str, **kwargs: Any) -> bytes:
         """Read file contents."""
         schema = self._load_schema()
-        path = self._strip_protocol(path).strip("/")
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         parts = path.split("/") if path else []
 
         if not parts or parts[-1] == "__raw__":
@@ -768,7 +768,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     def info(self, path: str, **kwargs: Any) -> JsonSchemaInfo:
         """Get info about a path."""
         schema = self._load_schema()
-        path = self._strip_protocol(path).strip("/")
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             return JsonSchemaInfo(
@@ -825,7 +825,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         Returns:
             True if path is a directory (has navigable children), False otherwise
         """
-        path = self._strip_protocol(path).strip("/")
+        path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
             # Root is always a directory

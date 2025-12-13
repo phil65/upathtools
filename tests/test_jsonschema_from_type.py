@@ -59,7 +59,7 @@ def test_from_type_with_pydantic_model():
     # Test detailed listing
     detailed = fs.ls("/properties", detail=True)
     id_field = next(f for f in detailed if f["name"] == "id")
-    assert id_field["schema_type"] == "integer"
+    assert id_field.get("schema_type") == "integer"
 
     # Test schema access
     schema = fs.cat("/__raw__").decode()
@@ -71,14 +71,12 @@ def test_from_type_with_pydantic_model():
 def test_from_type_with_dataclass():
     """Test from_type with a dataclass."""
     fs = JsonSchemaFileSystem.from_type(DataUser)
-
     # Test properties listing
     fields = fs.ls("/properties", detail=False)
     assert "id" in fields
     assert "name" in fields
     assert "email" in fields
     assert "age" in fields
-
     # Test field schema access
     id_schema = fs.cat("/properties/id/__schema__").decode()
     id_data = json.loads(id_schema)
