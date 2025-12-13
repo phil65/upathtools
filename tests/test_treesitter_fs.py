@@ -93,7 +93,7 @@ def test_chained_access(example_py: Path) -> None:
 
     # Test chained version
     with fsspec.open(url, mode="rb") as f:
-        content = f.read().decode()
+        content = f.read().decode()  # pyright: ignore[reportAttributeAccessIssue]
     assert "test_func" in content
 
 
