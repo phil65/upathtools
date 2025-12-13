@@ -47,6 +47,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
     upath_cls = SRTPath
     root_marker = "/"
     cachable = False
+    local_file = True
 
     def __init__(
         self,
