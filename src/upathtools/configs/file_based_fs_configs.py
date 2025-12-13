@@ -10,7 +10,23 @@ from upath import UPath  # noqa: TC002
 from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig  # noqa: TC001
 
 
-class MarkdownFilesystemConfig(FileSystemConfig):
+class FileBasedConfig(FileSystemConfig):
+    """Base configuration for file-based filesystems.
+
+    Provides common fields for filesystems that operate on source files
+    with optional target protocol and options for accessing remote files.
+    """
+
+    target_protocol: str | None = Field(
+        default=None, title="Target Protocol", examples=["file", "s3", "http"]
+    )
+    """Protocol for source file"""
+
+    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
+    """Options for target protocol"""
+
+
+class MarkdownFilesystemConfig(FileBasedConfig):
     """Configuration for Markdown filesystem."""
 
     model_config = ConfigDict(json_schema_extra={"title": "Markdown Configuration"})
@@ -23,16 +39,8 @@ class MarkdownFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "transform"
 
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class OpenApiFilesystemConfig(FileSystemConfig):
+class OpenApiFilesystemConfig(FileBasedConfig):
     """Configuration for OpenAPI schema filesystem."""
 
     model_config = ConfigDict(json_schema_extra={"title": "OpenAPI Configuration"})
@@ -48,16 +56,8 @@ class OpenApiFilesystemConfig(FileSystemConfig):
     )
     """Path to OpenAPI specification file"""
 
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "http", "s3"]
-    )
-    """Protocol for source file"""
 
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class JsonSchemaFilesystemConfig(FileSystemConfig):
+class JsonSchemaFilesystemConfig(FileBasedConfig):
     """Configuration for JSON Schema filesystem."""
 
     model_config = ConfigDict(json_schema_extra={"title": "JSON Schema Configuration"})
@@ -80,8 +80,15 @@ class JsonSchemaFilesystemConfig(FileSystemConfig):
     )
     """HTTP headers for fetching remote schemas"""
 
+    resolve_refs: bool = Field(
+        default=False,
+        title="Resolve References",
+        description="If True, transparently resolve $ref when navigating",
+    )
+    """Whether to automatically resolve $ref references in the schema"""
 
-class SqliteFilesystemConfig(FileSystemConfig):
+
+class SqliteFilesystemConfig(FileBasedConfig):
     """Configuration for SQLite database filesystem."""
 
     model_config = ConfigDict(json_schema_extra={"title": "SQLite Configuration"})
@@ -94,16 +101,8 @@ class SqliteFilesystemConfig(FileSystemConfig):
     db_path: str = Field(title="Database Path", examples=["/path/to/database.db"])
     """Path to SQLite database file"""
 
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source database file"""
 
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
-class TreeSitterFilesystemConfig(FileSystemConfig):
+class TreeSitterFilesystemConfig(FileBasedConfig):
     """Configuration for tree-sitter code structure filesystem."""
 
     model_config = ConfigDict(json_schema_extra={"title": "TreeSitter Configuration"})
@@ -122,14 +121,6 @@ class TreeSitterFilesystemConfig(FileSystemConfig):
         examples=["python", "javascript", "rust"],
     )
     """Programming language (auto-detected from extension if not specified)"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
 
 
 FileBasedFilesystemConfig = (
