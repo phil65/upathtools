@@ -52,8 +52,6 @@ __all__ = [
     "BaseModelPath",
     "BeamFS",
     "BeamPath",
-    "CliFileSystem",
-    "CliPath",
     "DaytonaFS",
     "DaytonaPath",
     "DistributionFileSystem",
