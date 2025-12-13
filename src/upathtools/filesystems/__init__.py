@@ -23,7 +23,6 @@ from .remote_filesystems.issue_fs import IssueFileSystem, IssuePath
 from .file_filesystems.jsonschema_fs import JsonSchemaFileSystem, JsonSchemaPath
 from .file_filesystems.markdown_fs import MarkdownFileSystem, MarkdownPath
 from .file_filesystems.openapi_fs import OpenAPIFileSystem, OpenAPIPath
-from .file_filesystems.python_ast_fs import PythonAstFileSystem, PythonAstPath
 from .file_filesystems.sqlite_fs import SqliteFileSystem, SqlitePath
 from .file_filesystems.treesitter_fs import TreeSitterFileSystem, TreeSitterPath
 
@@ -94,8 +93,6 @@ __all__ = [
     "OpenAPIPath",
     "PackageFileSystem",
     "PackagePath",
-    "PythonAstFileSystem",
-    "PythonAstPath",
     "SqliteFileSystem",
     "SqlitePath",
     "TreeSitterFileSystem",

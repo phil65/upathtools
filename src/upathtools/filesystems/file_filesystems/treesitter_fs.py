@@ -126,7 +126,7 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
         "php",
         "cs",
     })
-    priority: ClassVar[int] = 70  # Higher priority than PythonAstFileSystem for Python files
+    priority: ClassVar[int] = 70
 
     @classmethod
     def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:

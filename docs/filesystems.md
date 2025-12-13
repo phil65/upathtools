@@ -62,20 +62,6 @@ fs = DistributionFileSystem(distribution_name="upathtools")
 metadata = fs.get_upath("METADATA").read_text()
 ```
 
-### PythonAstFileSystem
-
-Navigate Python code as an AST filesystem:
-
-```python
-from upathtools.filesystems import PythonAstFileSystem, PythonAstPath
-
-# Parse Python file as filesystem
-fs = PythonAstFileSystem(file_path="/path/to/module.py")
-
-# Browse classes and functions as directories/files
-classes = fs.ls("/classes/")
-functions = fs.ls("/functions/")
-```
 
 ### SqliteFileSystem
 

@@ -110,14 +110,12 @@ def _discover_file_filesystems() -> None:
     from upathtools.filesystems.file_filesystems.jsonschema_fs import JsonSchemaFileSystem
     from upathtools.filesystems.file_filesystems.markdown_fs import MarkdownFileSystem
     from upathtools.filesystems.file_filesystems.openapi_fs import OpenAPIFileSystem
-    from upathtools.filesystems.file_filesystems.python_ast_fs import PythonAstFileSystem
     from upathtools.filesystems.file_filesystems.sqlite_fs import SqliteFileSystem
     from upathtools.filesystems.file_filesystems.treesitter_fs import TreeSitterFileSystem
 
     for fs_class in [
         MarkdownFileSystem,
         SqliteFileSystem,
-        PythonAstFileSystem,
         JsonSchemaFileSystem,
         OpenAPIFileSystem,
         TreeSitterFileSystem,

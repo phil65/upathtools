@@ -29,7 +29,6 @@ from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
 from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
 from upathtools.filesystems import ModuleFileSystem, ModulePath
 from upathtools.filesystems import PackageFileSystem, PackagePath
-from upathtools.filesystems import PythonAstPath, PythonAstFileSystem
 from upathtools.filesystems import SqliteFileSystem, SqlitePath
 from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
 from upathtools.filesystems import GistFileSystem, GistPath
@@ -66,9 +65,6 @@ def register_all_filesystems() -> None:
     register_implementation("pkg", PackageFileSystem, clobber=True)
     registry.register_implementation("pkg", PackagePath, clobber=True)
 
-    register_implementation("ast", PythonAstFileSystem, clobber=True)
-    registry.register_implementation("ast", PythonAstPath, clobber=True)
-
     register_implementation("sqlite", SqliteFileSystem, clobber=True)
     registry.register_implementation("sqlite", SqlitePath, clobber=True)
 
@@ -101,8 +97,6 @@ __all__ = [
     "ModulePath",
     "PackageFileSystem",
     "PackagePath",
-    "PythonAstFileSystem",
-    "PythonAstPath",
     "SqliteFileSystem",
     "SqlitePath",
     "UnionFileSystem",

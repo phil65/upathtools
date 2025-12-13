@@ -23,12 +23,7 @@ from upathtools.filesystems.file_filesystems.openapi_fs import (
     OpenApiInfo,
     OpenAPIPath,
 )
-from upathtools.filesystems.file_filesystems.python_ast_fs import (
-    ModuleMember,
-    PythonAstFileSystem,
-    PythonAstInfo,
-    PythonAstPath,
-)
+
 from upathtools.filesystems.file_filesystems.sqlite_fs import (
     SqliteFileSystem,
     SqliteInfo,
@@ -53,15 +48,10 @@ __all__ = [
     "MarkdownInfo",
     "MarkdownNode",
     "MarkdownPath",
-    # Python AST
-    "ModuleMember",
     # OpenAPI
     "OpenAPIFileSystem",
     "OpenAPIPath",
     "OpenApiInfo",
-    "PythonAstFileSystem",
-    "PythonAstInfo",
-    "PythonAstPath",
     # SQLite
     "SqliteFileSystem",
     "SqliteInfo",

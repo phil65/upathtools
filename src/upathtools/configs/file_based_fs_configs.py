@@ -57,28 +57,6 @@ class ModuleFilesystemConfig(FileSystemConfig):
     """Options for target protocol"""
 
 
-class PythonAstFilesystemConfig(FileSystemConfig):
-    """Configuration for Python AST filesystem."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Python AST Configuration"})
-
-    type: Literal["ast"] = Field("ast", init=False)
-    """Python AST filesystem type"""
-
-    _category: ClassVar[FilesystemCategoryType] = "transform"
-
-    fo: UPath = Field(title="Python File Path", examples=["/path/to/script.py"])
-    """Path to Python file"""
-
-    target_protocol: str | None = Field(
-        default=None, title="Target Protocol", examples=["file", "s3", "http"]
-    )
-    """Protocol for source file"""
-
-    target_options: dict[str, Any] | None = Field(default=None, title="Target Protocol Options")
-    """Options for target protocol"""
-
-
 class OpenApiFilesystemConfig(FileSystemConfig):
     """Configuration for OpenAPI schema filesystem."""
 
@@ -184,7 +162,6 @@ FileBasedFilesystemConfig = (
     | MarkdownFilesystemConfig
     | ModuleFilesystemConfig
     | OpenApiFilesystemConfig
-    | PythonAstFilesystemConfig
     | SqliteFilesystemConfig
     | TreeSitterFilesystemConfig
 )

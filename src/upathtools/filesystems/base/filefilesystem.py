@@ -109,7 +109,6 @@ class BaseFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
     as a virtual filesystem. Examples include:
     - MarkdownFileSystem: Exposes markdown headers as directories
     - SqliteFileSystem: Exposes database tables as directories
-    - PythonAstFileSystem: Exposes Python module structure
 
     Subclasses should:
     1. Set `supported_extensions` class variable
