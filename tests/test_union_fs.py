@@ -6,7 +6,7 @@ import pytest
 from upath import UPath
 
 import upathtools
-from upathtools.filesystems.union_fs import UnionFileSystem, UnionPath
+from upathtools.filesystems import UnionFileSystem, UnionPath
 
 
 upathtools.register_all_filesystems()
