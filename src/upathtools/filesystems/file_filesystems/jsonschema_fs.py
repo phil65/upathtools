@@ -328,7 +328,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             merged = dict(resolved)
             for k, v in schema.items():
                 if k != "$ref":
-                    merged[k] = v
+                    merged[k] = v  # noqa: PERF403
             return merged
 
         return schema

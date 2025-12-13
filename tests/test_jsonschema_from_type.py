@@ -123,7 +123,8 @@ def test_from_type_info_method():
 
     # Properties - check it exists and has content
     props_listing = fs.ls("/properties", detail=False)
-    assert len(props_listing) >= 4  # id, name, email, age
+    # id, name, email, age
+    assert len(props_listing) >= 4  # noqa: PLR2004
 
 
 def test_from_type_string_import():

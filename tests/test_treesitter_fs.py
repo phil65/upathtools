@@ -41,7 +41,7 @@ def test_static_module_direct_file(example_py: Path) -> None:
 
     # Test listing
     members = fs.ls("/", detail=True)
-    assert len(members) >= 2
+    assert len(members) >= 2  # noqa: PLR2004
     assert any(
         m["name"] == "test_func" and m["node_type"] == "function_definition" for m in members
     )
@@ -59,7 +59,7 @@ def test_hierarchical_structure(example_py: Path) -> None:
 
     # List class members
     class_members = fs.ls("/TestClass", detail=True)
-    assert len(class_members) == 2
+    assert len(class_members) == 2  # noqa: PLR2004
     assert any(m["name"] == "method_one" for m in class_members)
     assert any(m["name"] == "method_two" for m in class_members)
 
@@ -74,7 +74,7 @@ def test_static_module_without_extension(example_py: Path) -> None:
     fs = fsspec.filesystem("ts", source_file=str(example_py))
 
     members = fs.ls("/", detail=False)
-    assert len(members) >= 2
+    assert len(members) >= 2  # noqa: PLR2004
     assert "test_func" in members
     assert "TestClass" in members
 

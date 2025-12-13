@@ -107,7 +107,8 @@ def test_chained_treesitter_access(example_package: str, tmp_path: Path) -> None
 
     # Check if we can list the members
     members = ts_fs.ls("/", detail=True)
-    assert len(members) >= 2  # example_func and ExampleClass (plus possibly imports)
+    # example_func and ExampleClass (plus possibly imports)
+    assert len(members) >= 2  # noqa: PLR2004
 
     # Verify function details
     func = next(m for m in members if m["name"] == "example_func")
