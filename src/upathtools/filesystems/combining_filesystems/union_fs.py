@@ -372,3 +372,48 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         # Cross-filesystem copy via streaming
         content = await fs1._cat_file(inner_path1)
         await fs2._pipe_file(inner_path2, content)
+
+    def register(
+        self, name: str, filesystem: AbstractFileSystem | JoinablePathLike, *, replace: bool = False
+    ) -> None:
+        """Register a new filesystem under a mount point.
+
+        Args:
+            name: Mount point name
+            filesystem: Filesystem or path to mount
+            replace: Whether to replace existing mount point
+
+        Raises:
+            ValueError: If mount point already exists and replace=False
+        """
+        if name in self.filesystems and not replace:
+            msg = f"Mount point already exists: {name}"
+            raise ValueError(msg)
+
+        if isinstance(filesystem, AbstractFileSystem):
+            fs = to_async(filesystem)
+        else:
+            fs = upath_to_fs(filesystem, asynchronous=True)
+
+        self.filesystems[name] = fs
+        logger.debug("Registered filesystem at mount point: %s", name)
+
+    def unregister(self, name: str) -> None:
+        """Remove a filesystem from a mount point.
+
+        Args:
+            name: Mount point name to remove
+
+        Raises:
+            ValueError: If mount point doesn't exist
+        """
+        if name not in self.filesystems:
+            msg = f"Mount point not found: {name}"
+            raise ValueError(msg)
+
+        del self.filesystems[name]
+        logger.debug("Unregistered filesystem from mount point: %s", name)
+
+    def list_mount_points(self) -> list[str]:
+        """List all registered mount points."""
+        return list(self.filesystems.keys())
