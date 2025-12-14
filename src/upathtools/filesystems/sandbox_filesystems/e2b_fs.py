@@ -18,7 +18,12 @@ class E2BInfo(FileInfo, total=False):
     """Info dict for E2B filesystem paths."""
 
     size: Required[int]
-    mtime: float
+    mtime: Required[float]
+    mode: Required[int]
+    permissions: Required[str]
+    owner: Required[str]
+    group: Required[str]
+    symlink_target: Required[str | None]
 
 
 class E2BPath(BaseUPath[E2BInfo]):
@@ -148,6 +153,11 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
                         size=info.size,
                         type="directory" if info.type == FileType.DIR else "file",
                         mtime=info.modified_time.timestamp() if info.modified_time else 0,
+                        mode=info.mode,
+                        permissions=info.permissions,
+                        owner=info.owner,
+                        group=info.group,
+                        symlink_target=info.symlink_target,
                     )
                 )
             except Exception:  # noqa: BLE001
@@ -158,6 +168,11 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
                         size=0,
                         type="directory" if item.type == FileType.DIR else "file",
                         mtime=0,
+                        mode=0,
+                        permissions="",
+                        owner="",
+                        group="",
+                        symlink_target=None,
                     )
                 )
 
@@ -380,6 +395,11 @@ with open({path!r}, 'wb') as f:
                 size=info.size,
                 type="directory" if info.type == FileType.DIR else "file",
                 mtime=info.modified_time.timestamp() if info.modified_time else 0.0,
+                mode=info.mode,
+                permissions=info.permissions,
+                owner=info.owner,
+                group=info.group,
+                symlink_target=info.symlink_target,
             )
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
