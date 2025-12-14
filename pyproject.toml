@@ -2,7 +2,7 @@
 
 [project]
 name = "upathtools"
-version = "1.16.2"
+version = "1.16.3"
 description = "UPath utilities"
 readme = "README.md"
 requires-python = ">=3.13"
