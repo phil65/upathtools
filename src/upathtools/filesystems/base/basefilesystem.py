@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
 
+import fsspec
 from fsspec.asyn import AsyncFileSystem
 from fsspec.spec import AbstractFileSystem
-from upath import UPath
+from upath import UPath, registry
 
 from upathtools.filesystems.base.file_objects import AsyncBufferedFile
 
@@ -203,6 +204,13 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
             date_format=date_format,
         )
 
+    @classmethod
+    def register_fs(cls) -> None:
+        """Register the filesystem with fsspec + UPath."""
+        assert isinstance(cls.protocol, str)
+        fsspec.register_implementation(cls.protocol, cls)
+        registry.register_implementation(cls.protocol, cls.upath_cls)
+
 
 class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSystem):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
@@ -370,3 +378,10 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
             reverse_sort=reverse_sort,
             date_format=date_format,
         )
+
+    @classmethod
+    def register_fs(cls) -> None:
+        """Register the filesystem with fsspec + UPath."""
+        assert isinstance(cls.protocol, str)
+        fsspec.register_implementation(cls.protocol, cls)
+        registry.register_implementation(cls.protocol, cls.upath_cls)
