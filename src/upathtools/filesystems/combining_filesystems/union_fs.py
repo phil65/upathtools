@@ -66,26 +66,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
     - A list of filesystems: mount points will be the filesystem's protocol
     - A dict mapping names to filesystems: mount points will be the dict keys
 
-    The first folder level is always the mount point name (without `://`).
-
-    Examples:
-        From a list (uses protocol as mount point):
-        ```python
-        fs = UnionFileSystem([
-            fsspec.filesystem("memory"),
-            fsspec.filesystem("file"),
-        ])
-        # Structure: /memory/..., /file/...
-        ```
-
-        From a dict (uses keys as mount point):
-        ```python
-        fs = UnionFileSystem({
-            "cache": fsspec.filesystem("memory"),
-            "data": LocalFileSystem(root="/data"),
-        })
-        # Structure: /cache/..., /data/...
-        ```
+    The first folder level is always the mount point name.
     """
 
     protocol = "union"
@@ -98,19 +79,21 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         filesystems: (
             Sequence[AbstractFileSystem | JoinablePathLike]
             | Mapping[str, AbstractFileSystem | JoinablePathLike]
-        ),
+            | None
+        ) = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
 
         Args:
-            filesystems: Either a sequence (uses protocol as key) or mapping (uses dict keys)
+            filesystems: Either a sequence (uses protocol as key), mapping (uses dict keys),
+            or None for empty
             kwargs: Additional keyword arguments for AsyncFileSystem
         """
         super().__init__(**kwargs)
 
         resolved: dict[str, AsyncFileSystem] = {}
-
+        filesystems = filesystems or {}
         if isinstance(filesystems, Mapping):
             for name, fs_or_path in filesystems.items():
                 if isinstance(fs_or_path, AbstractFileSystem):
@@ -130,10 +113,6 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
                     msg = f"Duplicate protocol '{key}' in filesystem list"
                     raise ValueError(msg)
                 resolved[key] = fs
-
-        if not resolved:
-            msg = "Must provide at least one filesystem"
-            raise ValueError(msg)
 
         self.filesystems = resolved
         logger.debug("Created UnionFileSystem with mount points: %s", list(resolved))
@@ -417,3 +396,15 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
     def list_mount_points(self) -> list[str]:
         """List all registered mount points."""
         return list(self.filesystems.keys())
+
+
+if __name__ == "__main__":
+    # Example usage
+    from fsspec.implementations.memory import MemoryFileSystem
+
+    from upathtools.filesystems import UnionFileSystem
+
+    fs = UnionFileSystem({})
+    fs.register("fs1", MemoryFileSystem())
+    fs.register("fs2", MemoryFileSystem())
+    print(fs.ls(""))

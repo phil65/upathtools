@@ -251,5 +251,62 @@ def test_url_parsing():
     assert kwargs == {}
 
 
+async def test_empty_initialization():
+    """Test creating empty UnionFileSystem and adding filesystems dynamically."""
+    union_fs = UnionFileSystem()
+
+    # Should start empty
+    assert union_fs.list_mount_points() == []
+    listing = await union_fs._ls("/")
+    assert listing == []
+
+    # Add a filesystem
+    mem_fs = MemoryFileSystem()
+    mem_fs.pipe("test.txt", b"test content")
+
+    union_fs.register("memory", mem_fs)
+    assert "memory" in union_fs.list_mount_points()
+
+    # Should now show in listing
+    listing = await union_fs._ls("/")
+    assert len(listing) == 1
+    assert listing[0]["name"] == "memory"
+
+    # Should be able to access files
+    content = await union_fs._cat_file("memory/test.txt")
+    assert content == b"test content"
+
+
+async def test_register_operations():
+    """Test register, unregister, and list operations."""
+    union_fs = UnionFileSystem()
+
+    # Register filesystem
+    mem_fs = MemoryFileSystem()
+    union_fs.register("cache", mem_fs)
+    assert union_fs.list_mount_points() == ["cache"]
+
+    # Test replace=False (should raise)
+    with pytest.raises(ValueError, match="Mount point already exists"):
+        union_fs.register("cache", mem_fs, replace=False)
+
+    # Test replace=True (should work)
+    local_fs = LocalFileSystem()
+    union_fs.register("cache", local_fs, replace=True)
+    assert union_fs.list_mount_points() == ["cache"]
+
+    # Register another
+    union_fs.register("data", mem_fs)
+    assert set(union_fs.list_mount_points()) == {"cache", "data"}
+
+    # Unregister
+    union_fs.unregister("cache")
+    assert union_fs.list_mount_points() == ["data"]
+
+    # Unregister non-existing should raise
+    with pytest.raises(ValueError, match="Mount point not found"):
+        union_fs.unregister("nonexistent")
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
