@@ -36,13 +36,19 @@ def to_upath(path: JoinablePathLike | str, as_async: bool) -> UPath | AsyncUPath
 def to_upath(path: JoinablePathLike | str) -> UPath: ...
 
 
-def to_upath(path: JoinablePathLike | str, as_async: bool = False) -> UPath | AsyncUPath:
+def to_upath(
+    path: JoinablePathLike | str, as_async: bool = False, **storage_options: Any
+) -> UPath | AsyncUPath:
     from upathtools.async_upath import AsyncUPath
 
     if isinstance(path, UPath):
         path_obj = path
     else:
-        path_obj = UPath(os.fspath(path)) if isinstance(path, os.PathLike) else UPath(path)
+        path_obj = (
+            UPath(os.fspath(path), **storage_options)
+            if isinstance(path, os.PathLike)
+            else UPath(path)
+        )
     return AsyncUPath._from_upath(path_obj) if as_async else path_obj
 
 
