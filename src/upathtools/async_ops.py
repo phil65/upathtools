@@ -58,6 +58,70 @@ async def get_async_fs(
     return _get_cached_fs(path_obj.protocol)
 
 
+async def is_directory(
+    fs: AsyncFileSystem,
+    path: str,
+    *,
+    entry_type: str | None = None,
+) -> bool:
+    """Smart directory detection that trusts filesystem metadata when available.
+
+    Args:
+        fs: Async filesystem instance
+        path: Path to check
+        entry_type: Optional type info from _ls() call (e.g., "directory", "file")
+
+    Returns:
+        True if path is a directory, False otherwise
+
+    Note:
+        When entry_type is provided:
+        - "directory" -> True (no filesystem call)
+        - "file" -> False (no filesystem call)
+        - anything else -> calls fs._isdir() to check
+
+        When entry_type is None, always calls fs._isdir()
+    """
+    if entry_type == "directory":
+        return True
+    if entry_type == "file":
+        return False
+    # Uncertain or no type info - check filesystem
+    return await fs._isdir(path)
+
+
+def is_directory_sync(
+    fs: fsspec.AbstractFileSystem,
+    path: str,
+    *,
+    entry_type: str | None = None,
+) -> bool:
+    """Smart directory detection that trusts filesystem metadata when available (sync version).
+
+    Args:
+        fs: Filesystem instance
+        path: Path to check
+        entry_type: Optional type info from ls() call (e.g., "directory", "file")
+
+    Returns:
+        True if path is a directory, False otherwise
+
+    Note:
+        When entry_type is provided:
+        - "directory" -> True (no filesystem call)
+        - "file" -> False (no filesystem call)
+        - anything else -> calls fs.isdir() to check
+
+        When entry_type is None, always calls fs.isdir()
+    """
+    if entry_type == "directory":
+        return True
+    if entry_type == "file":
+        return False
+    # Uncertain or no type info - check filesystem
+    return fs.isdir(path)
+
+
 @overload
 async def read_path(
     path: JoinablePathLike,
