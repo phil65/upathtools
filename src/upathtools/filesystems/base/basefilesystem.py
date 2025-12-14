@@ -204,7 +204,20 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
             date_format=date_format,
         )
 
-    @classmethod
+    def cli(self, command: str):
+        """Execute a CLI-style command on this filesystem.
+
+        Args:
+            command: Shell-like command (e.g., "grep pattern file.txt -r")
+
+        Returns:
+            CLIResult with command output
+        """
+        from upathtools.cli_parser import execute_cli
+
+        base = self.get_upath()
+        return execute_cli(command, base)
+
     def register_fs(cls) -> None:
         """Register the filesystem with fsspec + UPath."""
         assert isinstance(cls.protocol, str)
@@ -378,6 +391,34 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
             reverse_sort=reverse_sort,
             date_format=date_format,
         )
+
+    def cli(self, command: str):
+        """Execute a CLI-style command on this filesystem.
+
+        Args:
+            command: Shell-like command (e.g., "grep pattern file.txt -r")
+
+        Returns:
+            CLIResult with command output
+        """
+        from upathtools.cli_parser import execute_cli
+
+        base = self.get_upath()
+        return execute_cli(command, base)
+
+    async def acli(self, command: str):
+        """Execute a CLI-style command on this filesystem asynchronously.
+
+        Args:
+            command: Shell-like command (e.g., "grep pattern file.txt -r")
+
+        Returns:
+            CLIResult with command output
+        """
+        from upathtools.cli_parser import execute_cli_async
+
+        base = self.get_upath()
+        return await execute_cli_async(command, base)
 
     @classmethod
     def register_fs(cls) -> None:

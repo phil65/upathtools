@@ -436,3 +436,41 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
 
     def __repr__(self) -> str:
         return f"BaseUPath({self.path!r}, protocol={self.protocol!r})"
+
+    def cli(self, command: str):
+        """Execute a CLI-style command on this path.
+
+        Args:
+            command: Shell-like command (e.g., "grep pattern *.py -r")
+
+        Returns:
+            CLIResult with command output
+
+        Examples:
+            >>> path = UPath(".")
+            >>> result = path.cli("grep TODO *.py -r")
+            >>> result = path.cli("find . -name '*.py'")
+            >>> result = path.cli("ls -lah")
+        """
+        from upathtools.cli_parser import execute_cli
+
+        return execute_cli(command, self)
+
+    async def acli(self, command: str):
+        """Execute a CLI-style command on this path asynchronously.
+
+        Args:
+            command: Shell-like command (e.g., "grep pattern *.py -r")
+
+        Returns:
+            CLIResult with command output
+
+        Examples:
+            >>> path = UPath(".")
+            >>> result = await path.acli("grep TODO *.py -r")
+            >>> result = await path.acli("find . -name '*.py'")
+            >>> result = await path.acli("ls -lah")
+        """
+        from upathtools.cli_parser import execute_cli_async
+
+        return await execute_cli_async(command, self)
