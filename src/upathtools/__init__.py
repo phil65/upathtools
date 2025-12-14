@@ -20,7 +20,14 @@ from fsspec import register_implementation
 from upath import registry, UPath
 
 from upathtools.helpers import to_upath, upath_to_fs
-from upathtools.async_ops import read_path, read_folder, list_files, read_folder_as_text
+from upathtools.async_ops import (
+    read_path,
+    read_folder,
+    list_files,
+    read_folder_as_text,
+    is_directory_sync,
+    is_directory,
+)
 from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
 from upathtools.filesystems import DistributionFileSystem, DistributionPath
@@ -97,6 +104,8 @@ __all__ = [
     "WikiFileSystem",
     "WikiPath",
     "__version__",
+    "is_directory",
+    "is_directory_sync",
     "list_files",
     "read_folder",
     "read_folder_as_text",
