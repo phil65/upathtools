@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from upathtools import is_directory
 from upathtools.filesystems.base.wrapper import WrapperFileSystem
 
 
@@ -24,7 +25,7 @@ async def _skill_info_callback(  # noqa: PLR0911
     fs: WrapperFileSystem,
 ) -> dict[str, Any]:
     """Enrich directory info with skill metadata if it contains SKILL.md."""
-    if not await fs._isdir(info["name"]):
+    if not await is_directory(fs, info["name"], entry_type=info.get("type")):
         return info
 
     path = info["name"]
@@ -122,7 +123,7 @@ async def list_skills(fs: WrapperFileSystem, path: str = "/") -> list[dict[str, 
                     "description": entry.get("skill_description", ""),
                     "metadata": entry.get("skill_metadata", {}),
                 })
-            elif await fs._isdir(entry["name"]):
+            elif await is_directory(fs, entry["name"], entry_type=entry.get("type")):
                 subskills = await list_skills(fs, entry["name"])
                 skills.extend(subskills)
 

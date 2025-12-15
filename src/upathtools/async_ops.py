@@ -348,7 +348,7 @@ async def list_files(
                 continue
 
             # Skip directories unless explicitly included
-            is_dir = await fs._isdir(file_path)
+            is_dir = await is_directory(fs, file_path, entry_type=file_info.get("type"))
             if is_dir and not include_dirs:
                 continue
 
