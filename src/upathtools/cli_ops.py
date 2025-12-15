@@ -455,12 +455,12 @@ async def ahead(
     data = await asyncio.to_thread(resolved.read_bytes)
 
     if as_bytes:
-        lines = data.split(b"\n")[:n]
-        return b"\n".join(lines)
+        byte_lines = data.split(b"\n")[:n]
+        return b"\n".join(byte_lines)
 
     text = data.decode(encoding, errors=errors)
-    lines = text.splitlines()[:n]
-    return "\n".join(lines)
+    str_lines = text.splitlines()[:n]
+    return "\n".join(str_lines)
 
 
 @overload
@@ -501,12 +501,12 @@ async def atail(
     data = await asyncio.to_thread(resolved.read_bytes)
 
     if as_bytes:
-        lines = data.split(b"\n")[-n:]
-        return b"\n".join(lines)
+        byte_lines = data.split(b"\n")[-n:]
+        return b"\n".join(byte_lines)
 
     text = data.decode(encoding, errors=errors)
-    lines = text.splitlines()[-n:]
-    return "\n".join(lines)
+    str_lines = text.splitlines()[-n:]
+    return "\n".join(str_lines)
 
 
 async def acat(
