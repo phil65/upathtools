@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import asyncio
 import shlex
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from upath import UPath
+
+if TYPE_CHECKING:
+    from upath import UPath
 
 
 class CLIResult:
@@ -38,7 +40,7 @@ class CLIResult:
             yield self.data
 
 
-async def execute_cli_async(command: str, base: UPath) -> CLIResult:
+async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PLR0911
     """Execute a CLI-style command on a filesystem/path asynchronously.
 
     Args:
@@ -200,10 +202,7 @@ async def _exec_grep(args: list[str], kwargs: dict[str, Any], base: UPath) -> CL
 
     pattern = args[0]
     path = args[1] if len(args) > 1 else "."
-
-    results = []
-    async for result in agrep(pattern, path, base, **kwargs):
-        results.append(result)
+    results = [result async for result in agrep(pattern, path, base, **kwargs)]
     return CLIResult(results, f"grep {pattern} {path}")
 
 
@@ -219,9 +218,7 @@ async def _exec_find(args: list[str], kwargs: dict[str, Any], base: UPath) -> CL
         if idx + 1 < len(args):
             kwargs["name"] = args[idx + 1]
 
-    results = []
-    async for result in afind(path, base, **kwargs):
-        results.append(result)
+    results = [result async for result in afind(path, base, **kwargs)]
     return CLIResult(results, f"find {path}")
 
 

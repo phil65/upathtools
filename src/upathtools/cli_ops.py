@@ -12,12 +12,12 @@ import fnmatch
 import re
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from upath import UPath
-
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
     from re import Pattern
+
+    from upath import UPath
 
 
 __all__ = [
@@ -168,10 +168,7 @@ async def agrep(
     errors: str = "replace",
 ) -> AsyncIterator[GrepResult]:
     """Search for pattern in files asynchronously."""
-    if fixed_string:
-        regex_pattern = re.escape(pattern)
-    else:
-        regex_pattern = pattern
+    regex_pattern = re.escape(pattern) if fixed_string else pattern
 
     if whole_word:
         regex_pattern = rf"\b{regex_pattern}\b"
@@ -224,9 +221,7 @@ def _matches_filters(path: UPath, include: str | None, exclude: str | None) -> b
     name = path.name
     if include and not fnmatch.fnmatch(name, include):
         return False
-    if exclude and fnmatch.fnmatch(name, exclude):
-        return False
-    return True
+    return not (exclude and fnmatch.fnmatch(name, exclude))
 
 
 def _is_binary(data: bytes) -> bool:
@@ -666,7 +661,7 @@ async def _amake_ls_entry(path: UPath, detailed: bool) -> LsEntry | None:
 def _human_readable_size(size: int) -> str:
     """Convert bytes to human readable format."""
     for unit in ("B", "K", "M", "G", "T", "P"):
-        if abs(size) < 1024:
+        if abs(size) < 1024:  # noqa: PLR2004
             return f"{size:3.1f}{unit}" if unit != "B" else f"{size}{unit}"
         size = int(size / 1024)
     return f"{size}E"
@@ -883,9 +878,8 @@ async def adu(
                 except PermissionError:
                     pass
 
-        if not summarize:
-            if max_depth is None or depth <= max_depth:
-                sizes[str(p)] = total
+        if not summarize and (max_depth is None or depth <= max_depth):
+            sizes[str(p)] = total
         return total
 
     total = await _calc_size(resolved, 0)
@@ -914,10 +908,7 @@ def grep(
     """Search for pattern in files (sync wrapper)."""
 
     async def _run():
-        results = []
-        async for result in agrep(pattern, path, base, **kwargs):
-            results.append(result)
-        return results
+        return [result async for result in agrep(pattern, path, base, **kwargs)]
 
     results = asyncio.run(_run())
     yield from results
@@ -927,10 +918,7 @@ def find(path: str, base: UPath, **kwargs: Any) -> Iterator[FindResult]:
     """Find files matching criteria (sync wrapper)."""
 
     async def _run():
-        results = []
-        async for result in afind(path, base, **kwargs):
-            results.append(result)
-        return results
+        return [result async for result in afind(path, base, **kwargs)]
 
     results = asyncio.run(_run())
     yield from results
