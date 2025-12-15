@@ -218,6 +218,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         base = self.get_upath()
         return execute_cli(command, base)
 
+    @classmethod
     def register_fs(cls) -> None:
         """Register the filesystem with fsspec + UPath."""
         assert isinstance(cls.protocol, str)
