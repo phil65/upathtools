@@ -419,6 +419,14 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         self._tools_cache.clear()
         logger.debug("Invalidated MCP tools cache")
 
+    async def _close(self) -> None:
+        """Close the MCP client connection."""
+        if self.client.is_connected():
+            await self.client.__aexit__(None, None, None)
+            logger.debug("Closed MCP client connection")
+
+    close = sync_wrapper(_close)
+
     # Read-only filesystem
     async def _put_file(self, lpath: str, rpath: str, **kwargs: Any) -> None:
         msg = "MCPToolsFileSystem is read-only"

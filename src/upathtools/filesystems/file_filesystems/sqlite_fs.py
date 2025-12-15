@@ -441,6 +441,14 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         content = loop.run_until_complete(self._cat_file(path))
         return io.BytesIO(content)
 
+    async def _close(self) -> None:
+        """Close the database engine and clean up resources."""
+        if self._engine is not None:
+            await self._engine.dispose()
+            self._engine = None
+
+    close = sync_wrapper(_close)
+
     def __del__(self) -> None:
         """Clean up resources."""
         if self._temp_file:

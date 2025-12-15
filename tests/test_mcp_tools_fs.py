@@ -13,18 +13,22 @@ TEST_SERVER_PATH = Path(__file__).parent / "mcp_tools_server.py"
 
 
 @pytest.fixture(scope="module")
-def fs() -> MCPToolsFileSystem:
+def fs():
     """Create filesystem using server_cmd - connects on demand."""
-    return MCPToolsFileSystem(server_cmd=["uv", "run", str(TEST_SERVER_PATH)])
+    filesystem = MCPToolsFileSystem(server_cmd=["uv", "run", str(TEST_SERVER_PATH)])
+    yield filesystem
+    filesystem.close()
 
 
 @pytest.fixture(scope="module")
-def fs_stubs() -> MCPToolsFileSystem:
+def fs_stubs():
     """Create filesystem with stubs_only=True."""
-    return MCPToolsFileSystem(
+    filesystem = MCPToolsFileSystem(
         server_cmd=["uv", "run", str(TEST_SERVER_PATH)],
         stubs_only=True,
     )
+    yield filesystem
+    filesystem.close()
 
 
 async def test_list_tools(fs: MCPToolsFileSystem):

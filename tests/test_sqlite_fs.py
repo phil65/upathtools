@@ -88,7 +88,9 @@ def sample_db():
 @pytest.fixture
 def sqlite_fs(sample_db):
     """Create SqliteFileSystem instance with sample database."""
-    return SqliteFileSystem(db_path=sample_db)
+    fs = SqliteFileSystem(db_path=sample_db)
+    yield fs
+    fs.close()
 
 
 class TestSqliteFileSystem:
@@ -303,6 +305,7 @@ class TestSqliteFileSystemChaining:
         """Create a simple HTTP server serving the database file."""
         import http.server
         from pathlib import Path
+        import shutil
         import socketserver
         import threading
 
@@ -311,39 +314,41 @@ class TestSqliteFileSystemChaining:
         db_copy = serve_dir / "test.db"
 
         # Copy the database file
-        import shutil
-
         shutil.copy2(sample_db, db_copy)
 
         # Start HTTP server
         port = 0  # Let the OS choose a free port
-        with socketserver.TCPServer(
+        httpd = socketserver.TCPServer(
             ("", port),
             lambda *args: http.server.SimpleHTTPRequestHandler(*args, directory=serve_dir),
-        ) as httpd:
-            port = httpd.server_address[1]
-            server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-            server_thread.start()
+        )
+        port = httpd.server_address[1]
+        server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        server_thread.start()
 
-            yield f"http://127.0.0.1:{port}/test.db"
+        yield f"http://127.0.0.1:{port}/test.db"
 
-            httpd.shutdown()
-            shutil.rmtree(serve_dir)
+        httpd.shutdown()
+        httpd.server_close()
+        shutil.rmtree(serve_dir)
 
     @pytest.mark.asyncio
     async def test_chained_filesystem_http(self, http_server_db):
         """Test accessing database via HTTP."""
         fs = SqliteFileSystem(db_path=http_server_db, target_protocol="http")
 
-        # Test basic functionality
-        items = await fs._ls("/", detail=False)
-        assert "users" in items
-        assert "orders" in items
+        try:
+            # Test basic functionality
+            items = await fs._ls("/", detail=False)
+            assert "users" in items
+            assert "orders" in items
 
-        # Test reading data
-        data = await fs._cat_file("users")
-        content = data.decode()
-        assert "Alice Johnson" in content
+            # Test reading data
+            data = await fs._cat_file("users")
+            content = data.decode()
+            assert "Alice Johnson" in content
+        finally:
+            await fs._close()
 
 
 class TestSqliteFileSystemEmpty:
@@ -367,11 +372,14 @@ class TestSqliteFileSystemEmpty:
         """Test behavior with empty database."""
         fs = SqliteFileSystem(db_path=empty_db)
 
-        items = await fs._ls("/", detail=True)
-        assert len(items) == 0
+        try:
+            items = await fs._ls("/", detail=True)
+            assert len(items) == 0
 
-        items = await fs._ls("/", detail=False)
-        assert len(items) == 0
+            items = await fs._ls("/", detail=False)
+            assert len(items) == 0
+        finally:
+            await fs._close()
 
 
 class TestSqliteFileSystemNonexistent:
@@ -382,8 +390,11 @@ class TestSqliteFileSystemNonexistent:
         """Test behavior with nonexistent database file."""
         fs = SqliteFileSystem(db_path="/nonexistent/path/database.db")
 
-        with pytest.raises(sqlalchemy.exc.OperationalError):
-            await fs._ls("/")
+        try:
+            with pytest.raises(sqlalchemy.exc.OperationalError):
+                await fs._ls("/")
+        finally:
+            await fs._close()
 
 
 if __name__ == "__main__":
