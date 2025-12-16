@@ -17,6 +17,8 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 if TYPE_CHECKING:
     from beta9.type import GpuTypeAlias
 
+    from upathtools.filesystems.base import CreationMode
+
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +222,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             raise OSError(msg) from exc
 
     async def _pipe_file(
-        self, path: str, value: bytes, mode: str = "overwrite", **kwargs: Any
+        self, path: str, value: bytes, mode: CreationMode = "overwrite", **kwargs: Any
     ) -> None:
         """Write data to a file in the sandbox."""
         await self.set_session()

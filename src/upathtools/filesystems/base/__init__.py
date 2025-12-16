@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem, BaseFileSystem
+from upathtools.filesystems.base.basefilesystem import (
+    BaseAsyncFileSystem,
+    BaseFileSystem,
+    CreationMode,
+)
 from upathtools.filesystems.base.baseupath import BaseUPath
 from upathtools.filesystems.base.file_objects import (
     AsyncBufferedFile,
@@ -33,6 +37,7 @@ __all__ = [
     "BaseFileSystem",
     "BaseUPath",
     "BufferedWriter",
+    "CreationMode",
     "FileFileSystemMixin",
     "FileInfo",
     "ProbeResult",

@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     import modal
     from modal.file_io import FileIO
 
+    from upathtools.filesystems.base import CreationMode
+
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +228,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         return content
 
     async def _pipe_file(
-        self, path: str, value: bytes, mode: str = "overwrite", **kwargs: Any
+        self, path: str, value: bytes, mode: CreationMode = "overwrite", **kwargs: Any
     ) -> None:
         """Write data to a file in the sandbox."""
         await self.set_session()

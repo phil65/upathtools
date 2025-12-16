@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     from httpx import Response
     from yarl import URL
 
+    from upathtools.filesystems.base import CreationMode
+
 
 class HttpInfo(FileInfo, total=False):
     """Info dict for HTTP filesystem paths."""
@@ -339,7 +341,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         chunk_size: int = 5 * 2**20,
         callback=DEFAULT_CALLBACK,
         method: str = "post",
-        mode: str = "overwrite",
+        mode: CreationMode = "overwrite",
         **kwargs: Any,
     ) -> None:
         if mode != "overwrite":
@@ -486,7 +488,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         self,
         path: str,
         value: bytes,
-        mode: str = "overwrite",
+        mode: CreationMode = "overwrite",
         **kwargs: Any,
     ) -> None:
         """Write bytes to a remote file over HTTP.

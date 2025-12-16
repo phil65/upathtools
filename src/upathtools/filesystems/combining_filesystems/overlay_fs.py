@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
     from fsspec.spec import AbstractFileSystem
 
+    from upathtools.filesystems.base import CreationMode
+
 
 class OverlayInfo(FileInfo, total=False):
     """Info dict for overlay filesystem paths."""
@@ -157,7 +159,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         self,
         path: str,
         value: bytes,
-        mode: str = "overwrite",
+        mode: CreationMode = "overwrite",
         **kwargs: Any,
     ) -> None:
         """Write file contents to the upper layer."""

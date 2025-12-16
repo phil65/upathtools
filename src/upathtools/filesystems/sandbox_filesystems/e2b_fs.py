@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Literal, Required, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from fsspec.asyn import sync_wrapper
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+
+
+if TYPE_CHECKING:
+    from upathtools.filesystems.base import CreationMode
 
 
 logger = logging.getLogger(__name__)
@@ -223,7 +227,7 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
         await self._pipe_file(rpath, data, **kwargs)
 
     async def _pipe_file(
-        self, path: str, value: bytes, mode: str = "overwrite", **kwargs: Any
+        self, path: str, value: bytes, mode: CreationMode = "overwrite", **kwargs: Any
     ) -> None:
         """Write data to a file in the sandbox."""
         await self.set_session()

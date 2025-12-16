@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from upathtools.filetree import SortCriteria
 
 
+CreationMode = Literal["create", "overwrite"]
+
+
 class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSystem):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 

@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import io
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fsspec.asyn import sync_wrapper
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+
+
+if TYPE_CHECKING:
+    from upathtools.filesystems.base import CreationMode
 
 
 class NotionInfo(FileInfo, total=False):
@@ -297,7 +301,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         self,
         path: str,
         value: bytes,
-        mode: str = "overwrite",
+        mode: CreationMode = "overwrite",
         **kwargs: Any,
     ) -> None:
         """Write content to a file."""
