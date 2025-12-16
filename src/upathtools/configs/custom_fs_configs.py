@@ -278,6 +278,7 @@ class MountsFilesystemConfig(FileSystemConfig):
         from upath import UPath
 
         from upathtools import UnionFileSystem
+        from upathtools.configs.base import URIFileSystemConfig
 
         filesystems: dict[str, Any] = {}
         for mount_point, fs_config in self.mounts.items():
@@ -292,19 +293,20 @@ class MountsFilesystemConfig(FileSystemConfig):
                 else:
                     # Use fsspec's registry to find the right filesystem
                     config_cls = self._get_config_class(fs_type)
+                    assert config_cls is not None
                     config = config_cls(**fs_config)
                 fs = config.create_fs()
             elif isinstance(fs_config, FileSystemConfig):
                 fs = fs_config.create_fs()
             else:
                 msg = f"Invalid filesystem config for mount '{mount_point}': {fs_config}"
-                raise ValueError(msg)
+                raise ValueError(msg)  # noqa: TRY004
             filesystems[mount_point] = fs
 
         return UnionFileSystem(filesystems)
 
     @staticmethod
-    def _get_config_class(fs_type: str) -> type[FileSystemConfig]:
+    def _get_config_class(fs_type: str) -> type[FileSystemConfig]:  # type: ignore[valid-type]
         """Get the config class for a filesystem type."""
         # Import here to avoid circular imports
         # Get all config types from the union
