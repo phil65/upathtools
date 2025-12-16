@@ -107,7 +107,10 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         """
         from upathtools.async_upath import AsyncUPath
 
-        path_obj = self.upath_cls(path if path is not None else self.root_marker)
+        prefix = f"{self.protocol}://"
+        raw_path = path if path is not None else self.root_marker
+        full_path = raw_path if raw_path.startswith(prefix) else prefix + raw_path
+        path_obj = self.upath_cls(full_path)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
 
         if as_async:
@@ -314,7 +317,10 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
         """
         from upathtools.async_upath import AsyncUPath
 
-        path_obj = self.upath_cls(path if path is not None else self.root_marker)
+        prefix = f"{self.protocol}://"
+        raw_path = path if path is not None else self.root_marker
+        full_path = raw_path if raw_path.startswith(prefix) else prefix + raw_path
+        path_obj = self.upath_cls(full_path)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
 
         if as_async:
