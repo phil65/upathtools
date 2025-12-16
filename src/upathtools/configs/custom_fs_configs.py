@@ -230,6 +230,102 @@ class AsyncLocalFilesystemConfig(FileSystemConfig):
     """Automatically create parent directories on write"""
 
 
+class MountsFilesystemConfig(FileSystemConfig):
+    """Configuration for union filesystem with simplified mount point syntax.
+
+    Provides a more ergonomic way to compose multiple filesystems by
+    specifying mount points directly, without explicit union nesting.
+
+    Example:
+        ```yaml
+        type: mounts
+        mounts:
+          svelte: github://sveltejs:svelte@main
+          fastapi:
+            type: github
+            org: fastapi
+            repo: fastapi
+          local_src: file:///src
+        ```
+    """
+
+    model_config = ConfigDict(json_schema_extra={"title": "Mounts Configuration"})
+
+    type: Literal["mounts"] = Field("mounts", init=False)
+    """Mounts filesystem type"""
+
+    _category: ClassVar[FilesystemCategoryType] = "aggregation"
+
+    mounts: dict[str, Any] = Field(
+        title="Mount Points",
+        examples=[
+            {
+                "docs": "github://sveltejs:svelte@main",
+                "src": {"type": "local", "root_path": "./src"},
+            }
+        ],
+    )
+    """Dictionary mapping mount point paths to filesystem URIs or configurations.
+
+    Keys are the mount point paths where filesystems will be accessible.
+    Values can be:
+    - URI strings: "github://org:repo@ref", "s3://bucket", "file:///path"
+    - Full config objects: {"type": "github", "org": "...", "repo": "..."}
+    """
+
+    def create_fs(self, ensure_async: bool = False):
+        """Create a UnionFileSystem from the mount configurations."""
+        from upath import UPath
+
+        from upathtools import UnionFileSystem
+
+        filesystems: dict[str, Any] = {}
+        for mount_point, fs_config in self.mounts.items():
+            if isinstance(fs_config, str):
+                # URI string - use UPath which handles custom URI parsing (e.g. github://org:repo@sha)
+                fs = UPath(fs_config).fs
+            elif isinstance(fs_config, dict):
+                # Dict config - need to instantiate the right config class
+                fs_type = fs_config.get("type", "uri")
+                if fs_type == "uri" or "uri" in fs_config:
+                    config = URIFileSystemConfig(**fs_config)
+                else:
+                    # Use fsspec's registry to find the right filesystem
+                    config_cls = self._get_config_class(fs_type)
+                    config = config_cls(**fs_config)
+                fs = config.create_fs()
+            elif isinstance(fs_config, FileSystemConfig):
+                fs = fs_config.create_fs()
+            else:
+                msg = f"Invalid filesystem config for mount '{mount_point}': {fs_config}"
+                raise ValueError(msg)
+            filesystems[mount_point] = fs
+
+        return UnionFileSystem(filesystems)
+
+    @staticmethod
+    def _get_config_class(fs_type: str) -> type[FileSystemConfig]:
+        """Get the config class for a filesystem type."""
+        # Import here to avoid circular imports
+        # Get all config types from the union
+        import typing
+
+        from upathtools.configs import FilesystemConfigType
+
+        args = typing.get_args(FilesystemConfigType)
+        # First arg is the actual union, get its args
+        if args:
+            union_args = typing.get_args(args[0]) if typing.get_args(args[0]) else [args[0]]
+            for config_cls in union_args:
+                if hasattr(config_cls, "model_fields") and "type" in config_cls.model_fields:
+                    field = config_cls.model_fields["type"]
+                    if field.default == fs_type:
+                        return config_cls
+
+        msg = f"Unknown filesystem type: {fs_type}"
+        raise ValueError(msg)
+
+
 class OverlayFilesystemConfig(FileSystemConfig):
     """Configuration for overlay filesystem with copy-on-write semantics."""
 
@@ -280,6 +376,7 @@ CustomFilesystemConfig = (
     | FlatUnionFilesystemConfig
     | HttpFilesystemConfig
     | HttpxFilesystemConfig
+    | MountsFilesystemConfig
     | OverlayFilesystemConfig
     | PackageFilesystemConfig
     | SkillsFilesystemConfig
