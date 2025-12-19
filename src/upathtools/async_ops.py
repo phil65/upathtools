@@ -7,6 +7,7 @@ from functools import lru_cache
 from itertools import batched
 import logging
 import os
+import re
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from upath import UPath
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+DEFAULT_MAX_SIZE = 64_000
 
 
 @lru_cache(maxsize=32)
@@ -447,6 +449,100 @@ async def read_folder_as_text(
         ])
 
     return "\n".join(result_parts).rstrip() + "\n"
+
+
+async def fsspec_grep(
+    fs: AsyncFileSystem,
+    pattern: str,
+    path: str,
+    *,
+    file_pattern: str = "**/*",
+    case_sensitive: bool = False,
+    max_matches: int = 100,
+    max_output_bytes: int = DEFAULT_MAX_SIZE,
+    context_lines: int = 0,
+) -> dict[str, Any]:
+    """Execute grep using fsspec filesystem (Python implementation).
+
+    Args:
+        fs: FSSpec filesystem instance
+        pattern: Regex pattern to search for
+        path: Base directory to search in
+        file_pattern: Glob pattern to filter files
+        case_sensitive: Whether search is case-sensitive
+        max_matches: Maximum total matches across all files
+        max_output_bytes: Maximum total output bytes
+        context_lines: Number of context lines before/after match
+
+    Returns:
+        Dictionary with matches grouped by file
+    """
+    try:
+        flags = 0 if case_sensitive else re.IGNORECASE
+        regex = re.compile(pattern, flags)
+    except re.error as e:
+        return {"error": f"Invalid regex pattern: {e}"}
+
+    try:
+        glob_path = f"{path.rstrip('/')}/{file_pattern}"
+
+        matches: dict[str, list[dict[str, Any]]] = {}
+        total_matches = 0
+        total_bytes = 0
+
+        file_infos = await fs._glob(glob_path, detail=True)
+        for file_path, info in file_infos.items():  # pyright: ignore[reportAttributeAccessIssue]
+            if total_matches >= max_matches or total_bytes >= max_output_bytes:
+                break
+
+            # Skip directories
+            assert isinstance(file_path, str)
+            if await is_directory(fs, file_path, entry_type=info.get("type")):
+                continue
+
+            try:
+                content = await fs._cat_file(file_path)
+                # Skip binary files
+                if b"\x00" in content[:8192]:
+                    continue
+
+                text = content.decode("utf-8", errors="replace")
+                lines = text.splitlines()
+
+                file_matches: list[dict[str, Any]] = []
+                for line_num, line in enumerate(lines, 1):
+                    if total_matches >= max_matches or total_bytes >= max_output_bytes:
+                        break
+
+                    if regex.search(line):
+                        info: dict[str, Any] = {"line_number": line_num, "content": line.rstrip()}
+                        if context_lines > 0:
+                            start = max(0, line_num - 1 - context_lines)
+                            end = min(len(lines), line_num + context_lines)
+                            info["context_before"] = lines[start : line_num - 1]
+                            info["context_after"] = lines[line_num:end]
+
+                        file_matches.append(info)
+                        total_matches += 1
+                        total_bytes += len(line.encode("utf-8"))
+
+                if file_matches:
+                    matches[file_path] = file_matches  # pyright: ignore[reportArgumentType]
+
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Error reading file %r during grep: %s", file_path, str(e))
+                continue
+
+        was_truncated = total_matches >= max_matches or total_bytes >= max_output_bytes
+    except Exception as e:
+        logger.exception("Error in fsspec grep")
+        return {"error": f"Grep failed: {e}"}
+    else:
+        return {
+            "matches": matches,
+            "match_count": total_matches,
+            "was_truncated": was_truncated,
+        }
 
 
 if __name__ == "__main__":

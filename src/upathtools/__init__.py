@@ -27,6 +27,7 @@ from upathtools.async_ops import (
     read_folder_as_text,
     is_directory_sync,
     is_directory,
+    fsspec_grep,
 )
 from upathtools.async_upath import AsyncUPath
 from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
@@ -104,6 +105,7 @@ __all__ = [
     "WikiFileSystem",
     "WikiPath",
     "__version__",
+    "fsspec_grep",
     "is_directory",
     "is_directory_sync",
     "list_files",
