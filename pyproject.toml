@@ -133,6 +133,9 @@ tree-sitter = [
   "tree-sitter-yaml>=0.6.0",
 ]  # Tree-sitter based filesystem
 vercel = ["vercel"]  # Vercel integration
+agentfs = [
+    "agentfs-sdk>=0.4.0rc4",
+]
 
 [dependency-groups]
 dev = [
