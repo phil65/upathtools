@@ -423,8 +423,11 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         # If no glob pattern, fall back to default
         if not any(c in path for c in glob_chars):
             if await self._exists(path):
+                if detail:
+                    info = await self._info(path)
+                    return {path: info}
                 return [path]
-            return []
+            return {} if detail else []
 
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -448,8 +451,13 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             msg = f"Failed to glob {path}: {exc}"
             raise OSError(msg) from exc
-        else:
-            return result.files
+
+        files = result.files
+        if not detail:
+            return files
+
+        # Return barebone info dicts (search_files doesn't return metadata)
+        return {f: DaytonaInfo(name=f, type="file") for f in files}
 
     async def _grep(self, path: str, pattern: str, **kwargs: Any) -> list[dict[str, Any]]:
         """Search for pattern in files."""
@@ -497,3 +505,17 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
     glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
     grep = sync_wrapper(_grep)
     chmod = sync_wrapper(_chmod)
+
+
+if __name__ == "__main__":
+
+    async def main():
+        fs = DaytonaFS()
+        result = await fs._mkdir("test")
+        print(result)
+        glob_result = await fs._glob("test")
+        print(glob_result)
+
+    import asyncio
+
+    asyncio.run(main())
