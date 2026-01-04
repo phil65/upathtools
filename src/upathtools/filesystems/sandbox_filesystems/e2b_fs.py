@@ -411,6 +411,40 @@ with open({path!r}, 'wb') as f:
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        **kwargs: Any,
+    ) -> list[str]:
+        """Recursively list all files using E2B's depth parameter.
+
+        More efficient than walking the directory tree with multiple _ls calls.
+        """
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        # Use a large depth for recursive listing (E2B doesn't support None for unlimited)
+        depth = maxdepth if maxdepth is not None else 100
+
+        try:
+            items = await sandbox.files.list(path, depth=depth)
+        except Exception as exc:
+            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+                raise FileNotFoundError(path) from exc
+            msg = f"Failed to find files in {path}: {exc}"
+            raise OSError(msg) from exc
+        else:
+            from e2b.sandbox.filesystem.filesystem import FileType
+
+            if withdirs:
+                return [item.path for item in items]
+            return [item.path for item in items if item.type == FileType.FILE]
+
+    # TODO: Add _glob and _grep using sandbox.commands.run() with Linux CLI tools (find, grep)
+    # This would be faster than fsspec's default implementations.
+
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
@@ -424,3 +458,4 @@ with open({path!r}, 'wb') as f:
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
+    find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]

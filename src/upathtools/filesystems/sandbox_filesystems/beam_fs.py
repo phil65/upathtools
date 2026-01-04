@@ -405,6 +405,31 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _grep(self, path: str, pattern: str, **kwargs: Any) -> list[dict[str, Any]]:
+        """Search for pattern in files using Beam's find_in_files."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        try:
+            results = await asyncio.to_thread(sandbox.fs.find_in_files, path, pattern)
+        except Exception as exc:
+            msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
+            raise OSError(msg) from exc
+        else:
+            # Convert SandboxFileSearchResult to dict format
+            return [
+                {
+                    "file": result.path,
+                    "line": match.range.start.line,
+                    "content": match.content,
+                }
+                for result in results
+                for match in result.matches
+            ]
+
+    # TODO: Add _find and _glob using sandbox.process.exec() with Linux CLI tools (find)
+    # This would be faster than fsspec's default _walk which does multiple _ls round trips.
+
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
@@ -418,3 +443,4 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
+    grep = sync_wrapper(_grep)

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
     from _typeshed import OpenTextMode
     import modal
+    from modal import Image
     from modal.file_io import FileIO
 
     from upathtools.filesystems.base import CreationMode
@@ -56,7 +57,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         app_name: str | None = None,
         sandbox_id: str | None = None,
         sandbox_name: str | None = None,
-        image: Any | None = None,
+        image: Image | None = None,
         cpu: float | None = None,
         memory: int | None = None,
         gpu: str | None = None,
@@ -365,6 +366,9 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         size = 0 if is_dir else await self._size(path)
         # TODO: Get actual mtime when Modal provides metadata API
         return ModalInfo(name=path, size=size, type="directory" if is_dir else "file", mtime=0.0)
+
+    # TODO: Add _find and _grep using sandbox.exec() with Linux CLI tools (find, grep)
+    # This would be faster than fsspec's default _walk which does multiple _ls round trips.
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)

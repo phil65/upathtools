@@ -370,14 +370,83 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         withdirs: bool = False,
         **kwargs: Any,
     ) -> list[str]:
-        """Find files matching a pattern."""
+        """Recursively list all files using Daytona's search_files.
+
+        More efficient than walking the directory tree.
+        """
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            pattern = kwargs.get("pattern", "*")  # Use Daytona's search functionality
-            result = await sandbox.fs.search_files(path, pattern)
+            result = await sandbox.fs.search_files(path, "**/*")
         except Exception as exc:
             msg = f"Failed to find files in {path}: {exc}"
+            raise OSError(msg) from exc
+        else:
+            return result.files
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, DaytonaInfo]: ...
+
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: bool = True,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, DaytonaInfo]:
+        """Glob for files using Daytona's native search_files.
+
+        This is more efficient than the default fsspec implementation
+        which walks the directory tree.
+        """
+        # Check for glob magic characters
+        glob_chars = {"*", "?", "["}
+
+        # If no glob pattern, fall back to default
+        if not any(c in path for c in glob_chars):
+            if await self._exists(path):
+                return [path]
+            return []
+
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+
+        # Split path into root directory and pattern
+        # e.g., "/workspace/src/**/*.py" -> root="/workspace/src", pattern="**/*.py"
+        path = self._strip_protocol(path)
+        idx = min(
+            (path.find(c) for c in "*?[" if path.find(c) >= 0),
+            default=len(path),
+        )
+        if "/" in path[:idx]:
+            root = path[: path[:idx].rindex("/") + 1].rstrip("/") or "/"
+            pattern = path[len(root) :].lstrip("/")
+        else:
+            root = "/"
+            pattern = path
+
+        try:
+            result = await sandbox.fs.search_files(root, pattern)
+        except Exception as exc:
+            msg = f"Failed to glob {path}: {exc}"
             raise OSError(msg) from exc
         else:
             return result.files
@@ -425,5 +494,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
     info = sync_wrapper(_info)
     mv_file = sync_wrapper(_mv_file)
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
+    glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
     grep = sync_wrapper(_grep)
     chmod = sync_wrapper(_chmod)
