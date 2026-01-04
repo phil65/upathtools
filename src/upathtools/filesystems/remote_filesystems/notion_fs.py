@@ -180,7 +180,8 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
             for page in results:
                 page_title = (
-                    page.get("properties", {})
+                    page
+                    .get("properties", {})
                     .get("title", {})
                     .get("title", [{}])[0]
                     .get("text", {})
