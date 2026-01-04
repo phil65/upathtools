@@ -105,6 +105,9 @@ vercel = "upathtools.filesystems:VercelPath"
 microsandbox = "upathtools.filesystems:MicrosandboxPath"
 
 [project.optional-dependencies]
+# agentfs = [
+#   "agentfs-sdk>=0.4.0rc17",
+# ]
 appwrite = ["appwrite"]  # Appwrite integration
 beam = [
   "beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"
@@ -133,9 +136,6 @@ tree-sitter = [
   "tree-sitter-yaml>=0.6.0",
 ]  # Tree-sitter based filesystem
 vercel = ["vercel"]  # Vercel integration
-agentfs = [
-    "agentfs-sdk>=0.4.0rc4",
-]
 
 [dependency-groups]
 dev = [
