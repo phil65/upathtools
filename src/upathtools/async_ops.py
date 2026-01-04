@@ -515,14 +515,17 @@ async def fsspec_grep(
                         break
 
                     if regex.search(line):
-                        info: dict[str, Any] = {"line_number": line_num, "content": line.rstrip()}
+                        file_info: dict[str, Any] = {
+                            "line_number": line_num,
+                            "content": line.rstrip(),
+                        }
                         if context_lines > 0:
                             start = max(0, line_num - 1 - context_lines)
                             end = min(len(lines), line_num + context_lines)
-                            info["context_before"] = lines[start : line_num - 1]
-                            info["context_after"] = lines[line_num:end]
+                            file_info["context_before"] = lines[start : line_num - 1]
+                            file_info["context_after"] = lines[line_num:end]
 
-                        file_matches.append(info)
+                        file_matches.append(file_info)
                         total_matches += 1
                         total_bytes += len(line.encode("utf-8"))
 
