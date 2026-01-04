@@ -427,6 +427,101 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
 
     isfile = sync_wrapper(_isfile)
 
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        **kwargs: Any,
+    ) -> list[str]:
+        """Glob for tables using SQL LIKE pattern matching.
+
+        Converts glob patterns to SQL LIKE patterns for efficient matching.
+        """
+        import fnmatch
+
+        from sqlalchemy import text
+
+        path = self._strip_protocol(path).strip("/")  # type: ignore[reportAttributeAccessIssue]
+
+        # Check for glob magic characters
+        glob_chars = {"*", "?", "["}
+        if not any(c in path for c in glob_chars):
+            if await self._exists(path):
+                return [path]
+            return []
+
+        engine = await self._get_engine()
+
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text("""
+                SELECT name FROM sqlite_master
+                WHERE type IN ('table', 'view')
+                ORDER BY name
+                """)
+            )
+            all_tables = [row.name for row in result]  # type: ignore[reportAttributeAccessIssue]
+
+        # Use fnmatch for glob pattern matching
+        return [t for t in all_tables if fnmatch.fnmatch(t, path)]
+
+    glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
+
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        """Search table contents using SQL LIKE.
+
+        Searches all text columns in the specified table for the pattern.
+        Much faster than reading CSV and searching in Python.
+        """
+        from sqlalchemy import text
+
+        path = self._strip_protocol(path).strip("/")  # type: ignore[reportAttributeAccessIssue]
+
+        if not path or path == "/":
+            msg = "Cannot grep root directory"
+            raise IsADirectoryError(msg)
+
+        engine = await self._get_engine()
+
+        async with engine.begin() as conn:
+            # Get column info for the table
+            col_result = await conn.execute(text(f"PRAGMA table_info(`{path}`)"))
+            columns = [row[1] for row in col_result]  # column name is at index 1
+
+            if not columns:
+                msg = f"Table {path} not found"
+                raise FileNotFoundError(msg)
+
+            # Build WHERE clause to search all text columns
+            like_pattern = f"%{pattern}%"
+            conditions = " OR ".join(f"CAST(`{col}` AS TEXT) LIKE :pattern" for col in columns)
+
+            query = f"SELECT rowid, * FROM `{path}` WHERE {conditions}"
+            result = await conn.execute(text(query), {"pattern": like_pattern})
+
+            matches = []
+            for row in result:
+                row_dict = dict(row._mapping)
+                rowid = row_dict.pop("rowid", None)
+                # Find which columns matched
+                for col, val in row_dict.items():
+                    if val is not None and pattern.lower() in str(val).lower():
+                        matches.append({
+                            "file": path,
+                            "line": rowid,
+                            "column": col,
+                            "content": str(val),
+                        })
+
+            return matches
+
+    grep = sync_wrapper(_grep)
+
     def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
         """Provide file-like access to table data."""
         if "w" in mode or "a" in mode:
