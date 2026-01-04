@@ -4,6 +4,10 @@ This is a lightweight config-only package for fast imports.
 For the actual filesystems, use `from upathtools import ...`.
 """
 
+from typing import Annotated
+
+from pydantic import Field
+
 from upathtools_config.base import (
     FileSystemConfig,
     FilesystemCategoryType,
@@ -15,6 +19,7 @@ from upathtools_config.custom_fs_configs import (
     BaseModelFilesystemConfig,
     BaseModelInstanceFilesystemConfig,
     CliFilesystemConfig,
+    CustomFilesystemConfig,
     DistributionFilesystemConfig,
     FlatUnionFilesystemConfig,
     HttpFilesystemConfig,
@@ -27,6 +32,7 @@ from upathtools_config.custom_fs_configs import (
 )
 from upathtools_config.file_based_fs_configs import (
     FileBasedConfig,
+    FileBasedFilesystemConfig,
     JsonSchemaFilesystemConfig,
     MarkdownFilesystemConfig,
     OpenApiFilesystemConfig,
@@ -39,6 +45,7 @@ from upathtools_config.fsspec_fs_configs import (
     DaskWorkerFilesystemConfig,
     DataFilesystemConfig,
     FTPFilesystemConfig,
+    FsspecFilesystemConfig,
     GCSFilesystemConfig,
     GitFilesystemConfig,
     GithubFilesystemConfig,
@@ -64,6 +71,7 @@ from upathtools_config.remote_fs_configs import (
     McpFilesystemConfig,
     McpToolsFilesystemConfig,
     NotionFilesystemConfig,
+    RemoteFilesystemConfig,
     WikiFilesystemConfig,
 )
 from upathtools_config.sandbox_fs_configs import (
@@ -72,10 +80,22 @@ from upathtools_config.sandbox_fs_configs import (
     E2BFilesystemConfig,
     MicrosandboxFilesystemConfig,
     ModalFilesystemConfig,
+    SandboxFilesystemConfig,
     SRTFilesystemConfig,
     VercelFilesystemConfig,
 )
 
+
+# Combined union of all filesystem config types
+FilesystemConfigType = Annotated[
+    CustomFilesystemConfig
+    | FsspecFilesystemConfig
+    | URIFileSystemConfig
+    | SandboxFilesystemConfig
+    | RemoteFilesystemConfig
+    | FileBasedFilesystemConfig,
+    Field(discriminator="type"),
+]
 
 __all__ = [
     # Remote
@@ -90,6 +110,7 @@ __all__ = [
     # Sandbox
     "BeamFilesystemConfig",
     "CliFilesystemConfig",
+    "CustomFilesystemConfig",
     "DaskWorkerFilesystemConfig",
     "DataFilesystemConfig",
     "DaytonaFilesystemConfig",
@@ -98,10 +119,13 @@ __all__ = [
     "FTPFilesystemConfig",
     # File-based
     "FileBasedConfig",
+    "FileBasedFilesystemConfig",
     # Base
     "FileSystemConfig",
     "FilesystemCategoryType",
+    "FilesystemConfigType",
     "FlatUnionFilesystemConfig",
+    "FsspecFilesystemConfig",
     "GCSFilesystemConfig",
     "GistFilesystemConfig",
     "GitFilesystemConfig",
@@ -128,10 +152,12 @@ __all__ = [
     "OverlayFilesystemConfig",
     "PackageFilesystemConfig",
     "PathConfig",
+    "RemoteFilesystemConfig",
     "S3FilesystemConfig",
     "SFTPFilesystemConfig",
     "SMBFilesystemConfig",
     "SRTFilesystemConfig",
+    "SandboxFilesystemConfig",
     "SkillsFilesystemConfig",
     "SqliteFilesystemConfig",
     "TarFilesystemConfig",
