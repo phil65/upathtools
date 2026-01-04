@@ -493,7 +493,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         # Build GitHub search query
         query = f"repo:{self.org}/{self.repo} is:issue {pattern}"
         url = "https://api.github.com/search/issues"
-        params = {"q": query, "per_page": 100}
+        params: dict[str, Any] = {"q": query, "per_page": 100}
 
         # Request text match metadata
         headers = {**self.headers, "Accept": "application/vnd.github.text-match+json"}
@@ -503,7 +503,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         response.raise_for_status()
         data = response.json()
 
-        matches = []
+        matches: list[dict[str, Any]] = []
         for item in data.get("items", []):
             issue_number = item.get("number")
             title = item.get("title", "")

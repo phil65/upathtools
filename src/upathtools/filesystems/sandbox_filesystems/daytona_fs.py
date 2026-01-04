@@ -511,8 +511,7 @@ if __name__ == "__main__":
 
     async def main():
         fs = DaytonaFS()
-        result = await fs._mkdir("test")
-        print(result)
+        await fs._mkdir("test")
         glob_result = await fs._glob("test")
         print(glob_result)
 
