@@ -20,7 +20,7 @@ import fsspec.registry
 import fsspec.utils
 import pytest
 
-from upathtools import HTTPFileSystem
+from upathtools.filesystems import HTTPFileSystem
 from upathtools.filesystems.httpx_fs import HTTPStreamFile as OurHTTPStreamFile
 
 

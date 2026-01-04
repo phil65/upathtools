@@ -277,7 +277,7 @@ class MountsFilesystemConfig(FileSystemConfig):
         """Create a UnionFileSystem from the mount configurations."""
         from upath import UPath
 
-        from upathtools import UnionFileSystem
+        from upathtools.filesystems import UnionFileSystem
         from upathtools_config.base import URIFileSystemConfig
 
         filesystems: dict[str, Any] = {}

@@ -30,21 +30,14 @@ from upathtools.async_ops import (
     fsspec_grep,
 )
 from upathtools.async_upath import AsyncUPath
-from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
-from upathtools.filesystems import DistributionFileSystem, DistributionPath
-from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
-from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
-from upathtools.filesystems import PackageFileSystem, PackagePath
-from upathtools.filesystems import SqliteFileSystem, SqlitePath
-from upathtools.filesystems import UnionFileSystem, UnionPath
-from upathtools.filesystems import OverlayFileSystem, OverlayPath
-from upathtools.filesystems import GistFileSystem, GistPath
-from upathtools.filesystems import WikiFileSystem, WikiPath
+
 from upath.types import JoinablePathLike
 
 
 def register_http_filesystems() -> None:
     """Register HTTP filesystems."""
+    from upathtools.filesystems.httpx_fs import HttpPath, HTTPFileSystem
+
     register_implementation("http", HTTPFileSystem, clobber=True)
     registry.register_implementation("http", HttpPath, clobber=True)
     register_implementation("https", HTTPFileSystem, clobber=True)
@@ -53,6 +46,15 @@ def register_http_filesystems() -> None:
 
 def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
+    from upathtools.filesystems import DistributionFileSystem, DistributionPath
+    from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
+    from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
+    from upathtools.filesystems import PackageFileSystem, PackagePath
+    from upathtools.filesystems import SqliteFileSystem, SqlitePath
+    from upathtools.filesystems import UnionFileSystem, UnionPath
+    from upathtools.filesystems import GistFileSystem, GistPath
+    from upathtools.filesystems import WikiFileSystem, WikiPath
+
     register_http_filesystems()
 
     register_implementation("distribution", DistributionFileSystem, clobber=True)
@@ -82,28 +84,8 @@ def register_all_filesystems() -> None:
 
 __all__ = [
     "AsyncUPath",
-    "DistributionFileSystem",
-    "DistributionPath",
-    "FlatUnionFileSystem",
-    "FlatUnionPath",
-    "GistFileSystem",
-    "GistPath",
-    "HTTPFileSystem",
-    "HttpPath",
     "JoinablePathLike",
-    "MarkdownFileSystem",
-    "MarkdownPath",
-    "OverlayFileSystem",
-    "OverlayPath",
-    "PackageFileSystem",
-    "PackagePath",
-    "SqliteFileSystem",
-    "SqlitePath",
     "UPath",
-    "UnionFileSystem",
-    "UnionPath",
-    "WikiFileSystem",
-    "WikiPath",
     "__version__",
     "fsspec_grep",
     "is_directory",
