@@ -10,7 +10,6 @@
 #     TarFileSystem,
 #     ZipFileSystem,
 # )
-from .remote_filesystems.agentfs_fs import AgentFSFileSystem, AgentFSPath
 from .remote_filesystems.appwrite_fs import AppwriteFileSystem, AppwritePath
 from .remote_filesystems.gist_fs import GistFileSystem, GistPath
 from .remote_filesystems.gitlab_fs import GitLabFileSystem, GitLabPath
@@ -45,8 +44,6 @@ from .httpx_fs import HTTPFileSystem, HttpPath
 
 __all__ = [
     "E2BFS",
-    "AgentFSFileSystem",
-    "AgentFSPath",
     "AppwriteFileSystem",
     "AppwritePath",
     "BaseModelFileSystem",
