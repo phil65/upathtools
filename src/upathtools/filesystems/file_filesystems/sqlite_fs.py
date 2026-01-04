@@ -427,12 +427,34 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
 
     isfile = sync_wrapper(_isfile)
 
+    @overload
     async def _glob(
         self,
         path: str,
         maxdepth: int | None = None,
+        *,
+        detail: Literal[False] = False,
         **kwargs: Any,
-    ) -> list[str]:
+    ) -> list[str]: ...
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, SqliteInfo]: ...
+
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, SqliteInfo]:
         """Glob for tables using SQL LIKE pattern matching.
 
         Converts glob patterns to SQL LIKE patterns for efficient matching.
@@ -447,8 +469,11 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         glob_chars = {"*", "?", "["}
         if not any(c in path for c in glob_chars):
             if await self._exists(path):
+                if detail:
+                    info = await self._info(path)
+                    return {path: info}
                 return [path]
-            return []
+            return {} if detail else []
 
         engine = await self._get_engine()
 
@@ -463,7 +488,13 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
             all_tables = [row.name for row in result]  # type: ignore[reportAttributeAccessIssue]
 
         # Use fnmatch for glob pattern matching
-        return [t for t in all_tables if fnmatch.fnmatch(t, path)]
+        matches = [t for t in all_tables if fnmatch.fnmatch(t, path)]
+
+        if not detail:
+            return matches
+
+        # Return barebone info dicts
+        return {t: SqliteInfo(name=t, type="file", size=0) for t in matches}
 
     glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
 
