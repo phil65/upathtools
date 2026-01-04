@@ -469,6 +469,69 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
 
     isfile = sync_wrapper(_isfile)
 
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        """Search issues using GitHub's search API.
+
+        Uses the GitHub search API which is much faster than fetching
+        all issues and searching locally.
+
+        Args:
+            path: Ignored (searches all issues in repo)
+            pattern: Search query string
+            **kwargs: Additional arguments
+
+        Returns:
+            List of matches with file, line (issue number), and content (title + match)
+        """
+        session = await self.set_session()
+
+        # Build GitHub search query
+        query = f"repo:{self.org}/{self.repo} is:issue {pattern}"
+        url = "https://api.github.com/search/issues"
+        params = {"q": query, "per_page": 100}
+
+        # Request text match metadata
+        headers = {**self.headers, "Accept": "application/vnd.github.text-match+json"}
+
+        logger.debug("Searching issues: %s", query)
+        response = await session.get(url, params=params, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+        matches = []
+        for item in data.get("items", []):
+            issue_number = item.get("number")
+            title = item.get("title", "")
+
+            # Extract text matches if available
+            text_matches = item.get("text_matches", [])
+            if text_matches:
+                matches.extend(
+                    {
+                        "file": f"{issue_number}.md",
+                        "line": issue_number,
+                        "property": tm.get("property", ""),
+                        "content": tm.get("fragment", ""),
+                    }
+                    for tm in text_matches
+                )
+            else:
+                # No text match detail, just include the issue
+                matches.append({
+                    "file": f"{issue_number}.md",
+                    "line": issue_number,
+                    "content": title,
+                })
+
+        return matches
+
+    grep = sync_wrapper(_grep)
+
     def invalidate_cache(self, path: str | None = None) -> None:
         """Clear the directory cache."""
         if path is None:
