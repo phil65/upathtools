@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict, Field
 from upath import UPath  # noqa: TC002
 
-from upathtools.configs.base import (
+from upathtools_config.base import (
     FilesystemCategoryType,  # noqa: TC001
     FileSystemConfig,
 )
@@ -278,7 +278,7 @@ class MountsFilesystemConfig(FileSystemConfig):
         from upath import UPath
 
         from upathtools import UnionFileSystem
-        from upathtools.configs.base import URIFileSystemConfig
+        from upathtools_config.base import URIFileSystemConfig
 
         filesystems: dict[str, Any] = {}
         for mount_point, fs_config in self.mounts.items():
@@ -312,7 +312,7 @@ class MountsFilesystemConfig(FileSystemConfig):
         # Get all config types from the union
         import typing
 
-        from upathtools.configs import FilesystemConfigType
+        from upathtools_config import FilesystemConfigType
 
         args = typing.get_args(FilesystemConfigType)
         # First arg is the actual union, get its args

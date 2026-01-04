@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict, Field
 from upath import UPath  # noqa: TC002
 
-from upathtools.configs.base import FilesystemCategoryType, FileSystemConfig  # noqa: TC001
+from upathtools_config.base import FilesystemCategoryType, FileSystemConfig  # noqa: TC001
 
 
 class FileBasedConfig(FileSystemConfig):

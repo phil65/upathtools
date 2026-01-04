@@ -1,0 +1,146 @@
+"""Filesystem configuration.
+
+This is a lightweight config-only package for fast imports.
+For the actual filesystems, use `from upathtools import ...`.
+"""
+
+from upathtools_config.base import (
+    FileSystemConfig,
+    FilesystemCategoryType,
+    PathConfig,
+    URIFileSystemConfig,
+)
+from upathtools_config.custom_fs_configs import (
+    AsyncLocalFilesystemConfig,
+    BaseModelFilesystemConfig,
+    BaseModelInstanceFilesystemConfig,
+    CliFilesystemConfig,
+    DistributionFilesystemConfig,
+    FlatUnionFilesystemConfig,
+    HttpFilesystemConfig,
+    HttpxFilesystemConfig,
+    MountsFilesystemConfig,
+    OverlayFilesystemConfig,
+    PackageFilesystemConfig,
+    SkillsFilesystemConfig,
+    UnionFilesystemConfig,
+)
+from upathtools_config.file_based_fs_configs import (
+    FileBasedConfig,
+    JsonSchemaFilesystemConfig,
+    MarkdownFilesystemConfig,
+    OpenApiFilesystemConfig,
+    SqliteFilesystemConfig,
+    TreeSitterFilesystemConfig,
+)
+from upathtools_config.fsspec_fs_configs import (
+    ArrowFilesystemConfig,
+    AzureBlobFilesystemConfig,
+    DaskWorkerFilesystemConfig,
+    DataFilesystemConfig,
+    FTPFilesystemConfig,
+    GCSFilesystemConfig,
+    GitFilesystemConfig,
+    GithubFilesystemConfig,
+    HadoopFilesystemConfig,
+    HuggingFaceFilesystemConfig,
+    JupyterFilesystemConfig,
+    LibArchiveFilesystemConfig,
+    LocalFilesystemConfig,
+    MemoryFilesystemConfig,
+    S3FilesystemConfig,
+    SFTPFilesystemConfig,
+    SMBFilesystemConfig,
+    TarFilesystemConfig,
+    WebdavFilesystemConfig,
+    WebHDFSFilesystemConfig,
+    ZipFilesystemConfig,
+)
+from upathtools_config.remote_fs_configs import (
+    AppwriteFilesystemConfig,
+    GistFilesystemConfig,
+    GitLabFilesystemConfig,
+    LinearFilesystemConfig,
+    McpFilesystemConfig,
+    McpToolsFilesystemConfig,
+    NotionFilesystemConfig,
+    WikiFilesystemConfig,
+)
+from upathtools_config.sandbox_fs_configs import (
+    BeamFilesystemConfig,
+    DaytonaFilesystemConfig,
+    E2BFilesystemConfig,
+    MicrosandboxFilesystemConfig,
+    ModalFilesystemConfig,
+    SRTFilesystemConfig,
+    VercelFilesystemConfig,
+)
+
+
+__all__ = [
+    # Remote
+    "AppwriteFilesystemConfig",
+    # Fsspec
+    "ArrowFilesystemConfig",
+    # Custom
+    "AsyncLocalFilesystemConfig",
+    "AzureBlobFilesystemConfig",
+    "BaseModelFilesystemConfig",
+    "BaseModelInstanceFilesystemConfig",
+    # Sandbox
+    "BeamFilesystemConfig",
+    "CliFilesystemConfig",
+    "DaskWorkerFilesystemConfig",
+    "DataFilesystemConfig",
+    "DaytonaFilesystemConfig",
+    "DistributionFilesystemConfig",
+    "E2BFilesystemConfig",
+    "FTPFilesystemConfig",
+    # File-based
+    "FileBasedConfig",
+    # Base
+    "FileSystemConfig",
+    "FilesystemCategoryType",
+    "FlatUnionFilesystemConfig",
+    "GCSFilesystemConfig",
+    "GistFilesystemConfig",
+    "GitFilesystemConfig",
+    "GitLabFilesystemConfig",
+    "GithubFilesystemConfig",
+    "HadoopFilesystemConfig",
+    "HttpFilesystemConfig",
+    "HttpxFilesystemConfig",
+    "HuggingFaceFilesystemConfig",
+    "JsonSchemaFilesystemConfig",
+    "JupyterFilesystemConfig",
+    "LibArchiveFilesystemConfig",
+    "LinearFilesystemConfig",
+    "LocalFilesystemConfig",
+    "MarkdownFilesystemConfig",
+    "McpFilesystemConfig",
+    "McpToolsFilesystemConfig",
+    "MemoryFilesystemConfig",
+    "MicrosandboxFilesystemConfig",
+    "ModalFilesystemConfig",
+    "MountsFilesystemConfig",
+    "NotionFilesystemConfig",
+    "OpenApiFilesystemConfig",
+    "OverlayFilesystemConfig",
+    "PackageFilesystemConfig",
+    "PathConfig",
+    "S3FilesystemConfig",
+    "SFTPFilesystemConfig",
+    "SMBFilesystemConfig",
+    "SRTFilesystemConfig",
+    "SkillsFilesystemConfig",
+    "SqliteFilesystemConfig",
+    "TarFilesystemConfig",
+    "TreeSitterFilesystemConfig",
+    "URIFileSystemConfig",
+    "UnionFilesystemConfig",
+    "VercelFilesystemConfig",
+    "WebHDFSFilesystemConfig",
+    "WebdavFilesystemConfig",
+    "WikiFilesystemConfig",
+    "ZipFilesystemConfig",
+]

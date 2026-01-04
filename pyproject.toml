@@ -382,6 +382,28 @@ python-platform = "all"
 default-groups = ["dev", "lint", "docs"]
 override-dependencies = [
   "logfire>=4.0.0",
-  # "llmling-agent>=1.15.0",
+  # "agentpool>=1.15.0",
   "protobuf>=5.0.0"
 ]  # required bc of beam
+
+[tool.uv.build-backend]
+module-name = [
+  "upathtools",
+  "upathtools_config",
+]
+wheel-exclude = [
+  ".mypy_cache/**",
+  "__pycache__/**",
+  "*.pyc",
+  "*.pyo",
+  ".pytest_cache/**",
+  ".ruff_cache/**",
+]
+source-exclude = [
+  ".mypy_cache/**",
+  "__pycache__/**",
+  "*.pyc",
+  "*.pyo",
+  ".pytest_cache/**",
+  ".ruff_cache/**",
+]
