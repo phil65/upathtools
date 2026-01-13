@@ -61,7 +61,7 @@ class OpenApiFilesystemConfig(FileBasedConfig):
         title="Serializer Format",
         examples=["json", "json-formatted", "yaml"],
     )
-    """Output format: 'json' (compact, most efficient), 'json-formatted' (pretty-printed), or 'yaml'"""
+    """Output format: 'json' (compact), 'json-formatted' , or 'yaml'"""
 
 
 class JsonSchemaFilesystemConfig(FileBasedConfig):
@@ -95,7 +95,7 @@ class JsonSchemaFilesystemConfig(FileBasedConfig):
         title="Serializer Format",
         examples=["json", "json-formatted", "yaml"],
     )
-    """Output format: 'json' (compact, most efficient), 'json-formatted' (pretty-printed), or 'yaml'"""
+    """Output format: 'json' (compact), 'json-formatted' , or 'yaml'"""
 
 
 class SqliteFilesystemConfig(FileBasedConfig):

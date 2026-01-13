@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
@@ -13,6 +12,8 @@ from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResu
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from openapi3 import OpenAPI
     from openapi3.paths import Operation
 
@@ -158,7 +159,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         spec_url: str = "",
         headers: dict[str, str] | None = None,
         serializer: Literal["json", "json-formatted", "yaml"]
-        | Callable[[dict[str, Any]], str] = "json",
+        | Callable[[dict[str, Any] | list[Any]], str] = "json",
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -224,11 +225,11 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
             msg = f"Failed to load OpenAPI spec from {self.spec_url}: {exc}"
             raise FileNotFoundError(msg) from exc
 
-    def _serialize(self, data: dict[str, Any]) -> bytes:
+    def _serialize(self, data: dict[str, Any] | list[Any]) -> bytes:
         """Serialize data using configured serializer.
 
         Args:
-            data: Dictionary to serialize
+            data: Dictionary or list to serialize
 
         Returns:
             Serialized bytes

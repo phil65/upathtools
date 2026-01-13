@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import importlib
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
@@ -14,6 +13,8 @@ from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResu
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pydantic import TypeAdapter
 
 
@@ -118,7 +119,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
         serializer: Literal["json", "json-formatted", "yaml"]
-        | Callable[[dict[str, Any]], str] = "json",
+        | Callable[[dict[str, Any] | list[Any]], str] = "json",
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -129,7 +130,8 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             resolve_refs: If True, transparently resolve $ref when navigating
             target_protocol: Protocol for source file (e.g., 's3', 'file')
             target_options: Options for target protocol
-            serializer: Output format - "json" (compact, default), "json-formatted" (pretty-printed), "yaml", or custom callable
+            serializer: Output format - "json" (compact), "json-formatted" (pretty-printed), "yaml",
+                        or custom callable
             kwargs: Additional keyword arguments for the filesystem
         """
         super().__init__(**kwargs)
@@ -295,11 +297,11 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
         return self._schema
 
-    def _serialize(self, data: dict[str, Any]) -> bytes:
+    def _serialize(self, data: dict[str, Any] | list[Any]) -> bytes:
         """Serialize data using configured serializer.
 
         Args:
-            data: Dictionary to serialize
+            data: Dictionary or list to serialize
 
         Returns:
             Serialized bytes
