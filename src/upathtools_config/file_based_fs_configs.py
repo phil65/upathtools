@@ -90,6 +90,13 @@ class JsonSchemaFilesystemConfig(FileBasedConfig):
     resolve_refs: bool = Field(default=False, title="Resolve References")
     """Whether to automatically resolve $ref references in the schema"""
 
+    serializer: Literal["json", "json-formatted", "yaml"] = Field(
+        default="json",
+        title="Serializer Format",
+        examples=["json", "json-formatted", "yaml"],
+    )
+    """Output format: 'json' (compact, most efficient), 'json-formatted' (pretty-printed), or 'yaml'"""
+
 
 class SqliteFilesystemConfig(FileBasedConfig):
     """Configuration for SQLite database filesystem."""

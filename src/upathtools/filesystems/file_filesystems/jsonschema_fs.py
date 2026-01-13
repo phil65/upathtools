@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import importlib
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
@@ -116,6 +117,8 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         resolve_refs: bool = False,
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
+        serializer: Literal["json", "json-formatted", "yaml"]
+        | Callable[[dict[str, Any]], str] = "json",
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -126,6 +129,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             resolve_refs: If True, transparently resolve $ref when navigating
             target_protocol: Protocol for source file (e.g., 's3', 'file')
             target_options: Options for target protocol
+            serializer: Output format - "json" (compact, default), "json-formatted" (pretty-printed), "yaml", or custom callable
             kwargs: Additional keyword arguments for the filesystem
         """
         super().__init__(**kwargs)
@@ -142,6 +146,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         self.resolve_refs = resolve_refs
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
+        self.serializer = serializer
         self._schema: dict[str, Any] | None = None
 
     @classmethod
@@ -289,6 +294,35 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             raise FileNotFoundError(msg) from exc
 
         return self._schema
+
+    def _serialize(self, data: dict[str, Any]) -> bytes:
+        """Serialize data using configured serializer.
+
+        Args:
+            data: Dictionary to serialize
+
+        Returns:
+            Serialized bytes
+        """
+        if callable(self.serializer):
+            # Custom serializer
+            result = self.serializer(data)
+            return result.encode() if isinstance(result, str) else result
+
+        if self.serializer == "yaml":
+            try:
+                import yaml
+
+                return yaml.dump(data, default_flow_style=False, sort_keys=False).encode()
+            except ImportError as exc:
+                msg = "PyYAML is required for YAML serialization. Install with: pip install pyyaml"
+                raise ImportError(msg) from exc
+
+        if self.serializer == "json-formatted":
+            return json.dumps(data, indent=2).encode()
+
+        # Default: compact JSON
+        return json.dumps(data, separators=(",", ":")).encode()
 
     def _get_schema_at_path(self, path_parts: list[str]) -> dict[str, Any] | None:
         """Navigate to a specific path in the schema and return that subschema."""
@@ -708,7 +742,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         parts = path.split("/") if path else []
 
         if not parts or parts[-1] == "__raw__":
-            return json.dumps(schema, indent=2).encode()
+            return self._serialize(schema)
 
         if parts[-1] == "__meta__":
             meta = {
@@ -717,20 +751,20 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
                 "description": schema.get("description"),
                 "type": schema.get("type"),
             }
-            return json.dumps({k: v for k, v in meta.items() if v}, indent=2).encode()
+            return self._serialize({k: v for k, v in meta.items() if v})
 
         # Handle __schema__ for nested paths
         if parts[-1] == "__schema__":
             node = self._navigate_to_node(parts[:-1])
             if node is not None:
-                return json.dumps(node, indent=2).encode()
+                return self._serialize(node)
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
 
         # Navigate to the specific property/definition
         node = self._navigate_to_node(parts)
         if node is not None:
-            return json.dumps(node, indent=2).encode()
+            return self._serialize(node)
 
         msg = f"Path not found: {path}"
         raise FileNotFoundError(msg)
