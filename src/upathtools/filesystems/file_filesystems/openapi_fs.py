@@ -385,7 +385,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                 if is_operation_detail:
                     # List operation details
                     # Reconstruct path from parts excluding the method
-                    path_parts = parts[1:-1]  # All parts except first (paths) and last (method)
+                    path_parts = [p for p in parts[1:-1] if p]  # Filter empty strings
                     path_key = "/" + "/".join(path_parts)
                     method = parts[-1].lower()  # Last part is the method
 
@@ -437,7 +437,8 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                     ]
                 # List operations for a specific path
                 # Reconstruct path from parts, handling {id} parameters
-                path_key = "/" + "/".join(parts[1:])
+                path_parts = [p for p in parts[1:] if p]
+                path_key = "/" + "/".join(path_parts)
                 resolved_path = self._resolve_path_key(path_key)
                 if not resolved_path:
                     return []
@@ -656,13 +657,17 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                         pass
 
             case "paths":
-                if len(parts) == 2:  # noqa: PLR2004
-                    path_key = "/" + parts[1]
+                # Filter empty parts from double slashes
+                non_empty_parts = [p for p in parts[1:] if p]
+
+                if len(non_empty_parts) == 1:
+                    # Reading a full path object like /paths//session
+                    path_key = "/" + non_empty_parts[0]
                     resolved_path = self._resolve_path_key(path_key)
                     if resolved_path and resolved_path in self._spec.paths:
                         path_obj = self._spec.paths[resolved_path]
                         return json.dumps(path_obj.raw_element, indent=2).encode()
-                if len(parts) >= 3:  # noqa: PLR2004
+                if len(non_empty_parts) >= 2:  # noqa: PLR2004
                     # Check if last part is an HTTP method
                     possible_methods = [
                         "get",
@@ -684,12 +689,12 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                         # Format: /paths/.../METHOD/SECTION
                         method = parts[-2].lower()
                         section = parts[-1]
-                        path_parts = parts[1:-2]  # Everything except paths, method, section
+                        path_parts = [p for p in parts[1:-2] if p]  # Filter empty strings
                     elif parts[-1].lower() in possible_methods:
                         # Format: /paths/.../METHOD
                         method = parts[-1].lower()
                         section = None
-                        path_parts = parts[1:-1]  # Everything except paths and method
+                        path_parts = [p for p in parts[1:-1] if p]  # Filter empty strings
                     else:
                         return b""
 
@@ -822,7 +827,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                         )
                 elif len(parts) >= 3:  # noqa: PLR2004
                     # Reconstruct path from parts excluding the method
-                    path_parts = parts[1:-1]  # All parts except first (paths) and last (method)
+                    path_parts = [p for p in parts[1:-1] if p]  # Filter empty strings
                     path_key = "/" + "/".join(path_parts)
                     method = parts[-1].lower()  # Last part is the method
 
