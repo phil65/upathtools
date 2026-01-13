@@ -56,6 +56,13 @@ class OpenApiFilesystemConfig(FileBasedConfig):
     )
     """Path to OpenAPI specification file"""
 
+    serializer: Literal["json", "json-formatted", "yaml"] = Field(
+        default="json",
+        title="Serializer Format",
+        examples=["json", "json-formatted", "yaml"],
+    )
+    """Output format: 'json' (compact, most efficient), 'json-formatted' (pretty-printed), or 'yaml'"""
+
 
 class JsonSchemaFilesystemConfig(FileBasedConfig):
     """Configuration for JSON Schema filesystem."""

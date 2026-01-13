@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse
@@ -156,6 +157,8 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         self,
         spec_url: str = "",
         headers: dict[str, str] | None = None,
+        serializer: Literal["json", "json-formatted", "yaml"]
+        | Callable[[dict[str, Any]], str] = "json",
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.
@@ -163,6 +166,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         Args:
             spec_url: URL or file path to OpenAPI specification
             headers: HTTP headers for fetching remote specs (e.g., {"Authorization": "Bearer token"})
+            serializer: Output format - "json" (compact, default), "json-formatted" (pretty-printed), "yaml", or custom callable
             kwargs: Additional keyword arguments for the filesystem
         """  # noqa: E501
         super().__init__(**kwargs)
@@ -177,6 +181,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
         self.spec_url = url
         self.headers = headers or {}
+        self.serializer = serializer
         self._spec: OpenAPI | None = None
 
     @staticmethod
@@ -218,6 +223,35 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         except Exception as exc:
             msg = f"Failed to load OpenAPI spec from {self.spec_url}: {exc}"
             raise FileNotFoundError(msg) from exc
+
+    def _serialize(self, data: dict[str, Any]) -> bytes:
+        """Serialize data using configured serializer.
+
+        Args:
+            data: Dictionary to serialize
+
+        Returns:
+            Serialized bytes
+        """
+        if callable(self.serializer):
+            # Custom serializer
+            result = self.serializer(data)
+            return result.encode() if isinstance(result, str) else result
+
+        if self.serializer == "yaml":
+            try:
+                import yaml
+
+                return yaml.dump(data, default_flow_style=False, sort_keys=False).encode()
+            except ImportError as exc:
+                msg = "PyYAML is required for YAML serialization. Install with: pip install pyyaml"
+                raise ImportError(msg) from exc
+
+        if self.serializer == "json-formatted":
+            return json.dumps(data, indent=2).encode()
+
+        # Default: compact JSON
+        return json.dumps(data, separators=(",", ":")).encode()
 
     def _resolve_path_key(self, path_key: str) -> str | None:
         """Resolve a path key, handling parameterized paths like {id}."""
@@ -537,7 +571,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
         if not path:
             # Return full spec as JSON
-            return json.dumps(self._spec.raw_element, indent=2).encode()
+            return self._serialize(self._spec.raw_element)
 
         parts = path.split("/")
 
@@ -547,16 +581,13 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
             match special_path:
                 case "__openapi__":
-                    return json.dumps(
-                        {
-                            "openapi": self._spec.openapi,
-                            "spec_url": self.spec_url,
-                        },
-                        indent=2,
-                    ).encode()
+                    return self._serialize({
+                        "openapi": self._spec.openapi,
+                        "spec_url": self.spec_url,
+                    })
 
                 case "__raw__":
-                    return json.dumps(self._spec.raw_element, indent=2).encode()
+                    return self._serialize(self._spec.raw_element)
 
                 case "__curl__":
                     # Generate curl command for operation
@@ -614,7 +645,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                                         "description": operation.description,
                                         "tags": operation.tags,
                                     }
-                                    return json.dumps(summary, indent=2).encode()
+                                    return self._serialize(summary)
 
         # Handle regular paths
         match parts[0]:
@@ -631,14 +662,14 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                             "email": self._spec.info.contact.email,
                             "url": self._spec.info.contact.url,
                         }
-                    return json.dumps(info_data, indent=2).encode()
+                    return self._serialize(info_data)
                 if len(parts) == 2:  # noqa: PLR2004
                     field = parts[1]
                     if hasattr(self._spec.info, field):
                         value = getattr(self._spec.info, field)
                         if isinstance(value, str):
                             return value.encode()
-                        return json.dumps(value, indent=2, default=str).encode()
+                        return self._serialize(value)
 
             case "servers":
                 if len(parts) == 2 and self._spec.servers:  # noqa: PLR2004
@@ -646,13 +677,10 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                         idx = int(parts[1])
                         if 0 <= idx < len(self._spec.servers):
                             server = self._spec.servers[idx]
-                            return json.dumps(
-                                {
-                                    "url": server.url,
-                                    "description": server.description,
-                                },
-                                indent=2,
-                            ).encode()
+                            return self._serialize({
+                                "url": server.url,
+                                "description": server.description,
+                            })
                     except ValueError:
                         pass
 
@@ -666,7 +694,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
                     resolved_path = self._resolve_path_key(path_key)
                     if resolved_path and resolved_path in self._spec.paths:
                         path_obj = self._spec.paths[resolved_path]
-                        return json.dumps(path_obj.raw_element, indent=2).encode()
+                        return self._serialize(path_obj.raw_element)
                 if len(non_empty_parts) >= 2:  # noqa: PLR2004
                     # Check if last part is an HTTP method
                     possible_methods = [
@@ -711,23 +739,21 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
                             if section is None:
                                 # Return full operation
-                                return json.dumps(operation.raw_element, indent=2).encode()
+                                return self._serialize(operation.raw_element)
                             if section == "parameters" and operation.parameters:
                                 params = [p.raw_element for p in operation.parameters]
-                                return json.dumps(params, indent=2).encode()
+                                return self._serialize(params)
                             if section == "responses" and operation.responses:
                                 responses = {
                                     k: v.raw_element for k, v in operation.responses.items()
                                 }
-                                return json.dumps(responses, indent=2).encode()
+                                return self._serialize(responses)
                             if (
                                 section == "requestBody"
                                 and hasattr(operation, "requestBody")
                                 and operation.requestBody
                             ):
-                                return json.dumps(
-                                    operation.requestBody.raw_element, indent=2
-                                ).encode()
+                                return self._serialize(operation.requestBody.raw_element)
 
             case "components":
                 if len(parts) >= 2 and self._spec.components:  # noqa: PLR2004
@@ -736,16 +762,13 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
                     if component_map:
                         if len(parts) == 2:  # noqa: PLR2004
-                            return json.dumps(
-                                {k: v.raw_element for k, v in component_map.items()},
-                                indent=2,
-                            ).encode()
+                            return self._serialize({
+                                k: v.raw_element for k, v in component_map.items()
+                            })
                         if len(parts) == 3:  # noqa: PLR2004
                             component_name = parts[2]
                             if component_name in component_map:
-                                return json.dumps(
-                                    component_map[component_name].raw_element, indent=2
-                                ).encode()
+                                return self._serialize(component_map[component_name].raw_element)
 
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
