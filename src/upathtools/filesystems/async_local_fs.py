@@ -37,6 +37,15 @@ class LocalFileInfo(FileInfo, total=False):
     destination: Required[bool]
 
 
+# Windows path normalization for fsspec compatibility
+_IS_WINDOWS = os.name == "nt"
+
+
+def _normalize_path(path: str) -> str:
+    """Normalize path separators to forward slashes (fsspec convention)."""
+    return path.replace("\\", "/") if _IS_WINDOWS else path
+
+
 class LocalPath(BaseUPath[LocalFileInfo]):
     """UPath implementation for local filesystem."""
 
@@ -147,8 +156,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             src = self._strip_protocol(src)
             return await self._get_file_async(src, dst)
 
-        fsrc = await self.open_async(src, "rb")
-        async with fsrc:
+        async with await self.open_async(src, "rb") as fsrc:
             while True:
                 buf = await fsrc.read(length=shutil.COPY_BUFSIZE)  # type: ignore[attr-defined]
                 if not buf:
@@ -207,12 +215,12 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
 
         Uses ripgrep-rs for both detail=False and detail=True modes.
         """
+        from ripgrep_rs import files as rg_files, files_with_info
+
         loop = get_running_loop()
         abs_path = str(Path(self._strip_protocol(path)).resolve())
 
         if detail:
-            from ripgrep_rs import files_with_info
-
             # Use files_with_info for metadata - returns dict[str, FileInfo]
             rg_result = await loop.run_in_executor(
                 None,
@@ -227,8 +235,9 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 ),
             )
             # Convert FileInfo objects to fsspec-compatible dicts
+            # Normalize paths to forward slashes (fsspec convention)
             return {
-                path: LocalFileInfo(
+                _normalize_path(p): LocalFileInfo(
                     name=info.name,
                     size=info.size,
                     type="directory" if info.type == "directory" else "file",
@@ -242,13 +251,11 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                     nlink=info.nlink,
                     destination=False,  # Not a symlink destination
                 )
-                for path, info in rg_result.items()
+                for p, info in rg_result.items()
             }
 
-        from ripgrep_rs import files as rg_files
-
         # ripgrep-rs runs in a thread pool since it releases the GIL
-        return await loop.run_in_executor(
+        results = await loop.run_in_executor(
             None,
             partial(
                 rg_files,
@@ -260,6 +267,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 absolute=True,  # Ensure absolute paths (for Windows)
             ),
         )
+        # Normalize paths to forward slashes (fsspec convention)
+        return [_normalize_path(p) for p in results]
 
     @overload
     async def _glob(
@@ -296,6 +305,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         """
         from glob import has_magic
 
+        from ripgrep_rs import files as rg_files, files_with_info
+
         stripped = self._strip_protocol(path)
         if not has_magic(path):
             # No glob pattern - fall back to base implementation
@@ -322,10 +333,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             depth = 1  # Only match in the specified directory
 
         abs_base = str(Path(base).resolve())
-
         if detail:
-            from ripgrep_rs import files_with_info
-
             # Use files_with_info for metadata - returns dict[str, FileInfo]
             rg_result = await loop.run_in_executor(
                 None,
@@ -341,8 +349,9 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 ),
             )
             # Convert FileInfo objects to fsspec-compatible dicts
+            # Normalize paths to forward slashes (fsspec convention)
             return {
-                path: LocalFileInfo(
+                _normalize_path(p): LocalFileInfo(
                     name=info.name,
                     size=info.size,
                     type="directory" if info.type == "directory" else "file",
@@ -356,12 +365,9 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                     nlink=info.nlink,
                     destination=False,  # Not a symlink destination
                 )
-                for path, info in rg_result.items()
+                for p, info in rg_result.items()
             }
-
-        from ripgrep_rs import files as rg_files
-
-        return await loop.run_in_executor(
+        results = await loop.run_in_executor(
             None,
             partial(
                 rg_files,
@@ -374,6 +380,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 absolute=True,  # Ensure absolute paths (for Windows)
             ),
         )
+        # Normalize paths to forward slashes (fsspec convention)
+        return [_normalize_path(p) for p in results]
 
     async def _grep(
         self,
@@ -410,8 +418,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         Raises:
             ImportError: If ripgrep-rs is not installed
         """
-        from pathlib import Path
-
         from ripgrep_rs import search as rg_search
 
         loop = get_running_loop()
@@ -449,9 +455,11 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                     obj = json.loads(line)
                     if obj.get("type") == "match":
                         data = obj["data"]
+                        # Normalize path to forward slashes (fsspec convention)
+                        match_path = _normalize_path(data["path"]["text"])
                         matches.append(
                             GrepMatch(
-                                path=data["path"]["text"],
+                                path=match_path,
                                 line_number=data["line_number"],
                                 text=data["lines"]["text"].rstrip("\n"),
                                 submatches=[
