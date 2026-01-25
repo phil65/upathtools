@@ -280,27 +280,28 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         from glob import has_magic
         from pathlib import Path
 
-        # Fast path: use ripgrep-rs for simple globs
+        # Fast path: use ripgrep-rs for globs
+        stripped = self._strip_protocol(path)
         if not detail and has_magic(path):
             try:
                 from ripgrep_rs import files as rg_files
 
                 loop = get_running_loop()
 
-                # Extract base path and pattern from glob
-                # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="*.py"
-                stripped = self._strip_protocol(path)
                 if "**" in stripped:
                     # Recursive glob - split at first **
+                    # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
                     idx = stripped.find("**")
                     base = stripped[:idx].rstrip("/") or "."
-                    # Convert the rest to a ripgrep glob pattern
                     glob_pattern = stripped[idx:]
+                    depth = None  # No depth limit for ** patterns
                 else:
-                    # Simple glob - get parent directory
+                    # Non-recursive glob - use max_depth=1
+                    # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
                     p = Path(stripped)
                     base = str(p.parent) if str(p.parent) != "." else "."
                     glob_pattern = p.name
+                    depth = 1  # Only match in the specified directory
 
                 abs_base = str(Path(base).resolve())
 
@@ -313,6 +314,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                         globs=[glob_pattern],
                         hidden=kwargs.get("hidden", False),
                         no_ignore=kwargs.get("no_ignore", False),
+                        max_depth=depth,
                     ),
                 )
             except ImportError:

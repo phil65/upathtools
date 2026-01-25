@@ -2,7 +2,7 @@
 
 [project]
 name = "upathtools"
-version = "1.18.1"
+version = "1.18.2"
 description = "UPath utilities"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -31,7 +31,7 @@ dependencies = [
   "fsspec>=2025.2.0",
   "morefs[asynclocalfs]>=0.2.2",
   "python-dotenv>=1.0.0",
-  "ripgrep-rs>=0.3.1",
+  "ripgrep-rs>=0.3.2",
   "universal-pathlib>=0.2.6",
 ]
 
