@@ -160,7 +160,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         for p, info in sorted(allpaths.items()):
             # TInfoDict is typically dict[str, Any] or a TypedDict with "type" key
             # All fsspec info dicts have a "type" field
-            is_dir = info.get("type") == "directory"  # pyright: ignore[reportAttributeAccessIssue]
+            is_dir = info.get("type") == "directory"  # type: ignore[attr-defined]
             match_path = p + "/" if append_slash_to_dirname and is_dir else p
             if compiled_pattern.match(match_path):
                 out[p] = info

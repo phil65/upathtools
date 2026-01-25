@@ -363,13 +363,37 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             msg = f"Failed to move {path1} to {path2}: {exc}"
             raise OSError(msg) from exc
 
+    @overload
     async def _find(
         self,
         path: str,
         maxdepth: int | None = None,
         withdirs: bool = False,
+        *,
+        detail: Literal[False] = False,
         **kwargs: Any,
-    ) -> list[str]:
+    ) -> list[str]: ...
+
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, DaytonaInfo]: ...
+
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, DaytonaInfo]:
         """Recursively list all files using Daytona's search_files.
 
         More efficient than walking the directory tree.
@@ -382,7 +406,19 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             msg = f"Failed to find files in {path}: {exc}"
             raise OSError(msg) from exc
         else:
-            return result.files
+            files = result.files
+            if detail:
+                # Return dict with minimal info (search_files doesn't return metadata)
+                return {
+                    f: DaytonaInfo(
+                        name=f,
+                        type="file",  # search_files only returns files
+                        size=0,
+                        mtime=0.0,
+                    )
+                    for f in files
+                }
+            return files
 
     @overload
     async def _glob(

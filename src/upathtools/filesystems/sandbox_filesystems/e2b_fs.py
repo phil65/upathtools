@@ -411,13 +411,37 @@ with open({path!r}, 'wb') as f:
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
 
+    @overload
     async def _find(
         self,
         path: str,
         maxdepth: int | None = None,
         withdirs: bool = False,
+        *,
+        detail: Literal[False] = False,
         **kwargs: Any,
-    ) -> list[str]:
+    ) -> list[str]: ...
+
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, E2BInfo]: ...
+
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, E2BInfo]:
         """Recursively list all files using E2B's depth parameter.
 
         More efficient than walking the directory tree with multiple _ls calls.
@@ -438,9 +462,24 @@ with open({path!r}, 'wb') as f:
         else:
             from e2b.sandbox.filesystem.filesystem import FileType
 
-            if withdirs:
-                return [item.path for item in items]
-            return [item.path for item in items if item.type == FileType.FILE]
+            filtered = items if withdirs else [item for item in items if item.type == FileType.FILE]
+
+            if detail:
+                return {
+                    item.path: E2BInfo(
+                        name=item.path,
+                        type="directory" if item.type == FileType.DIRECTORY else "file",
+                        size=0,  # E2B list doesn't return size
+                        mtime=0.0,
+                        mode=0,
+                        permissions="",
+                        owner="",
+                        group="",
+                        symlink_target=None,
+                    )
+                    for item in filtered
+                }
+            return [item.path for item in filtered]
 
     # TODO: Add _glob and _grep using sandbox.commands.run() with Linux CLI tools (find, grep)
     # This would be faster than fsspec's default implementations.
