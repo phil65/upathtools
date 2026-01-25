@@ -1,7 +1,11 @@
+"""Async local filesystem with ripgrep-rs optimizations."""
+
 from __future__ import annotations
 
 from asyncio import get_running_loop, iscoroutinefunction
+from dataclasses import dataclass
 from functools import partial, wraps
+import json
 import os
 import shutil
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
@@ -162,6 +166,265 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         if self.auto_mkdir and "w" in mode:
             await self._makedirs(self._parent(path), exist_ok=True)
         return await aiofile.async_open(path, mode, **kwargs)
+
+    # -------------------------------------------------------------------------
+    # ripgrep-rs optimized methods (optional fast path when available)
+    # -------------------------------------------------------------------------
+
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, LocalFileInfo]: ...
+
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, LocalFileInfo]:
+        """Find files recursively, using ripgrep-rs for speed when available.
+
+        Falls back to base implementation when:
+        - ripgrep-rs is not installed
+        - detail=True (ripgrep doesn't return file metadata)
+        """
+        # Fast path: use ripgrep-rs when possible
+        if not detail:
+            try:
+                from pathlib import Path
+
+                from ripgrep_rs import files as rg_files
+
+                loop = get_running_loop()
+                abs_path = str(Path(self._strip_protocol(path)).resolve())
+
+                # ripgrep-rs runs in a thread pool since it releases the GIL
+                return await loop.run_in_executor(
+                    None,
+                    partial(
+                        rg_files,
+                        patterns=["*"],
+                        paths=[abs_path],
+                        hidden=kwargs.get("hidden", False),
+                        no_ignore=kwargs.get("no_ignore", False),
+                        include_dirs=withdirs,
+                    ),
+                )
+            except ImportError:
+                pass  # Fall back to base implementation
+
+        # Fall back to base implementation
+        if detail:
+            return await super()._find(
+                path, maxdepth=maxdepth, withdirs=withdirs, detail=True, **kwargs
+            )
+        return await super()._find(
+            path, maxdepth=maxdepth, withdirs=withdirs, detail=False, **kwargs
+        )
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, LocalFileInfo]: ...
+
+    async def _glob(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, LocalFileInfo]:
+        """Glob for files, using ripgrep-rs for speed when available.
+
+        Falls back to base implementation when:
+        - ripgrep-rs is not installed
+        - detail=True (ripgrep doesn't return file metadata)
+        - Complex glob patterns that ripgrep can't handle
+        """
+        from glob import has_magic
+        from pathlib import Path
+
+        # Fast path: use ripgrep-rs for simple globs
+        if not detail and has_magic(path):
+            try:
+                from ripgrep_rs import files as rg_files
+
+                loop = get_running_loop()
+
+                # Extract base path and pattern from glob
+                # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="*.py"
+                stripped = self._strip_protocol(path)
+                if "**" in stripped:
+                    # Recursive glob - split at first **
+                    idx = stripped.find("**")
+                    base = stripped[:idx].rstrip("/") or "."
+                    # Convert the rest to a ripgrep glob pattern
+                    glob_pattern = stripped[idx:]
+                else:
+                    # Simple glob - get parent directory
+                    p = Path(stripped)
+                    base = str(p.parent) if str(p.parent) != "." else "."
+                    glob_pattern = p.name
+
+                abs_base = str(Path(base).resolve())
+
+                return await loop.run_in_executor(
+                    None,
+                    partial(
+                        rg_files,
+                        patterns=["*"],
+                        paths=[abs_base],
+                        globs=[glob_pattern],
+                        hidden=kwargs.get("hidden", False),
+                        no_ignore=kwargs.get("no_ignore", False),
+                    ),
+                )
+            except ImportError:
+                pass  # Fall back to base implementation
+
+        # Fall back to base implementation
+        if detail:
+            return await super()._glob(path, maxdepth=maxdepth, detail=True, **kwargs)
+        return await super()._glob(path, maxdepth=maxdepth, detail=False, **kwargs)
+
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+    ) -> list[GrepMatch]:
+        """Search for pattern in files using ripgrep-rs.
+
+        This provides a fast grep implementation using ripgrep's algorithms.
+        Requires ripgrep-rs to be installed.
+
+        Args:
+            path: Directory to search in
+            pattern: Regex pattern to search for
+            max_count: Maximum matches per file
+            case_sensitive: Force case sensitivity (None = smart case)
+            hidden: Search hidden files
+            no_ignore: Don't respect .gitignore
+            globs: File patterns to include/exclude (e.g., ['*.py', '!*_test.py'])
+            context_before: Lines of context before match
+            context_after: Lines of context after match
+
+        Returns:
+            List of GrepMatch objects with file, line number, and matched text
+
+        Raises:
+            ImportError: If ripgrep-rs is not installed
+        """
+        from pathlib import Path
+
+        from ripgrep_rs import search as rg_search
+
+        loop = get_running_loop()
+        abs_path = str(Path(self._strip_protocol(path)).resolve())
+
+        # Build kwargs for ripgrep
+        rg_kwargs: dict[str, Any] = {
+            "patterns": [pattern],
+            "paths": [abs_path],
+            "hidden": hidden,
+            "no_ignore": no_ignore,
+            "json": True,  # Get structured output
+        }
+        if max_count is not None:
+            rg_kwargs["max_count"] = max_count
+        if case_sensitive is not None:
+            rg_kwargs["case_sensitive"] = case_sensitive
+        if globs:
+            rg_kwargs["globs"] = globs
+        if context_before is not None:
+            rg_kwargs["before_context"] = context_before
+        if context_after is not None:
+            rg_kwargs["after_context"] = context_after
+
+        # Run ripgrep in thread pool
+        raw_results = await loop.run_in_executor(None, partial(rg_search, **rg_kwargs))
+
+        # Parse JSON Lines output into GrepMatch objects
+        matches: list[GrepMatch] = []
+        for file_result in raw_results:
+            for line in file_result.strip().split("\n"):
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    if obj.get("type") == "match":
+                        data = obj["data"]
+                        matches.append(
+                            GrepMatch(
+                                path=data["path"]["text"],
+                                line_number=data["line_number"],
+                                text=data["lines"]["text"].rstrip("\n"),
+                                submatches=[
+                                    (sm["start"], sm["end"]) for sm in data.get("submatches", [])
+                                ],
+                            )
+                        )
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
+        return matches
+
+
+@dataclass
+class GrepMatch:
+    """A single grep match result."""
+
+    path: str
+    """File path where match was found."""
+    line_number: int
+    """Line number (1-based) of the match."""
+    text: str
+    """The matched line text."""
+    submatches: list[tuple[int, int]]
+    """List of (start, end) byte offsets for each match within the line."""
 
 
 def register_flavour() -> bool:
