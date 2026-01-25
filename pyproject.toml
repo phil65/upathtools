@@ -43,6 +43,7 @@ Issues = "https://github.com/phil65/upathtools/issues"
 Source = "https://github.com/phil65/upathtools"
 
 [project.entry-points."fsspec.specs"]
+asynclocal = "upathtools.filesystems:AsyncLocalFileSystem"
 gist = "upathtools.filesystems:GistFileSystem"
 wiki = "upathtools.filesystems:WikiFileSystem"
 markdown = "upathtools.filesystems:MarkdownFileSystem"
@@ -76,6 +77,7 @@ microsandbox = "upathtools.filesystems:MicrosandboxFS"
 upathtools = "upathtools.filetree:setup_jinjarope_filters"
 
 [project.entry-points."universal_pathlib.implementations"]
+asynclocal = "upathtools.filesystems:LocalPath"
 gist = "upathtools.filesystems:GistPath"
 wiki = "upathtools.filesystems:WikiPath"
 markdown = "upathtools.filesystems:MarkdownPath"
