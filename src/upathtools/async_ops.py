@@ -31,7 +31,8 @@ def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFile
     import fsspec
     from fsspec.asyn import AsyncFileSystem
     from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
-    from morefs.asyn_local import AsyncLocalFileSystem
+
+    from upathtools.filesystems import AsyncLocalFileSystem
 
     if isinstance(protocol_or_fs, str):
         if protocol_or_fs in ("", "file"):

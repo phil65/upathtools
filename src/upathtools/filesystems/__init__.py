@@ -41,11 +41,13 @@ from .combining_filesystems import OverlayFileSystem, OverlayPath
 from .combining_filesystems import UnionFileSystem, UnionPath
 from .package_fs import PackageFileSystem, PackagePath
 from .httpx_fs import HTTPFileSystem, HttpPath
+from .async_local_fs import AsyncLocalFileSystem, LocalPath
 
 __all__ = [
     "E2BFS",
     "AppwriteFileSystem",
     "AppwritePath",
+    "AsyncLocalFileSystem",
     "BaseModelFileSystem",
     "BaseModelInstanceFileSystem",
     "BaseModelInstancePath",
@@ -71,6 +73,7 @@ __all__ = [
     "JsonSchemaPath",
     "LinearIssueFileSystem",
     "LinearIssuePath",
+    "LocalPath",
     "MCPFileSystem",
     "MCPPath",
     "MCPToolsFileSystem",
