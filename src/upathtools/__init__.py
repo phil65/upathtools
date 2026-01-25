@@ -19,6 +19,7 @@ __url__ = "https://github.com/phil65/upathtools"
 from fsspec import register_implementation
 from upath import registry, UPath
 
+from upathtools.core import url_to_fs
 from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import (
     read_path,
@@ -111,4 +112,5 @@ __all__ = [
     "register_http_filesystems",
     "to_upath",
     "upath_to_fs",
+    "url_to_fs",
 ]
