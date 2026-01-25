@@ -31,7 +31,7 @@ dependencies = [
   "fsspec>=2025.2.0",
   "morefs[asynclocalfs]>=0.2.2",
   "python-dotenv>=1.0.0",
-  "ripgrep-rs>=0.2.1",
+  "ripgrep-rs>=0.3.1",
   "universal-pathlib>=0.2.6",
 ]
 
