@@ -17,6 +17,10 @@ if TYPE_CHECKING:
 
     from pydantic import TypeAdapter
 
+    Serializer = (
+        Literal["json", "json-formatted", "yaml"] | Callable[[dict[str, Any] | list[Any]], str]
+    )
+
 
 class JsonSchemaInfo(TypedDict, total=False):
     """Info dict for JSON Schema filesystem paths."""
@@ -118,8 +122,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         resolve_refs: bool = False,
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
-        serializer: Literal["json", "json-formatted", "yaml"]
-        | Callable[[dict[str, Any] | list[Any]], str] = "json",
+        serializer: Serializer = "json",
         **kwargs: Any,
     ) -> None:
         """Initialize the filesystem.

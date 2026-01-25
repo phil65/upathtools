@@ -224,8 +224,7 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
             try:
                 current_obj, field_name = _get_nested_value_at_path(self.instance, field_path)
             except FileNotFoundError:
-                msg = f"Path {field_path} not found"
-                raise FileNotFoundError(msg) from None
+                raise FileNotFoundError(f"Path {field_path} not found") from None
 
             target_obj = getattr(current_obj, field_name) if field_name else current_obj
 
@@ -245,14 +244,14 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
                 case "__schema__":
                     if _is_basemodel_instance(target_obj):
                         return json.dumps(target_obj.model_json_schema(), indent=2).encode()
-                    msg = "Schema only available for BaseModel instances"
-                    raise FileNotFoundError(msg)
+
+                    raise FileNotFoundError("Schema only available for BaseModel instances")
 
                 case "__model_dump__":
                     if _is_basemodel_instance(target_obj):
                         return json.dumps(target_obj.model_dump(), indent=2).encode()
-                    msg = "model_dump only available for BaseModel instances"
-                    raise FileNotFoundError(msg)
+
+                    raise FileNotFoundError("model_dump only available for BaseModel instances")
 
                 case "__value__":
                     return str(target_obj).encode()
@@ -269,31 +268,29 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
                 case "__length__":
                     if hasattr(target_obj, "__len__"):
                         return str(len(target_obj)).encode()
-                    msg = f"Length not available for {type(target_obj)}"
-                    raise FileNotFoundError(msg)
+
+                    raise FileNotFoundError(f"Length not available for {type(target_obj)}")
 
                 case "__keys__":
                     if _is_dict_like(target_obj):
                         return json.dumps(list(target_obj.keys()), indent=2).encode()
-                    msg = "Keys only available for dict-like objects"
-                    raise FileNotFoundError(msg)
+
+                    raise FileNotFoundError("Keys only available for dict-like objects")
 
                 case "__values__":
                     if _is_dict_like(target_obj):
                         return json.dumps(list(target_obj.values()), indent=2, default=str).encode()
-                    msg = "Values only available for dict-like objects"
-                    raise FileNotFoundError(msg)
+
+                    raise FileNotFoundError("Values only available for dict-like objects")
 
                 case _:
-                    msg = f"Unknown special path: {special_path}"
-                    raise FileNotFoundError(msg)
+                    raise FileNotFoundError(f"Unknown special path: {special_path}")
 
         # Regular field/item path
         try:
             current_obj, field_name = _get_nested_value_at_path(self.instance, path)
         except FileNotFoundError:
-            msg = f"Path {path} not found"
-            raise FileNotFoundError(msg) from None
+            raise FileNotFoundError(f"Path {path} not found") from None
 
         if not field_name:
             # Return the object itself
@@ -304,24 +301,20 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
         # Get the field value
         if _is_basemodel_instance(current_obj):
             if not hasattr(current_obj, field_name):
-                msg = f"Field {field_name} not found"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"Field {field_name} not found")
             field_value = getattr(current_obj, field_name)
         elif _is_list_like(current_obj):
             try:
                 idx = int(field_name)
                 field_value = current_obj[idx]
             except (ValueError, IndexError) as exc:
-                msg = f"Invalid index {field_name}"
-                raise FileNotFoundError(msg) from exc
+                raise FileNotFoundError(f"Invalid index {field_name}") from exc
         elif _is_dict_like(current_obj):
             if field_name not in current_obj:
-                msg = f"Key {field_name} not found"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"Key {field_name} not found")
             field_value = current_obj[field_name]
         else:
-            msg = f"Cannot access {field_name} on {type(current_obj)}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Cannot access {field_name} on {type(current_obj)}")
 
         # Return the field value
         if _is_basemodel_instance(field_value):
@@ -350,8 +343,7 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
         try:
             current_obj, field_name = _get_nested_value_at_path(self.instance, path)
         except FileNotFoundError as exc:
-            msg = f"Path {path} not found"
-            raise FileNotFoundError(msg) from exc
+            raise FileNotFoundError(f"Path {path} not found") from exc
 
         if not field_name:
             # Nested object info
@@ -370,24 +362,20 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
         # Field/item value info
         if _is_basemodel_instance(current_obj):
             if not hasattr(current_obj, field_name):
-                msg = f"Field {field_name} not found"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"Field {field_name} not found")
             field_value = getattr(current_obj, field_name)
         elif _is_list_like(current_obj):
             try:
                 idx = int(field_name)
                 field_value = current_obj[idx]
             except (ValueError, IndexError) as exc:
-                msg = f"Invalid index {field_name}"
-                raise FileNotFoundError(msg) from exc
+                raise FileNotFoundError(f"Invalid index {field_name}") from exc
         elif _is_dict_like(current_obj):
             if field_name not in current_obj:
-                msg = f"Key {field_name} not found"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"Key {field_name} not found")
             field_value = current_obj[field_name]
         else:
-            msg = f"Cannot access {field_name} on {type(current_obj)}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Cannot access {field_name} on {type(current_obj)}")
 
         return BaseModelInstanceInfo(
             name=field_name,
@@ -431,8 +419,7 @@ def _get_nested_value_at_path(instance: BaseModel, path: str) -> tuple[Any, str]
             continue
 
         if not hasattr(current_obj, part):
-            msg = f"Field {part} not found in {type(current_obj).__name__}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Field {part} not found in {type(current_obj).__name__}")
 
         current_obj = getattr(current_obj, part)
 
@@ -442,8 +429,7 @@ def _get_nested_value_at_path(instance: BaseModel, path: str) -> tuple[Any, str]
             if next_part.isdigit():
                 idx = int(next_part)
                 if idx >= len(current_obj):
-                    msg = f"Index {idx} out of range for {part}"
-                    raise FileNotFoundError(msg)
+                    raise FileNotFoundError(f"Index {idx} out of range for {part}")
                 current_obj = current_obj[idx]
                 parts.pop(i + 1)  # Remove the index from parts
 

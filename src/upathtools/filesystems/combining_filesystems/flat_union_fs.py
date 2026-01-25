@@ -190,12 +190,10 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         fs, _ = await self._get_matching_fs(path, **kwargs)
 
         if fs is None:
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"File not found: {path}")
 
         if fs is self:
-            msg = f"Cannot read from directory: {path}"
-            raise IsADirectoryError(msg)
+            raise IsADirectoryError(f"Cannot read from directory: {path}")
 
         # Use the same path in the target filesystem
         return await fs._cat_file(path.lstrip("/"), start=start, end=end, **kwargs)
@@ -207,8 +205,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         """
         logger.debug("Writing to path: %s", path)
         if not self.filesystems:
-            msg = "No filesystems available to write to"
-            raise RuntimeError(msg)
+            raise RuntimeError("No filesystems available to write to")
 
         fs = self.filesystems[0]
         norm_path = path.lstrip("/")
@@ -237,8 +234,8 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
                     size=0,
                     type="directory",
                 )
-            msg = f"Path not found: {path}"
-            raise FileNotFoundError(msg)
+
+            raise FileNotFoundError(f"Path not found: {path}")
 
         if fs is self:
             return FlatUnionInfo(
