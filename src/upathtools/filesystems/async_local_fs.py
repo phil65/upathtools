@@ -219,7 +219,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 abs_path = str(Path(self._strip_protocol(path)).resolve())
 
                 # ripgrep-rs runs in a thread pool since it releases the GIL
-                return await loop.run_in_executor(
+                results = await loop.run_in_executor(
                     None,
                     partial(
                         rg_files,
@@ -230,6 +230,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                         include_dirs=withdirs,
                     ),
                 )
+                # Ensure absolute paths (ripgrep may return relative on Windows)
+                return [str(Path(p).resolve()) for p in results]
             except ImportError:
                 pass  # Fall back to base implementation
 
@@ -305,7 +307,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
 
                 abs_base = str(Path(base).resolve())
 
-                return await loop.run_in_executor(
+                results = await loop.run_in_executor(
                     None,
                     partial(
                         rg_files,
@@ -317,6 +319,8 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                         max_depth=depth,
                     ),
                 )
+                # Ensure absolute paths (ripgrep may return relative on Windows)
+                return [str(Path(p).resolve()) for p in results]
             except ImportError:
                 pass  # Fall back to base implementation
 
