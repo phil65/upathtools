@@ -219,7 +219,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 abs_path = str(Path(self._strip_protocol(path)).resolve())
 
                 # ripgrep-rs runs in a thread pool since it releases the GIL
-                results = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None,
                     partial(
                         rg_files,
@@ -228,10 +228,9 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                         hidden=kwargs.get("hidden", False),
                         no_ignore=kwargs.get("no_ignore", False),
                         include_dirs=withdirs,
+                        absolute=True,  # Ensure absolute paths (for Windows)
                     ),
                 )
-                # Ensure absolute paths (ripgrep may return relative on Windows)
-                return [str(Path(p).resolve()) for p in results]
             except ImportError:
                 pass  # Fall back to base implementation
 
@@ -307,7 +306,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
 
                 abs_base = str(Path(base).resolve())
 
-                results = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None,
                     partial(
                         rg_files,
@@ -317,10 +316,9 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                         hidden=kwargs.get("hidden", False),
                         no_ignore=kwargs.get("no_ignore", False),
                         max_depth=depth,
+                        absolute=True,  # Ensure absolute paths (for Windows)
                     ),
                 )
-                # Ensure absolute paths (ripgrep may return relative on Windows)
-                return [str(Path(p).resolve()) for p in results]
             except ImportError:
                 pass  # Fall back to base implementation
 

@@ -31,7 +31,7 @@ dependencies = [
   "aiofile>=3.9.0",
   "fsspec>=2025.2.0",
   "python-dotenv>=1.0.0",
-  "ripgrep-rs>=0.3.4",
+  "ripgrep-rs>=0.3.5",
   "universal-pathlib>=0.2.6",
 ]
 
