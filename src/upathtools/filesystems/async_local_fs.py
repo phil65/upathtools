@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from asyncio import get_running_loop, iscoroutinefunction
+from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import partial, wraps
+from inspect import iscoroutinefunction
 import json
 import os
+from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
@@ -210,37 +212,27 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         """
         # Fast path: use ripgrep-rs when possible
         if not detail:
-            try:
-                from pathlib import Path
+            from ripgrep_rs import files as rg_files
 
-                from ripgrep_rs import files as rg_files
+            loop = get_running_loop()
+            abs_path = str(Path(self._strip_protocol(path)).resolve())
 
-                loop = get_running_loop()
-                abs_path = str(Path(self._strip_protocol(path)).resolve())
-
-                # ripgrep-rs runs in a thread pool since it releases the GIL
-                return await loop.run_in_executor(
-                    None,
-                    partial(
-                        rg_files,
-                        patterns=["*"],
-                        paths=[abs_path],
-                        hidden=kwargs.get("hidden", False),
-                        no_ignore=kwargs.get("no_ignore", False),
-                        include_dirs=withdirs,
-                        absolute=True,  # Ensure absolute paths (for Windows)
-                    ),
-                )
-            except ImportError:
-                pass  # Fall back to base implementation
-
-        # Fall back to base implementation
-        if detail:
-            return await super()._find(
-                path, maxdepth=maxdepth, withdirs=withdirs, detail=True, **kwargs
+            # ripgrep-rs runs in a thread pool since it releases the GIL
+            return await loop.run_in_executor(
+                None,
+                partial(
+                    rg_files,
+                    patterns=["*"],
+                    paths=[abs_path],
+                    hidden=kwargs.get("hidden", False),
+                    no_ignore=kwargs.get("no_ignore", False),
+                    include_dirs=withdirs,
+                    absolute=True,  # Ensure absolute paths (for Windows)
+                ),
             )
+        # Fall back to base implementation
         return await super()._find(
-            path, maxdepth=maxdepth, withdirs=withdirs, detail=False, **kwargs
+            path, maxdepth=maxdepth, withdirs=withdirs, detail=True, **kwargs
         )
 
     @overload
@@ -279,48 +271,44 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         - Complex glob patterns that ripgrep can't handle
         """
         from glob import has_magic
-        from pathlib import Path
 
         # Fast path: use ripgrep-rs for globs
         stripped = self._strip_protocol(path)
         if not detail and has_magic(path):
-            try:
-                from ripgrep_rs import files as rg_files
+            from ripgrep_rs import files as rg_files
 
-                loop = get_running_loop()
+            loop = get_running_loop()
 
-                if "**" in stripped:
-                    # Recursive glob - split at first **
-                    # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
-                    idx = stripped.find("**")
-                    base = stripped[:idx].rstrip("/") or "."
-                    glob_pattern = stripped[idx:]
-                    depth = None  # No depth limit for ** patterns
-                else:
-                    # Non-recursive glob - use max_depth=1
-                    # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
-                    p = Path(stripped)
-                    base = str(p.parent) if str(p.parent) != "." else "."
-                    glob_pattern = p.name
-                    depth = 1  # Only match in the specified directory
+            if "**" in stripped:
+                # Recursive glob - split at first **
+                # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
+                idx = stripped.find("**")
+                base = stripped[:idx].rstrip("/") or "."
+                glob_pattern = stripped[idx:]
+                depth = None  # No depth limit for ** patterns
+            else:
+                # Non-recursive glob - use max_depth=1
+                # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
+                p = Path(stripped)
+                base = str(p.parent) if str(p.parent) != "." else "."
+                glob_pattern = p.name
+                depth = 1  # Only match in the specified directory
 
-                abs_base = str(Path(base).resolve())
+            abs_base = str(Path(base).resolve())
 
-                return await loop.run_in_executor(
-                    None,
-                    partial(
-                        rg_files,
-                        patterns=["*"],
-                        paths=[abs_base],
-                        globs=[glob_pattern],
-                        hidden=kwargs.get("hidden", False),
-                        no_ignore=kwargs.get("no_ignore", False),
-                        max_depth=depth,
-                        absolute=True,  # Ensure absolute paths (for Windows)
-                    ),
-                )
-            except ImportError:
-                pass  # Fall back to base implementation
+            return await loop.run_in_executor(
+                None,
+                partial(
+                    rg_files,
+                    patterns=["*"],
+                    paths=[abs_base],
+                    globs=[glob_pattern],
+                    hidden=kwargs.get("hidden", False),
+                    no_ignore=kwargs.get("no_ignore", False),
+                    max_depth=depth,
+                    absolute=True,  # Ensure absolute paths (for Windows)
+                ),
+            )
 
         # Fall back to base implementation
         if detail:
@@ -442,6 +430,10 @@ def register_async_local_fs() -> bool:
         True if registration succeeded, False if upath is not available.
     """
     import fsspec
+    from fsspec.implementations.local import make_path_posix
+    from fsspec.utils import stringify_path
+    from upath._flavour_sources import AbstractFileSystemFlavour
+    from upath.registry import register_implementation
 
     # Register in fsspec registry (clobber=True to override morefs)
     fsspec.register_implementation(
@@ -449,15 +441,6 @@ def register_async_local_fs() -> bool:
         "upathtools.filesystems.async_local_fs.AsyncLocalFileSystem",
         clobber=True,
     )
-
-    # Also register UPath flavour
-    try:
-        from upath._flavour_sources import AbstractFileSystemFlavour
-    except ImportError:
-        return False
-
-    from fsspec.implementations.local import make_path_posix
-    from fsspec.utils import stringify_path
 
     class AsyncLocalFileSystemFlavour(AbstractFileSystemFlavour):
         __orig_class__ = "upathtools.filesystems.async_local.AsyncLocalFileSystem"
@@ -506,11 +489,7 @@ def register_async_local_fs() -> bool:
                 return path_[0] + ":/"
             return path_
 
-    # Register the UPath class for asynclocal protocol
-    from upath.registry import register_implementation
-
     register_implementation("asynclocal", LocalPath, clobber=True)
-
     return True
 
 
