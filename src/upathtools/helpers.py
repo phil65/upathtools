@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, overload
 import fsspec
 from upath import UPath
 
+from upathtools import core
+
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -191,9 +193,7 @@ def multi_glob(
         raise ValueError(msg)
 
     def files_from_globs(globs: list[str]) -> set[UPath]:
-        return {
-            file for pattern in globs for file in directory_path.glob(pattern) if file.is_file()
-        }
+        return {p for pattern in globs for p in directory_path.glob(pattern) if p.is_file()}
 
     matching_files = files_from_globs(keep_globs) - files_from_globs(drop_globs)
     return [file.relative_to(to_upath(directory_path)) for file in matching_files]
@@ -234,14 +234,14 @@ def upath_to_fs(
     from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
     from fsspec.implementations.dirfs import DirFileSystem
 
-    fs, parsed_path = fsspec.core.url_to_fs(str(path), **storage_options)
+    fs, parsed_path = core.url_to_fs(str(path), **storage_options)
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     if parsed_path not in ("", "/", "."):
         fs = DirFileSystem(path=parsed_path, fs=fs, asynchronous=asynchronous)
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
-    return fs
+    return fs  # pyright: ignore[reportReturnType]
 
 
 if __name__ == "__main__":
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         try:
             print(f"\nTesting: {path}")
             upath = to_upath(path)
-            _, parsed_path = fsspec.core.url_to_fs(str(upath))
+            _, parsed_path = core.url_to_fs(str(upath))
             print(f"  Parsed path: {parsed_path}")
             # Show our result
             result_fs = upath_to_fs(upath)
