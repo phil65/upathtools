@@ -429,8 +429,26 @@ class GrepMatch:
     """List of (start, end) byte offsets for each match within the line."""
 
 
-def register_flavour() -> bool:
-    """Register UPath flavour for AsyncLocalFileSystem."""
+def register_async_local_fs() -> bool:
+    """Register AsyncLocalFileSystem in fsspec registry, replacing morefs.
+
+    This registers our optimized AsyncLocalFileSystem (with ripgrep-rs support)
+    as the handler for the 'asynclocal' protocol, overriding the default morefs
+    implementation.
+
+    Returns:
+        True if registration succeeded, False if upath is not available.
+    """
+    import fsspec
+
+    # Register in fsspec registry (clobber=True to override morefs)
+    fsspec.register_implementation(
+        "asynclocal",
+        "upathtools.filesystems.async_local_fs.AsyncLocalFileSystem",
+        clobber=True,
+    )
+
+    # Also register UPath flavour
     try:
         from upath._flavour_sources import AbstractFileSystemFlavour
     except ImportError:
@@ -486,7 +504,16 @@ def register_flavour() -> bool:
                 return path_[0] + ":/"
             return path_
 
+    # Register the UPath class for asynclocal protocol
+    from upath.registry import register_implementation
+
+    register_implementation("asynclocal", LocalPath, clobber=True)
+
     return True
+
+
+# Keep old name for backwards compatibility
+register_flavour = register_async_local_fs
 
 
 if __name__ == "__main__":

@@ -28,10 +28,10 @@ classifiers = [
 ]
 dependencies = [
   # Only add below (Copier)
+  "aiofile>=3.9.0",
   "fsspec>=2025.2.0",
-  "morefs[asynclocalfs]>=0.2.2",
   "python-dotenv>=1.0.0",
-  "ripgrep-rs>=0.3.2",
+  "ripgrep-rs>=0.3.4",
   "universal-pathlib>=0.2.6",
 ]
 

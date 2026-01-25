@@ -44,6 +44,17 @@ def register_http_filesystems() -> None:
     registry.register_implementation("https", HttpPath, clobber=True)
 
 
+def register_async_local_filesystem() -> None:
+    """Register AsyncLocalFileSystem, replacing morefs implementation.
+
+    This makes our optimized AsyncLocalFileSystem (with ripgrep-rs support)
+    the default handler for 'asynclocal' protocol.
+    """
+    from upathtools.filesystems.async_local_fs import register_async_local_fs
+
+    register_async_local_fs()
+
+
 def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
     from upathtools.filesystems import DistributionFileSystem, DistributionPath
@@ -56,6 +67,7 @@ def register_all_filesystems() -> None:
     from upathtools.filesystems import WikiFileSystem, WikiPath
 
     register_http_filesystems()
+    register_async_local_filesystem()
 
     register_implementation("distribution", DistributionFileSystem, clobber=True)
     registry.register_implementation("distribution", DistributionPath, clobber=True)
@@ -95,6 +107,7 @@ __all__ = [
     "read_folder_as_text",
     "read_path",
     "register_all_filesystems",
+    "register_async_local_filesystem",
     "register_http_filesystems",
     "to_upath",
     "upath_to_fs",
