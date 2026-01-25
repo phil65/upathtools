@@ -206,33 +206,60 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
     ) -> list[str] | dict[str, LocalFileInfo]:
         """Find files recursively, using ripgrep-rs for speed when available.
 
-        Falls back to base implementation when:
-        - ripgrep-rs is not installed
-        - detail=True (ripgrep doesn't return file metadata)
+        Uses ripgrep-rs for both detail=False and detail=True modes.
         """
-        # Fast path: use ripgrep-rs when possible
-        if not detail:
-            from ripgrep_rs import files as rg_files
+        loop = get_running_loop()
+        abs_path = str(Path(self._strip_protocol(path)).resolve())
 
-            loop = get_running_loop()
-            abs_path = str(Path(self._strip_protocol(path)).resolve())
+        if detail:
+            from ripgrep_rs import files_with_info
 
-            # ripgrep-rs runs in a thread pool since it releases the GIL
-            return await loop.run_in_executor(
+            # Use files_with_info for metadata - returns dict[str, FileInfo]
+            rg_result = await loop.run_in_executor(
                 None,
                 partial(
-                    rg_files,
+                    files_with_info,
                     patterns=["*"],
                     paths=[abs_path],
                     hidden=kwargs.get("hidden", False),
                     no_ignore=kwargs.get("no_ignore", False),
                     include_dirs=withdirs,
-                    absolute=True,  # Ensure absolute paths (for Windows)
+                    absolute=True,
                 ),
             )
-        # Fall back to base implementation
-        return await super()._find(
-            path, maxdepth=maxdepth, withdirs=withdirs, detail=True, **kwargs
+            # Convert FileInfo objects to fsspec-compatible dicts
+            return {
+                path: LocalFileInfo(
+                    name=info.name,
+                    size=info.size,
+                    type="directory" if info.type == "directory" else "file",
+                    created=info.created,
+                    islink=info.islink,
+                    mode=info.mode,
+                    uid=info.uid,
+                    gid=info.gid,
+                    mtime=info.mtime,
+                    ino=info.ino,
+                    nlink=info.nlink,
+                    destination=False,  # Not a symlink destination
+                )
+                for path, info in rg_result.items()
+            }
+
+        from ripgrep_rs import files as rg_files
+
+        # ripgrep-rs runs in a thread pool since it releases the GIL
+        return await loop.run_in_executor(
+            None,
+            partial(
+                rg_files,
+                patterns=["*"],
+                paths=[abs_path],
+                hidden=kwargs.get("hidden", False),
+                no_ignore=kwargs.get("no_ignore", False),
+                include_dirs=withdirs,
+                absolute=True,  # Ensure absolute paths (for Windows)
+            ),
         )
 
     @overload
@@ -265,55 +292,89 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
     ) -> list[str] | dict[str, LocalFileInfo]:
         """Glob for files, using ripgrep-rs for speed when available.
 
-        Falls back to base implementation when:
-        - ripgrep-rs is not installed
-        - detail=True (ripgrep doesn't return file metadata)
-        - Complex glob patterns that ripgrep can't handle
+        Uses ripgrep-rs for both detail=False and detail=True modes.
+        Falls back to base implementation for complex glob patterns that ripgrep can't handle.
         """
         from glob import has_magic
 
-        # Fast path: use ripgrep-rs for globs
         stripped = self._strip_protocol(path)
-        if not detail and has_magic(path):
-            from ripgrep_rs import files as rg_files
+        if not has_magic(path):
+            # No glob pattern - fall back to base implementation
+            if detail:
+                return await super()._glob(path, maxdepth=maxdepth, detail=True, **kwargs)
+            return await super()._glob(path, maxdepth=maxdepth, detail=False, **kwargs)
 
-            loop = get_running_loop()
+        # Fast path: use ripgrep-rs for globs
+        loop = get_running_loop()
 
-            if "**" in stripped:
-                # Recursive glob - split at first **
-                # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
-                idx = stripped.find("**")
-                base = stripped[:idx].rstrip("/") or "."
-                glob_pattern = stripped[idx:]
-                depth = None  # No depth limit for ** patterns
-            else:
-                # Non-recursive glob - use max_depth=1
-                # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
-                p = Path(stripped)
-                base = str(p.parent) if str(p.parent) != "." else "."
-                glob_pattern = p.name
-                depth = 1  # Only match in the specified directory
+        if "**" in stripped:
+            # Recursive glob - split at first **
+            # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
+            idx = stripped.find("**")
+            base = stripped[:idx].rstrip("/") or "."
+            glob_pattern = stripped[idx:]
+            depth = None  # No depth limit for ** patterns
+        else:
+            # Non-recursive glob - use max_depth=1
+            # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
+            p = Path(stripped)
+            base = str(p.parent) if str(p.parent) != "." else "."
+            glob_pattern = p.name
+            depth = 1  # Only match in the specified directory
 
-            abs_base = str(Path(base).resolve())
+        abs_base = str(Path(base).resolve())
 
-            return await loop.run_in_executor(
+        if detail:
+            from ripgrep_rs import files_with_info
+
+            # Use files_with_info for metadata - returns dict[str, FileInfo]
+            rg_result = await loop.run_in_executor(
                 None,
                 partial(
-                    rg_files,
+                    files_with_info,
                     patterns=["*"],
                     paths=[abs_base],
                     globs=[glob_pattern],
                     hidden=kwargs.get("hidden", False),
                     no_ignore=kwargs.get("no_ignore", False),
                     max_depth=depth,
-                    absolute=True,  # Ensure absolute paths (for Windows)
+                    absolute=True,
                 ),
             )
+            # Convert FileInfo objects to fsspec-compatible dicts
+            return {
+                path: LocalFileInfo(
+                    name=info.name,
+                    size=info.size,
+                    type="directory" if info.type == "directory" else "file",
+                    created=info.created,
+                    islink=info.islink,
+                    mode=info.mode,
+                    uid=info.uid,
+                    gid=info.gid,
+                    mtime=info.mtime,
+                    ino=info.ino,
+                    nlink=info.nlink,
+                    destination=False,  # Not a symlink destination
+                )
+                for path, info in rg_result.items()
+            }
 
-        # Fall back to base implementation
-        if detail:
-            return await super()._glob(path, maxdepth=maxdepth, detail=True, **kwargs)
-        return await super()._glob(path, maxdepth=maxdepth, detail=False, **kwargs)
+        from ripgrep_rs import files as rg_files
+
+        return await loop.run_in_executor(
+            None,
+            partial(
+                rg_files,
+                patterns=["*"],
+                paths=[abs_base],
+                globs=[glob_pattern],
+                hidden=kwargs.get("hidden", False),
+                no_ignore=kwargs.get("no_ignore", False),
+                max_depth=depth,
+                absolute=True,  # Ensure absolute paths (for Windows)
+            ),
+        )
 
     async def _grep(
         self,
