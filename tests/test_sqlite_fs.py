@@ -96,7 +96,6 @@ def sqlite_fs(sample_db):
 class TestSqliteFileSystem:
     """Test cases for SqliteFileSystem."""
 
-    @pytest.mark.asyncio
     async def test_ls_tables_and_views(self, sqlite_fs):
         """Test listing tables and views."""
         items = await sqlite_fs._ls("/", detail=True)
@@ -118,7 +117,6 @@ class TestSqliteFileSystem:
         assert view_item["type"] == "file"
         assert view_item["table_type"] == "view"
 
-    @pytest.mark.asyncio
     async def test_ls_simple(self, sqlite_fs):
         """Test simple listing without details."""
         items = await sqlite_fs._ls("/", detail=False)
@@ -127,7 +125,6 @@ class TestSqliteFileSystem:
         assert "orders" in items
         assert "user_orders" in items
 
-    @pytest.mark.asyncio
     async def test_cat_table_data(self, sqlite_fs):
         """Test reading table data as CSV."""
         data = await sqlite_fs._cat_file("users")
@@ -145,7 +142,6 @@ class TestSqliteFileSystem:
         assert "Bob Smith,bob@example.com" in content
         assert "Carol Davis,carol@example.com" in content
 
-    @pytest.mark.asyncio
     async def test_cat_view_data(self, sqlite_fs):
         """Test reading view data as CSV."""
         data = await sqlite_fs._cat_file("user_orders")
@@ -163,7 +159,6 @@ class TestSqliteFileSystem:
         assert "100.5" in content
         assert "completed" in content
 
-    @pytest.mark.asyncio
     async def test_cat_full_schema(self, sqlite_fs):
         """Test reading full database schema."""
         data = await sqlite_fs._cat_file(".schema")
@@ -177,7 +172,6 @@ class TestSqliteFileSystem:
         # Should be properly terminated
         assert content.count(";") >= 3  # noqa: PLR2004
 
-    @pytest.mark.asyncio
     async def test_cat_table_schema(self, sqlite_fs):
         """Test reading specific table schema."""
         data = await sqlite_fs._cat_file("users.schema")
@@ -188,19 +182,16 @@ class TestSqliteFileSystem:
         assert "name TEXT NOT NULL" in content
         assert "email TEXT UNIQUE" in content
 
-    @pytest.mark.asyncio
     async def test_cat_nonexistent_table(self, sqlite_fs):
         """Test reading from nonexistent table."""
         with pytest.raises(sqlalchemy.exc.OperationalError):
             await sqlite_fs._cat_file("nonexistent")
 
-    @pytest.mark.asyncio
     async def test_cat_root_directory(self, sqlite_fs):
         """Test trying to cat root directory."""
         with pytest.raises(IsADirectoryError):
             await sqlite_fs._cat_file("")
 
-    @pytest.mark.asyncio
     async def test_info_table(self, sqlite_fs):
         """Test getting info about a table."""
         info = await sqlite_fs._info("users")
@@ -210,7 +201,6 @@ class TestSqliteFileSystem:
         assert info["size"] == 3  # Row count  # noqa: PLR2004
         assert info["table_type"] == "table"
 
-    @pytest.mark.asyncio
     async def test_info_view(self, sqlite_fs):
         """Test getting info about a view."""
         info = await sqlite_fs._info("user_orders")
@@ -220,7 +210,6 @@ class TestSqliteFileSystem:
         assert info["size"] == 4  # Row count from joined tables  # noqa: PLR2004
         assert info["table_type"] == "view"
 
-    @pytest.mark.asyncio
     async def test_info_schema_file(self, sqlite_fs):
         """Test getting info about schema files."""
         info = await sqlite_fs._info(".schema")
@@ -235,7 +224,6 @@ class TestSqliteFileSystem:
         assert info["type"] == "file"
         assert info["size"] > 0
 
-    @pytest.mark.asyncio
     async def test_info_root(self, sqlite_fs):
         """Test getting info about root directory."""
         info = await sqlite_fs._info("")
@@ -244,13 +232,11 @@ class TestSqliteFileSystem:
         assert info["type"] == "directory"
         assert info["size"] == 0
 
-    @pytest.mark.asyncio
     async def test_info_nonexistent_table(self, sqlite_fs):
         """Test getting info about nonexistent table."""
         with pytest.raises(FileNotFoundError):
             await sqlite_fs._info("nonexistent")
 
-    @pytest.mark.asyncio
     async def test_exists(self, sqlite_fs):
         """Test checking if tables exist."""
         assert await sqlite_fs._exists("users")
@@ -258,7 +244,6 @@ class TestSqliteFileSystem:
         assert await sqlite_fs._exists("user_orders")
         assert not await sqlite_fs._exists("nonexistent")
 
-    @pytest.mark.asyncio
     async def test_isdir(self, sqlite_fs):
         """Test directory detection."""
         assert await sqlite_fs._isdir("")
@@ -266,7 +251,6 @@ class TestSqliteFileSystem:
         assert not await sqlite_fs._isdir("users")
         assert not await sqlite_fs._isdir("orders")
 
-    @pytest.mark.asyncio
     async def test_isfile(self, sqlite_fs):
         """Test file detection."""
         assert await sqlite_fs._isfile("users")
@@ -332,7 +316,6 @@ class TestSqliteFileSystemChaining:
         httpd.server_close()
         shutil.rmtree(serve_dir)
 
-    @pytest.mark.asyncio
     async def test_chained_filesystem_http(self, http_server_db):
         """Test accessing database via HTTP."""
         fs = SqliteFileSystem(db_path=http_server_db, target_protocol="http")
@@ -367,7 +350,6 @@ class TestSqliteFileSystemEmpty:
         yield db_path
         Path(db_path).unlink()
 
-    @pytest.mark.asyncio
     async def test_empty_database(self, empty_db):
         """Test behavior with empty database."""
         fs = SqliteFileSystem(db_path=empty_db)
@@ -385,7 +367,6 @@ class TestSqliteFileSystemEmpty:
 class TestSqliteFileSystemNonexistent:
     """Test behavior with nonexistent database."""
 
-    @pytest.mark.asyncio
     async def test_nonexistent_database(self):
         """Test behavior with nonexistent database file."""
         fs = SqliteFileSystem(db_path="/nonexistent/path/database.db")

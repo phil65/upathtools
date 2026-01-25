@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 import pytest
 from upath import UPath
 
 import upathtools
-from upathtools.filesystems import UnionFileSystem, UnionPath
+from upathtools.filesystems import AsyncLocalFileSystem, UnionFileSystem, UnionPath
 
 
 upathtools.register_all_filesystems()
@@ -16,7 +15,7 @@ upathtools.register_all_filesystems()
 def union_fs() -> UnionFileSystem:
     """Create a UnionFileSystem with memory and local backends."""
     mem_fs = MemoryFileSystem()
-    local_fs = LocalFileSystem()
+    local_fs = AsyncLocalFileSystem()
 
     # Create some test files in memory
     mem_fs.mkdirs("memdir", exist_ok=True)
@@ -33,7 +32,7 @@ def union_fs() -> UnionFileSystem:
 def union_fs_from_list() -> UnionFileSystem:
     """Create a UnionFileSystem from a list of filesystems."""
     mem_fs = MemoryFileSystem()
-    local_fs = LocalFileSystem()
+    local_fs = AsyncLocalFileSystem()
 
     # Create some test files in memory
     mem_fs.mkdirs("memdir", exist_ok=True)
@@ -291,7 +290,7 @@ async def test_register_operations():
         union_fs.register("cache", mem_fs, replace=False)
 
     # Test replace=True (should work)
-    local_fs = LocalFileSystem()
+    local_fs = AsyncLocalFileSystem()
     union_fs.register("cache", local_fs, replace=True)
     assert union_fs.list_mount_points() == ["cache"]
 
