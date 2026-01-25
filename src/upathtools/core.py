@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 from fsspec.core import _un_chain, stringify_path
 from fsspec.registry import get_filesystem_class
 
+from upathtools.filesystems.async_local_fs import AsyncLocalFileSystem
+
 
 if TYPE_CHECKING:
     from fsspec.spec import AbstractFileSystem
@@ -63,5 +65,13 @@ def url_to_fs(url: str, **kwargs: Any) -> tuple[AbstractFileSystem, str]:
         inkwargs["target_protocol"] = protocol
         inkwargs["fo"] = urls
     urlpath, protocol, _ = chain[0]
-    fs = filesystem(protocol, **inkwargs)
+    if protocol in {"", "file"}:
+        fs = AsyncLocalFileSystem(asynchronous=True)
+    else:
+        fs = filesystem(protocol, **inkwargs)
     return fs, urlpath
+
+
+if __name__ == "__main__":
+    fs, urlpath = url_to_fs("file:///path/to/file.txt")
+    print(fs, urlpath)

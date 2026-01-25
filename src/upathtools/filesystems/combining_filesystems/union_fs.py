@@ -11,7 +11,6 @@ from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
-from upathtools.helpers import upath_to_fs
 
 
 if TYPE_CHECKING:
@@ -90,8 +89,9 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
             or None for empty
             kwargs: Additional keyword arguments for AsyncFileSystem
         """
-        super().__init__(**kwargs)
+        from upathtools.helpers import upath_to_fs
 
+        super().__init__(**kwargs)
         resolved: dict[str, AsyncFileSystem] = {}
         filesystems = filesystems or {}
         if isinstance(filesystems, Mapping):
@@ -365,6 +365,8 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         Raises:
             ValueError: If mount point already exists and replace=False
         """
+        from upathtools import upath_to_fs
+
         if name in self.filesystems and not replace:
             msg = f"Mount point already exists: {name}"
             raise ValueError(msg)

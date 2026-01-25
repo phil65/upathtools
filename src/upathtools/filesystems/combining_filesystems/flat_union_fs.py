@@ -10,7 +10,6 @@ from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
-from upathtools.helpers import upath_to_fs
 
 
 if TYPE_CHECKING:
@@ -107,11 +106,11 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
             filesystems: Sequence of filesystems or paths to merge
             kwargs: Additional keyword arguments for AsyncFileSystem
         """
-        super().__init__(**kwargs)
+        from upathtools.helpers import upath_to_fs
 
+        super().__init__(**kwargs)
         # Convert paths to filesystems
         resolved_filesystems: list[AsyncFileSystem] = []
-
         for fs_or_path in filesystems:
             if isinstance(fs_or_path, AbstractFileSystem):
                 # It's already a filesystem

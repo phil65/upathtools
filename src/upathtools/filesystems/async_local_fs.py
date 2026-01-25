@@ -103,7 +103,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
     _symlink = wrap(LocalFileSystem.symlink)
     _write_bytes = wrap(LocalFileSystem.write_bytes)
     _write_text = wrap(LocalFileSystem.write_text)
-    sign = LocalFileSystem.sign
 
     async def _info(self, path: str, **kwargs: Any) -> LocalFileInfo:
         """Get info for a single path."""
