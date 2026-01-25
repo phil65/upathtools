@@ -11,7 +11,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    from vercel.sandbox import AsyncSandbox
+    from vercel.sandbox import AsyncSandbox, Source
 
 
 class VercelInfo(FileInfo, total=False):
@@ -45,7 +45,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
     def __init__(
         self,
         sandbox_id: str | None = None,
-        source: dict[str, Any] | None = None,
+        source: Source | None = None,
         ports: list[int] | None = None,
         timeout: int | None = None,
         resources: dict[str, Any] | None = None,
