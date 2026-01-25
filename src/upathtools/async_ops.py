@@ -217,6 +217,8 @@ async def read_folder(
     from upathtools.helpers import to_upath
 
     base_path = to_upath(path)
+    # Resolve base_path for relpath computations to match resolved paths from ripgrep
+    resolved_base = str(base_path.resolve())
     matching_files = await list_files(
         path,
         pattern=pattern,
@@ -238,20 +240,20 @@ async def read_folder(
                 contents: Sequence[str | bytes] = await asyncio.gather(*tasks)
                 # Map results back to relative paths
                 for file_path, content in zip(chunk, contents, strict=True):
-                    rel_path = os.path.relpath(str(file_path), str(base_path))
+                    rel_path = os.path.relpath(str(file_path), resolved_base)
                     result[rel_path] = content
             except Exception as e:  # noqa: BLE001
                 msg = "Failed to read chunk starting at %s: %s"
-                logger.warning(msg, os.path.relpath(str(chunk[0]), str(base_path)), e)
+                logger.warning(msg, os.path.relpath(str(chunk[0]), resolved_base), e)
     else:
         # Sequential reading
         for file_path in matching_files:
             try:
                 content = await read_path(file_path, mode=mode, encoding=encoding)
-                rel_path = os.path.relpath(str(file_path), str(base_path))
+                rel_path = os.path.relpath(str(file_path), resolved_base)
                 result[rel_path] = content
             except Exception as e:  # noqa: BLE001
-                rel_path = os.path.relpath(str(file_path), str(base_path))
+                rel_path = os.path.relpath(str(file_path), resolved_base)
                 logger.warning("Failed to read %s: %s", rel_path, e)
 
     return result
@@ -319,6 +321,8 @@ async def list_files(
         msg = f"Path does not exist: {path}"
         raise FileNotFoundError(msg)
 
+    # Resolve base_path for relpath computations to match resolved paths from ripgrep
+    resolved_base = str(base_path.resolve())
     fs = await get_async_fs(base_path)
     matching_files: list[UPath | dict[str, Any]] = []
 
@@ -334,7 +338,7 @@ async def list_files(
         assert isinstance(paths, dict)
         for file_path, file_info in paths.items():
             assert isinstance(file_path, str)
-            rel_path = os.path.relpath(file_path, str(base_path))
+            rel_path = os.path.relpath(file_path, resolved_base)
             if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
                 continue
 
@@ -352,7 +356,7 @@ async def list_files(
             assert isinstance(file_path, str)
 
             path_obj = UPath(file_path)
-            rel_path = os.path.relpath(file_path, str(base_path))
+            rel_path = os.path.relpath(file_path, resolved_base)
 
             # Skip excluded patterns
             if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
