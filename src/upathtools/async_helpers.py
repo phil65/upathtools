@@ -82,10 +82,7 @@ def sync[T](
     return return_result  # type: ignore[return-value]
 
 
-def sync_wrapper[**P, T](
-    func: Callable[P, Awaitable[T]],
-    obj: Any = None,
-) -> Callable[P, T]:
+def sync_wrapper[**P, T](func: Callable[P, Awaitable[T]], obj: Any = None) -> Callable[P, T]:
     """Given a function, make so can be called in blocking contexts.
 
     Leave obj=None if defining within a class. Pass the instance if attaching
