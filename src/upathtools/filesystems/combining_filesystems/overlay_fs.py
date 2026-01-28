@@ -6,6 +6,7 @@ but writes always go to the uppermost (first) filesystem layer.
 
 from __future__ import annotations
 
+import asyncio
 import errno
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -18,7 +19,7 @@ from upathtools.filesystems.base.file_objects import FileInfo
 
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Awaitable, Callable, Sequence
 
     from fsspec.spec import AbstractFileSystem
 
@@ -206,30 +207,35 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
 
         Files in upper layers shadow those in lower layers.
         """
-        merged: dict[str, OverlayInfo] = {}
 
-        for i, fs in enumerate(self.layers):
+        async def _ls_layer(
+            fs: AsyncFileSystem, layer_index: int
+        ) -> tuple[int, list[dict[str, Any]]]:
             try:
                 items = await fs._ls(path, detail=True, **kwargs)
-                for item in items:
-                    name = item.get("name", "").strip("/")
-                    if name not in merged:  # Upper layers take precedence
-                        merged[name] = OverlayInfo(
-                            name=name,
-                            type=item.get("type", "file"),
-                            size=item.get("size", 0),
-                            layer=i,
-                        )
+                return layer_index, items
             except (FileNotFoundError, NotImplementedError):
-                continue
+                return layer_index, []
+
+        results = await asyncio.gather(*(_ls_layer(fs, i) for i, fs in enumerate(self.layers)))
+
+        merged: dict[str, OverlayInfo] = {}
+        for layer_index, items in sorted(results, key=lambda r: r[0]):
+            for item in items:
+                name = item.get("name", "").strip("/")
+                if name not in merged:  # Upper layers take precedence
+                    merged[name] = OverlayInfo(
+                        name=name,
+                        type=item.get("type", "file"),
+                        size=item.get("size", 0),
+                        layer=layer_index,
+                    )
 
         if not merged:
-            exists_in_any = False
-            for fs in self.layers:
-                if await self._safe_exists(fs, path):
-                    exists_in_any = True
-                    break
-            if not exists_in_any:
+            exists_results = await asyncio.gather(
+                *(self._safe_exists(fs, path) for fs in self.layers)
+            )
+            if not any(exists_results):
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
         result = [v for _, v in sorted(merged.items())]
@@ -244,35 +250,43 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         except (NotImplementedError, AttributeError):
             return False
 
+    async def _any_layer(
+        self,
+        check: Callable[[AsyncFileSystem], Awaitable[bool]],
+    ) -> bool:
+        """Run a boolean check against all layers concurrently.
+
+        Returns True as soon as the first layer returns True,
+        cancelling remaining tasks.
+        """
+
+        async def _safe_check(fs: AsyncFileSystem) -> bool:
+            try:
+                return await check(fs)
+            except (NotImplementedError, AttributeError):
+                return False
+
+        tasks = [asyncio.ensure_future(_safe_check(fs)) for fs in self.layers]
+        try:
+            for coro in asyncio.as_completed(tasks):
+                if await coro:
+                    return True
+            return False
+        finally:
+            for task in tasks:
+                task.cancel()
+
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists in any layer."""
-        for fs in self.layers:
-            try:
-                if await fs._exists(path, **kwargs):
-                    return True
-            except (NotImplementedError, AttributeError):
-                continue
-        return False
+        return await self._any_layer(lambda fs: fs._exists(path, **kwargs))
 
     async def _isdir(self, path: str) -> bool:
         """Check if path is a directory in any layer."""
-        for fs in self.layers:
-            try:
-                if await fs._isdir(path):
-                    return True
-            except (NotImplementedError, AttributeError):
-                continue
-        return False
+        return await self._any_layer(lambda fs: fs._isdir(path))
 
     async def _isfile(self, path: str) -> bool:
         """Check if path is a file in any layer."""
-        for fs in self.layers:
-            try:
-                if await fs._isfile(path):
-                    return True
-            except (NotImplementedError, AttributeError):
-                continue
-        return False
+        return await self._any_layer(lambda fs: fs._isfile(path))
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create directory in the upper layer."""
