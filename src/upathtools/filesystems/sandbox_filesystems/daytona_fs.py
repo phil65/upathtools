@@ -8,7 +8,7 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from upathtools.async_helpers import sync_wrapper
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo, GrepMatch
 
 
 if TYPE_CHECKING:
@@ -494,17 +494,32 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         # Return barebone info dicts (search_files doesn't return metadata)
         return {f: DaytonaInfo(name=f, type="file") for f in files}
 
-    async def _grep(self, path: str, pattern: str, **kwargs: Any) -> list[dict[str, Any]]:
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
         """Search for pattern in files."""
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
             matches = await sandbox.fs.find_files(path, pattern)
-            result = [{"file": m.file, "line": m.line, "content": m.content} for m in matches]
+            result = [GrepMatch(path=m.file, line_number=m.line, text=m.content) for m in matches]
         except Exception as exc:
             msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
             raise OSError(msg) from exc
         else:
+            if max_count is not None:
+                return result[:max_count]
             return result
 
     async def _chmod(self, path: str, mode: int, **kwargs: Any) -> None:

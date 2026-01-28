@@ -11,7 +11,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload
 import fsspec
 
 from upathtools.async_helpers import sync_wrapper
-from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, FileInfo, ProbeResult
+from upathtools.filesystems.base import (
+    BaseAsyncFileFileSystem,
+    BaseUPath,
+    FileInfo,
+    GrepMatch,
+    ProbeResult,
+)
 
 
 if TYPE_CHECKING:
@@ -502,8 +508,16 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         self,
         path: str,
         pattern: str,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]:
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
         """Search table contents using SQL LIKE.
 
         Searches all text columns in the specified table for the pattern.
@@ -530,24 +544,36 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
 
             # Build WHERE clause to search all text columns
             like_pattern = f"%{pattern}%"
-            conditions = " OR ".join(f"CAST(`{col}` AS TEXT) LIKE :pattern" for col in columns)
+            if case_sensitive:
+                conditions = " OR ".join(f"CAST(`{col}` AS TEXT) LIKE :pattern" for col in columns)
+            else:
+                conditions = " OR ".join(
+                    f"LOWER(CAST(`{col}` AS TEXT)) LIKE LOWER(:pattern)" for col in columns
+                )
 
             query = f"SELECT rowid, * FROM `{path}` WHERE {conditions}"
             result = await conn.execute(text(query), {"pattern": like_pattern})
 
-            matches = []
+            matches: list[GrepMatch] = []
+            check_pattern = pattern if case_sensitive else pattern.lower()
             for row in result:
                 row_dict = dict(row._mapping)
                 rowid = row_dict.pop("rowid", None)
                 # Find which columns matched
-                for col, val in row_dict.items():
-                    if val is not None and pattern.lower() in str(val).lower():
-                        matches.append({
-                            "file": path,
-                            "line": rowid,
-                            "column": col,
-                            "content": str(val),
-                        })
+                for val in row_dict.values():
+                    val_str = str(val) if val is not None else None
+                    if val_str is not None and check_pattern in (
+                        val_str if case_sensitive else val_str.lower()
+                    ):
+                        matches.append(
+                            GrepMatch(
+                                path=path,
+                                line_number=rowid or 0,
+                                text=val_str,
+                            )
+                        )
+                        if max_count is not None and len(matches) >= max_count:
+                            return matches
 
             return matches
 

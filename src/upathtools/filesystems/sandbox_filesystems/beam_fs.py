@@ -10,7 +10,7 @@ import tempfile
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from upathtools.async_helpers import sync_wrapper
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo, GrepMatch
 
 
 if TYPE_CHECKING:
@@ -404,7 +404,20 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
 
-    async def _grep(self, path: str, pattern: str, **kwargs: Any) -> list[dict[str, Any]]:
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
         """Search for pattern in files using Beam's find_in_files."""
         await self.set_session()
         sandbox = await self._get_sandbox()
@@ -415,16 +428,18 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
             raise OSError(msg) from exc
         else:
-            # Convert SandboxFileSearchResult to dict format
-            return [
-                {
-                    "file": result.path,
-                    "line": match.range.start.line,
-                    "content": match.content,
-                }
+            matches = [
+                GrepMatch(
+                    path=result.path,
+                    line_number=match.range.start.line,
+                    text=match.content,
+                )
                 for result in results
                 for match in result.matches
             ]
+            if max_count is not None:
+                return matches[:max_count]
+            return matches
 
     # TODO: Add _find and _glob using sandbox.process.exec() with Linux CLI tools (find)
     # This would be faster than fsspec's default _walk which does multiple _ls round trips.

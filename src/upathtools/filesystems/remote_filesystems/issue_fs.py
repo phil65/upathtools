@@ -11,7 +11,7 @@ import weakref
 from fsspec.utils import infer_storage_options
 
 from upathtools.async_helpers import sync, sync_wrapper
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo, GrepMatch
 
 
 if TYPE_CHECKING:
@@ -473,8 +473,16 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         self,
         path: str,
         pattern: str,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]:
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
         """Search issues using GitHub's search API.
 
         Uses the GitHub search API which is much faster than fetching
@@ -483,10 +491,17 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         Args:
             path: Ignored (searches all issues in repo)
             pattern: Search query string
-            **kwargs: Additional arguments
+            max_count: Maximum total number of matches to return.
+            case_sensitive: Not used (GitHub API handles search).
+            hidden: Not used.
+            no_ignore: Not used.
+            globs: Not used.
+            context_before: Not used.
+            context_after: Not used.
+            multiline: Not used.
 
         Returns:
-            List of matches with file, line (issue number), and content (title + match)
+            List of GrepMatch objects with issue file, number, and content.
         """
         session = await self.set_session()
 
@@ -503,7 +518,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         response.raise_for_status()
         data = response.json()
 
-        matches: list[dict[str, Any]] = []
+        matches: list[GrepMatch] = []
         for item in data.get("items", []):
             issue_number = item.get("number")
             title = item.get("title", "")
@@ -512,22 +527,25 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
             text_matches = item.get("text_matches", [])
             if text_matches:
                 matches.extend(
-                    {
-                        "file": f"{issue_number}.md",
-                        "line": issue_number,
-                        "property": tm.get("property", ""),
-                        "content": tm.get("fragment", ""),
-                    }
+                    GrepMatch(
+                        path=f"{issue_number}.md",
+                        line_number=issue_number,
+                        text=tm.get("fragment", ""),
+                    )
                     for tm in text_matches
                 )
             else:
                 # No text match detail, just include the issue
-                matches.append({
-                    "file": f"{issue_number}.md",
-                    "line": issue_number,
-                    "content": title,
-                })
+                matches.append(
+                    GrepMatch(
+                        path=f"{issue_number}.md",
+                        line_number=issue_number,
+                        text=title,
+                    )
+                )
 
+        if max_count is not None:
+            return matches[:max_count]
         return matches
 
     grep = sync_wrapper(_grep)
