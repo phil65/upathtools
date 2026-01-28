@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from asyncio import get_running_loop
-from dataclasses import dataclass
 from functools import partial, wraps
 from inspect import iscoroutinefunction
 import json
@@ -14,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from fsspec.implementations.local import LocalFileSystem
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, GrepMatch
 from upathtools.filesystems.base.file_objects import FileInfo
 
 
@@ -395,28 +394,27 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         globs: list[str] | None = None,
         context_before: int | None = None,
         context_after: int | None = None,
+        multiline: bool = False,
     ) -> list[GrepMatch]:
         """Search for pattern in files using ripgrep-rs.
 
-        This provides a fast grep implementation using ripgrep's algorithms.
-        Requires ripgrep-rs to be installed.
+        This provides a fast grep implementation using ripgrep's algorithms
+        via the ripgrep-rs Python bindings.
 
         Args:
-            path: Directory to search in
-            pattern: Regex pattern to search for
-            max_count: Maximum matches per file
-            case_sensitive: Force case sensitivity (None = smart case)
-            hidden: Search hidden files
-            no_ignore: Don't respect .gitignore
-            globs: File patterns to include/exclude (e.g., ['*.py', '!*_test.py'])
-            context_before: Lines of context before match
-            context_after: Lines of context after match
+            path: Directory to search in.
+            pattern: Regex pattern to search for.
+            max_count: Maximum total number of matches to return.
+            case_sensitive: Force case sensitivity (None = smart case).
+            hidden: Search hidden files/directories.
+            no_ignore: Don't respect .gitignore rules.
+            globs: File patterns to include/exclude (e.g., ``['*.py', '!*_test.py']``).
+            context_before: Lines of context before match.
+            context_after: Lines of context after match.
+            multiline: Enable multiline matching.
 
         Returns:
-            List of GrepMatch objects with file, line number, and matched text
-
-        Raises:
-            ImportError: If ripgrep-rs is not installed
+            List of GrepMatch objects with file, line number, and matched text.
         """
         from ripgrep_rs import search as rg_search
 
@@ -441,8 +439,10 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             rg_kwargs["before_context"] = context_before
         if context_after is not None:
             rg_kwargs["after_context"] = context_after
+        if multiline:
+            rg_kwargs["multiline"] = True
 
-        # Run ripgrep in thread pool
+        # Run ripgrep in thread pool (ripgrep-rs releases the GIL)
         raw_results = await loop.run_in_executor(None, partial(rg_search, **rg_kwargs))
 
         # Parse JSON Lines output into GrepMatch objects
@@ -465,26 +465,13 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                                 submatches=[
                                     (sm["start"], sm["end"]) for sm in data.get("submatches", [])
                                 ],
+                                absolute_offset=data.get("absolute_offset", 0),
                             )
                         )
                 except (json.JSONDecodeError, KeyError):
                     continue
 
         return matches
-
-
-@dataclass
-class GrepMatch:
-    """A single grep match result."""
-
-    path: str
-    """File path where match was found."""
-    line_number: int
-    """Line number (1-based) of the match."""
-    text: str
-    """The matched line text."""
-    submatches: list[tuple[int, int]]
-    """List of (start, end) byte offsets for each match within the line."""
 
 
 def register_async_local_fs() -> bool:

@@ -6,11 +6,12 @@ import asyncio
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
+from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.implementations.local import LocalFileSystem
 from upath.registry import get_upath_class
 
+from upathtools.async_helpers import sync_wrapper
 from upathtools.async_upath import AsyncUPath
 
 

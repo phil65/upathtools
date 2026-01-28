@@ -12,7 +12,7 @@ import re
 from typing import TYPE_CHECKING, Any, Literal, overload
 import weakref
 
-from fsspec.asyn import AbstractAsyncStreamedFile, sync, sync_wrapper
+from fsspec.asyn import AbstractAsyncStreamedFile
 from fsspec.caching import AllBytes
 from fsspec.callbacks import DEFAULT_CALLBACK
 from fsspec.exceptions import FSTimeoutError
@@ -25,6 +25,7 @@ from fsspec.utils import (
     tokenize,
 )
 
+from upathtools.async_helpers import sync, sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 

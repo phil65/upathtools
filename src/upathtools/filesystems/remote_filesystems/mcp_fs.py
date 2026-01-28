@@ -11,8 +11,7 @@ import base64
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 from urllib.parse import quote, unquote
 
-from fsspec.asyn import sync_wrapper
-
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 from upathtools.log import get_logger
 

@@ -6,6 +6,7 @@ from upathtools.filesystems.base.basefilesystem import (
     BaseAsyncFileSystem,
     BaseFileSystem,
     CreationMode,
+    GrepMatch,
 )
 from upathtools.filesystems.base.baseupath import BaseUPath
 from upathtools.filesystems.base.file_objects import (
@@ -40,6 +41,7 @@ __all__ = [
     "CreationMode",
     "FileFileSystemMixin",
     "FileInfo",
+    "GrepMatch",
     "ProbeResult",
     "WrapperFileSystem",
 ]

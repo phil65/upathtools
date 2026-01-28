@@ -15,8 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import sync_wrapper
-
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 from upathtools.log import get_logger
 

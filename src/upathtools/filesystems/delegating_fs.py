@@ -18,9 +18,10 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem, sync_wrapper
+from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base.filefilesystem import (
     BaseAsyncFileFileSystem,
     BaseFileFileSystem,

@@ -9,9 +9,9 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import sync_wrapper
 from fsspec.utils import tokenize
 
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 

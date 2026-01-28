@@ -9,8 +9,7 @@ import os
 import tempfile
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
-from fsspec.asyn import sync_wrapper
-
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 

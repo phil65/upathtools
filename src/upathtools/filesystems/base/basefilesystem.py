@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from glob import has_magic
+import logging
 import os
 import re
 from typing import TYPE_CHECKING, Any, Literal, cast, get_args, get_origin, overload
@@ -31,6 +33,31 @@ CreationMode = Literal["create", "overwrite"]
 # or exhausting connection pools. Still provides significant speedup over sequential.
 # Can be overridden per-instance via the batch_size constructor argument.
 _DEFAULT_PARALLEL_BATCH_SIZE = 8
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class GrepMatch:
+    """A single grep match result."""
+
+    path: str
+    """File path where match was found."""
+
+    line_number: int
+    """Line number (1-based) of the match."""
+
+    text: str
+    """The matched line text."""
+
+    submatches: list[tuple[int, int]] = field(default_factory=list)
+    """List of (start, end) byte offsets for each submatch within the line."""
+
+    absolute_offset: int = 0
+    """Byte offset from the start of the file to the matched line."""
+
+    def __str__(self) -> str:
+        return f"{self.path}:{self.line_number}:{self.text}"
 
 
 class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSystem):
@@ -346,6 +373,119 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         if not detail:
             return names
         return {name: out[name] for name in names}
+
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
+        """Search for a regex pattern in files under a path.
+
+        Default implementation iterates files via _find, reads their content,
+        and applies regex matching. Subclasses can override with faster
+        implementations (e.g. ripgrep-rs for local filesystems).
+
+        Args:
+            path: Directory to search in.
+            pattern: Regex pattern to search for.
+            max_count: Maximum total number of matches to return.
+            case_sensitive: Force case sensitivity (None = case-insensitive).
+            hidden: Search hidden files/directories.
+            no_ignore: Don't respect .gitignore rules.
+            globs: File patterns to include/exclude (e.g., ``['*.py', '!*_test.py']``).
+            context_before: Lines of context before match (not used in default impl).
+            context_after: Lines of context after match (not used in default impl).
+            multiline: Enable multiline matching (not used in default impl).
+
+        Returns:
+            List of GrepMatch objects.
+        """
+        stripped = self._strip_protocol(path)
+        base_path = stripped if isinstance(stripped, str) else stripped[0]
+
+        flags = 0 if case_sensitive else re.IGNORECASE
+        if multiline:
+            flags |= re.MULTILINE | re.DOTALL
+        try:
+            regex = re.compile(pattern, flags)
+        except re.error:
+            return []
+
+        # Build glob pattern for _find filtering
+        all_files = await self._find(base_path, withdirs=False)
+
+        # Apply glob filtering if specified
+        if globs:
+            import fnmatch
+
+            filtered: list[str] = []
+            for file_path in all_files:
+                name = file_path.rsplit("/", 1)[-1]
+                include = not any(g.startswith("!") for g in globs)  # default include
+                for g in globs:
+                    if g.startswith("!"):
+                        if fnmatch.fnmatch(name, g[1:]):
+                            include = False
+                    elif fnmatch.fnmatch(name, g):
+                        include = True
+                if include:
+                    filtered.append(file_path)
+            all_files = filtered
+
+        matches: list[GrepMatch] = []
+        limit = max_count or 100
+
+        for file_path in all_files:
+            if len(matches) >= limit:
+                break
+            try:
+                content = await self._cat_file(file_path)
+                if isinstance(content, bytes):
+                    # Skip binary files (null bytes in first 8KB)
+                    if b"\x00" in content[:8192]:
+                        continue
+                    text = content.decode("utf-8", errors="replace")
+                else:
+                    text = content
+
+                # Get relative path
+                rel_path = (
+                    file_path[len(base_path) :].lstrip("/")
+                    if file_path.startswith(base_path)
+                    else file_path
+                )
+
+                byte_offset = 0
+                for line_num, line in enumerate(text.splitlines(), 1):
+                    if len(matches) >= limit:
+                        break
+                    for m in regex.finditer(line):
+                        matches.append(
+                            GrepMatch(
+                                path=rel_path,
+                                line_number=line_num,
+                                text=line.rstrip("\n"),
+                                submatches=[(m.start(), m.end())],
+                                absolute_offset=byte_offset,
+                            )
+                        )
+                        if len(matches) >= limit:
+                            break
+                    byte_offset += len(line.encode("utf-8")) + 1  # +1 for newline
+            except (UnicodeDecodeError, PermissionError, OSError) as exc:
+                logger.debug("Error reading file %r during grep: %s", file_path, exc)
+                continue
+
+        return matches
 
     @overload
     def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...

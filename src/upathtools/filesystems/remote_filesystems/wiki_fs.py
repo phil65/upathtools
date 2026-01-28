@@ -12,9 +12,9 @@ import subprocess
 import tempfile
 from typing import Any, Literal, overload
 
-from fsspec.asyn import sync_wrapper
 from fsspec.utils import infer_storage_options
 
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter, FileInfo
 
 

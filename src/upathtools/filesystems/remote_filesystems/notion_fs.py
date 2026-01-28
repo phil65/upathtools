@@ -6,8 +6,7 @@ import io
 import json
 from typing import TYPE_CHECKING, Any
 
-from fsspec.asyn import sync_wrapper
-
+from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
