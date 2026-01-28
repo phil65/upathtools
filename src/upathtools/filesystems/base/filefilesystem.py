@@ -6,7 +6,6 @@ from abc import abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from fsspec.implementations.chained import ChainedFileSystem
 from upath import UPath
 
 from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem, BaseFileSystem
@@ -25,7 +24,7 @@ class ProbeResult(Enum):
     MAYBE = "maybe"  # Extension matches but can't verify without full parse
 
 
-class FileFileSystemMixin(ChainedFileSystem):
+class FileFileSystemMixin:
     """Mixin providing extension and content probing for file-based filesystems.
 
     File filesystems are filesystems that parse and expose the internal structure
