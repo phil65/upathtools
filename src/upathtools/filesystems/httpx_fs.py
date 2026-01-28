@@ -30,7 +30,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import AsyncIterator, Callable, Mapping
 
     import httpx
     from httpx import Response
@@ -758,7 +758,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.loop = loop
         self.session = session
         self._content_buffer = b""
-        self._stream = None
+        self._stream: AsyncIterator[bytes] | None = None
 
         if mode != "rb":
             msg = "Write mode not supported"
