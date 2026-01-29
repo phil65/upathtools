@@ -211,8 +211,10 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         async def _ls_layer(
             fs: AsyncFileSystem, layer_index: int
         ) -> tuple[int, list[dict[str, Any]]]:
+            # Translate root marker for filesystems with different conventions
+            layer_path = fs.root_marker if path == self.root_marker else path
             try:
-                items = await fs._ls(path, detail=True, **kwargs)
+                items = await fs._ls(layer_path, detail=True, **kwargs)
             except (FileNotFoundError, NotImplementedError):
                 return layer_index, []
             else:
