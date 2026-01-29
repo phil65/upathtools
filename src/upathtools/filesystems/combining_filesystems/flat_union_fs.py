@@ -90,7 +90,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         - `flatunion://?filesystems=path1,path2,path3` (query parameter)
     """
 
-    protocol = "flat-union"
+    protocol = "flatunion"
     upath_cls = FlatUnionPath
     root_marker = "/"
     cachable = False  # Underlying filesystems handle their own caching
@@ -124,20 +124,20 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
 
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
-        """Parse flat-union URL and return constructor kwargs.
+        """Parse flatunion URL and return constructor kwargs.
 
         Supports URL formats:
         - flatunion://path1,path2,path3  (comma-separated filesystems)
         - flatunion://?filesystems=path1,path2,path3  (query parameter)
 
         Args:
-            path: Flat-union URL path
+            path: flatunion URL path
 
         Returns:
             Dictionary with 'filesystems' key containing list of path strings
         """
         # Remove protocol prefix first
-        path_without_protocol = path.removeprefix("flatunion://").removeprefix("flat-union://")
+        path_without_protocol = path.removeprefix("flatunion://")
 
         # Check if using query parameter format
         if "?" in path_without_protocol:
