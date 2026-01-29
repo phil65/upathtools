@@ -25,6 +25,129 @@ IDENTIFIER_PARTS_COUNT = 2
 MIN_ISSUE_COMMENT_PATH_PARTS = 2
 MIN_COMMENT_FILE_PATH_PARTS = 3
 
+ISSUE_QUERY = """
+query GetIssue($filter: IssueFilter) {
+    issues(filter: $filter, first: 1) {
+        nodes {
+            id
+            identifier
+            title
+            description
+            url
+            createdAt
+            updatedAt
+            dueDate
+            priority
+            priorityLabel
+            state {
+                name
+            }
+            assignee {
+                name
+                email
+            }
+            labels {
+                nodes {
+                    name
+                }
+            }
+            project {
+                id
+                name
+            }
+            team {
+                key
+            }
+        }
+    }
+}
+"""
+
+ALL_ISSUES_QUERY = """
+query GetAllIssues($after: String) {
+    issues(first: 100, after: $after) {
+        nodes {
+            id
+            identifier
+            title
+            description
+            url
+            createdAt
+            updatedAt
+            dueDate
+            priority
+            priorityLabel
+            state {
+                name
+            }
+            assignee {
+                name
+                email
+            }
+            labels {
+                nodes {
+                    name
+                }
+            }
+            project {
+                id
+                name
+            }
+            team {
+                key
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+"""
+
+PROJECTS_QUERY = """
+query GetProjects($after: String) {
+    projects(first: 100, after: $after) {
+        nodes {
+            id
+            name
+            description
+            url
+            state
+            createdAt
+            updatedAt
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+"""
+
+ISSUE_COMMENTS_QUERY = """
+query GetIssueComments($issueId: String!, $after: String) {
+    issue(id: $issueId) {
+        comments(first: 100, after: $after) {
+            nodes {
+                id
+                body
+                createdAt
+                updatedAt
+                user {
+                    name
+                    email
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+}
+"""
+
 
 class LinearIssueInfo(FileInfo, total=False):
     """Info dict for Linear Issues filesystem paths."""
@@ -142,11 +265,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             msg = "api_key must be provided or LINEAR_API_KEY environment variable must be set"
             raise ValueError(msg)
 
-        self.headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Authorization": self.api_key,
-        }
-
+        self.headers = {"Content-Type": "application/json", "Authorization": self.api_key}
         self.dircache: dict[str, Any] = {}
 
     @property
@@ -254,63 +373,17 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 team_key = parts[0]
                 return issue_number, team_key
 
-        issue_number, team_key = _parse_identifier_or_raise(identifier)
-
-        query = """
-        query GetIssue($filter: IssueFilter) {
-            issues(filter: $filter, first: 1) {
-                nodes {
-                    id
-                    identifier
-                    title
-                    description
-                    url
-                    createdAt
-                    updatedAt
-                    dueDate
-                    priority
-                    priorityLabel
-                    state {
-                        name
-                    }
-                    assignee {
-                        name
-                        email
-                    }
-                    labels {
-                        nodes {
-                            name
-                        }
-                    }
-                    project {
-                        id
-                        name
-                    }
-                    team {
-                        key
-                    }
-                }
-            }
-        }
-        """
-        variables = {
-            "filter": {
-                "number": {"eq": issue_number},
-                "team": {"key": {"eq": team_key}},
-            }
-        }
-        data = await self._graphql_request(query, variables)
-
+        issue_num, team_key = _parse_identifier_or_raise(identifier)
+        variables = {"filter": {"number": {"eq": issue_num}, "team": {"key": {"eq": team_key}}}}
+        data = await self._graphql_request(ISSUE_QUERY, variables)
         issues = data.get("issues", {}).get("nodes", [])
         if not issues:
             msg = f"Issue not found: {identifier}"
             raise FileNotFoundError(msg)
-
         found_issue = issues[0]
         if found_issue.get("identifier") != identifier:
             msg = f"Issue not found: {identifier}"
             raise FileNotFoundError(msg)
-
         return found_issue
 
     async def _fetch_all_issues(self) -> list[dict[str, Any]]:
@@ -318,47 +391,6 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         Returns:
             List of issue data dictionaries
-        """
-        query = """
-        query GetAllIssues($after: String) {
-            issues(first: 100, after: $after) {
-                nodes {
-                    id
-                    identifier
-                    title
-                    description
-                    url
-                    createdAt
-                    updatedAt
-                    dueDate
-                    priority
-                    priorityLabel
-                    state {
-                        name
-                    }
-                    assignee {
-                        name
-                        email
-                    }
-                    labels {
-                        nodes {
-                            name
-                        }
-                    }
-                    project {
-                        id
-                        name
-                    }
-                    team {
-                        key
-                    }
-                }
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-            }
-        }
         """
         all_issues: list[dict[str, Any]] = []
         cursor: str | None = None
@@ -368,7 +400,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             if cursor:
                 variables["after"] = cursor
 
-            data = await self._graphql_request(query, variables)
+            data = await self._graphql_request(ALL_ISSUES_QUERY, variables)
             issues_data = data.get("issues", {})
             issues = issues_data.get("nodes", [])
             all_issues.extend(issues)
@@ -390,25 +422,6 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         if cache_key in self.dircache:
             return self.dircache[cache_key]
 
-        query = """
-        query GetProjects($after: String) {
-            projects(first: 100, after: $after) {
-                nodes {
-                    id
-                    name
-                    description
-                    url
-                    state
-                    createdAt
-                    updatedAt
-                }
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-            }
-        }
-        """
         all_projects: list[dict[str, Any]] = []
         cursor: str | None = None
 
@@ -417,7 +430,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             if cursor:
                 variables["after"] = cursor
 
-            data = await self._graphql_request(query, variables)
+            data = await self._graphql_request(PROJECTS_QUERY, variables)
             projects_data = data.get("projects", {})
             projects = projects_data.get("nodes", [])
             all_projects.extend(projects)
@@ -439,28 +452,6 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         Returns:
             List of comment data dictionaries
         """
-        query = """
-        query GetIssueComments($issueId: String!, $after: String) {
-            issue(id: $issueId) {
-                comments(first: 100, after: $after) {
-                    nodes {
-                        id
-                        body
-                        createdAt
-                        updatedAt
-                        user {
-                            name
-                            email
-                        }
-                    }
-                    pageInfo {
-                        hasNextPage
-                        endCursor
-                    }
-                }
-            }
-        }
-        """
         all_comments: list[dict[str, Any]] = []
         cursor: str | None = None
 
@@ -469,7 +460,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             if cursor:
                 variables["after"] = cursor
 
-            data = await self._graphql_request(query, variables)
+            data = await self._graphql_request(ISSUE_COMMENTS_QUERY, variables)
             comments_data = data.get("issue", {}).get("comments", {})
             comments = comments_data.get("nodes", [])
             all_comments.extend(comments)
@@ -698,7 +689,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         msg = f"Invalid path: {'/'.join(parts)}"
         raise FileNotFoundError(msg)
 
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     async def _cat_file(
         self,
@@ -855,7 +846,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         self.invalidate_cache()
 
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
 
     async def _create_issue(
         self,
@@ -986,7 +977,6 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         """
         data = await self._graphql_request(mutation, {"id": issue_id})
         result = data.get("issueDelete", {})
-
         if not result.get("success"):
             msg = f"Failed to delete issue {issue_id}"
             raise RuntimeError(msg)
@@ -998,12 +988,10 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
     ) -> LinearIssueInfo | LinearCommentInfo | LinearProjectInfo:
         """Get info for a path."""
         path = self._strip_protocol(path)
-
         if not path:
             return LinearIssueInfo(name="", type="directory", size=0)
 
         parts = path.rstrip("/").split("/")
-
         if self.group_by == "project":
             project_name = parts[0]
 
@@ -1181,8 +1169,13 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             raise ValueError(msg)
 
         # Check if it's a file or directory
-        is_file = await self._isfile(path)
-        is_dir = await self._isdir(path)
+        try:
+            info = await self._info(path)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Path not found: {path}") from None
+
+        is_file = info.get("type") == "file"
+        is_dir = info.get("type") == "directory"
 
         if is_file:
             await self._rm_file(path, **kwargs)
@@ -1216,7 +1209,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
 
-    rm = sync_wrapper(_rm)
+    rm = sync_wrapper(_rm)  # pyright: ignore[reportAssignmentType]
 
     def invalidate_cache(self, path: str | None = None) -> None:
         """Clear the directory cache."""
