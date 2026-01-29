@@ -10,6 +10,7 @@ import asyncio
 from dataclasses import dataclass, field
 import fnmatch
 import re
+import stat
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 
@@ -199,20 +200,28 @@ async def _aget_files_to_search(
     exclude: str | None,
 ) -> AsyncIterator[UPath]:
     """Get list of files to search based on options."""
-    is_file = await asyncio.to_thread(path.is_file)
-    if is_file:
+    try:
+        stat_result = await asyncio.to_thread(path.stat)
+    except (OSError, ValueError):
+        return
+
+    mode = stat_result.st_mode
+    if stat.S_ISREG(mode):
         if _matches_filters(path, include, exclude):
             yield path
         return
 
-    is_dir = await asyncio.to_thread(path.is_dir)
-    if not is_dir:
+    if not stat.S_ISDIR(mode):
         return
 
     glob_pattern = "**/*" if recursive else "*"
     items = await asyncio.to_thread(list, path.glob(glob_pattern))
     for item in items:
-        if await asyncio.to_thread(item.is_file) and _matches_filters(item, include, exclude):
+        try:
+            item_stat = await asyncio.to_thread(item.stat)
+        except (OSError, ValueError):
+            continue
+        if stat.S_ISREG(item_stat.st_mode) and _matches_filters(item, include, exclude):
             yield item
 
 
@@ -349,8 +358,18 @@ async def afind(
         if mindepth is not None and depth < mindepth:
             continue
 
-        is_file = await asyncio.to_thread(item.is_file)
-        is_dir = await asyncio.to_thread(item.is_dir)
+        # Single stat call to get all file info
+        try:
+            stat_result = await asyncio.to_thread(item.stat)
+        except (OSError, ValueError):
+            continue
+
+        mode = stat_result.st_mode
+        is_file = stat.S_ISREG(mode)
+        is_dir = stat.S_ISDIR(mode)
+        size = stat_result.st_size
+        mtime = stat_result.st_mtime
+
         item_type: Literal["file", "directory", "unknown"] = (
             "file" if is_file else "directory" if is_dir else "unknown"
         )
@@ -372,25 +391,14 @@ async def afind(
         if compiled_regex and not compiled_regex.search(str(item)):
             continue
 
-        size: int | None = None
-        mtime: float | None = None
-
-        if any(x is not None for x in [size_min, size_max, newer_than, older_than]):
-            try:
-                stat = await asyncio.to_thread(item.stat)
-                size = stat.st_size
-                mtime = stat.st_mtime
-            except (OSError, ValueError):
-                continue
-
-            if size_min is not None and (size is None or size < size_min):
-                continue
-            if size_max is not None and (size is None or size > size_max):
-                continue
-            if newer_than is not None and (mtime is None or mtime < newer_than):
-                continue
-            if older_than is not None and (mtime is None or mtime > older_than):
-                continue
+        if size_min is not None and size < size_min:
+            continue
+        if size_max is not None and size > size_max:
+            continue
+        if newer_than is not None and mtime < newer_than:
+            continue
+        if older_than is not None and mtime > older_than:
+            continue
 
         yield FindResult(path=str(item), type=item_type, size=size, mtime=mtime)
 
@@ -406,8 +414,12 @@ async def _awalk_with_depth(
     if maxdepth is not None and current_depth >= maxdepth:
         return
 
-    is_dir = await asyncio.to_thread(path.is_dir)
-    if is_dir:
+    try:
+        stat_result = await asyncio.to_thread(path.stat)
+    except (OSError, ValueError):
+        return
+
+    if stat.S_ISDIR(stat_result.st_mode):
         try:
             children = await asyncio.to_thread(list, path.iterdir())
             for child in children:
@@ -597,8 +609,12 @@ async def _als_collect(
     """Collect items for ls asynchronously."""
     items: list[LsEntry] = []
 
-    is_dir = await asyncio.to_thread(path.is_dir)
-    if not is_dir:
+    try:
+        stat_result = await asyncio.to_thread(path.stat)
+    except (OSError, ValueError):
+        return items
+
+    if not stat.S_ISDIR(stat_result.st_mode):
         entry = await _amake_ls_entry(path, detailed)
         if entry:
             items.append(entry)
@@ -615,8 +631,8 @@ async def _als_collect(
             if entry:
                 items.append(entry)
 
-            if recursive and await asyncio.to_thread(child.is_dir):
-                items.extend(await _als_collect(child, all_, recursive, detailed))
+                if recursive and entry.type == "directory":
+                    items.extend(await _als_collect(child, all_, recursive, detailed))
 
     except PermissionError:
         pass
@@ -627,35 +643,34 @@ async def _als_collect(
 async def _amake_ls_entry(path: UPath, detailed: bool) -> LsEntry | None:
     """Create an LsEntry from a path asynchronously."""
     try:
-        is_dir = await asyncio.to_thread(path.is_dir)
-        is_file = await asyncio.to_thread(path.is_file)
-        item_type: Literal["file", "directory", "unknown"] = (
-            "directory" if is_dir else "file" if is_file else "unknown"
-        )
-
-        size: int | None = None
-        mtime: float | None = None
-        mode: int | None = None
-
-        if detailed:
-            try:
-                stat = await asyncio.to_thread(path.stat)
-                size = stat.st_size
-                mtime = stat.st_mtime
-                mode = stat.st_mode
-            except (OSError, ValueError):
-                pass
-
-        return LsEntry(
-            name=path.name,
-            path=str(path),
-            type=item_type,
-            size=size,
-            mtime=mtime,
-            mode=mode,
-        )
+        stat_result = await asyncio.to_thread(path.stat)
     except (OSError, ValueError):
         return None
+
+    file_mode = stat_result.st_mode
+    is_dir = stat.S_ISDIR(file_mode)
+    is_file = stat.S_ISREG(file_mode)
+    item_type: Literal["file", "directory", "unknown"] = (
+        "directory" if is_dir else "file" if is_file else "unknown"
+    )
+
+    size: int | None = None
+    mtime: float | None = None
+    mode: int | None = None
+
+    if detailed:
+        size = stat_result.st_size
+        mtime = stat_result.st_mtime
+        mode = file_mode
+
+    return LsEntry(
+        name=path.name,
+        path=str(path),
+        type=item_type,
+        size=size,
+        mtime=mtime,
+        mode=mode,
+    )
 
 
 def _human_readable_size(size: int) -> str:
@@ -749,15 +764,15 @@ async def arm(
     """Remove file or directory asynchronously."""
     resolved = _resolve_path(path, base)
 
-    exists = await asyncio.to_thread(resolved.exists)
-    if not exists:
+    try:
+        stat_result = await asyncio.to_thread(resolved.stat)
+    except (OSError, ValueError):
         if force:
             return
         msg = f"Path not found: {resolved}"
-        raise FileNotFoundError(msg)
+        raise FileNotFoundError(msg) from None
 
-    is_dir = await asyncio.to_thread(resolved.is_dir)
-    if is_dir:
+    if stat.S_ISDIR(stat_result.st_mode):
         if not recursive:
             msg = f"Cannot remove directory without recursive=True: {resolved}"
             raise IsADirectoryError(msg)
@@ -786,18 +801,22 @@ async def acp(
     src_resolved = _resolve_path(src, base)
     dst_resolved = _resolve_path(dst, base)
 
-    src_exists = await asyncio.to_thread(src_resolved.exists)
-    if not src_exists:
+    try:
+        src_stat = await asyncio.to_thread(src_resolved.stat)
+    except (OSError, ValueError):
         msg = f"Source not found: {src_resolved}"
-        raise FileNotFoundError(msg)
+        raise FileNotFoundError(msg) from None
 
-    dst_exists = await asyncio.to_thread(dst_resolved.exists)
-    if dst_exists and not force:
-        msg = f"Destination exists: {dst_resolved}"
-        raise FileExistsError(msg)
+    try:
+        await asyncio.to_thread(dst_resolved.stat)
+        # Destination exists
+        if not force:
+            msg = f"Destination exists: {dst_resolved}"
+            raise FileExistsError(msg)
+    except (OSError, ValueError):
+        pass  # Destination doesn't exist, that's fine
 
-    src_is_dir = await asyncio.to_thread(src_resolved.is_dir)
-    if src_is_dir:
+    if stat.S_ISDIR(src_stat.st_mode):
         if not recursive:
             msg = f"Cannot copy directory without recursive=True: {src_resolved}"
             raise IsADirectoryError(msg)
@@ -829,20 +848,25 @@ async def amv(
     src_resolved = _resolve_path(src, base)
     dst_resolved = _resolve_path(dst, base)
 
-    src_exists = await asyncio.to_thread(src_resolved.exists)
-    if not src_exists:
+    try:
+        src_stat = await asyncio.to_thread(src_resolved.stat)
+    except (OSError, ValueError):
         msg = f"Source not found: {src_resolved}"
-        raise FileNotFoundError(msg)
+        raise FileNotFoundError(msg) from None
 
-    dst_exists = await asyncio.to_thread(dst_resolved.exists)
-    if dst_exists and not force:
-        msg = f"Destination exists: {dst_resolved}"
-        raise FileExistsError(msg)
+    try:
+        await asyncio.to_thread(dst_resolved.stat)
+        # Destination exists
+        if not force:
+            msg = f"Destination exists: {dst_resolved}"
+            raise FileExistsError(msg)
+    except (OSError, ValueError):
+        pass  # Destination doesn't exist, that's fine
 
     try:
         await asyncio.to_thread(src_resolved.rename, dst_resolved)
     except (OSError, NotImplementedError):
-        src_is_dir = await asyncio.to_thread(src_resolved.is_dir)
+        src_is_dir = stat.S_ISDIR(src_stat.st_mode)
         await acp(src, dst, base, recursive=src_is_dir, force=force)
         await arm(src, base, recursive=True, force=True)
 
@@ -861,22 +885,21 @@ async def adu(
 
     async def _calc_size(p: UPath, depth: int) -> int:
         total = 0
-        is_file = await asyncio.to_thread(p.is_file)
-        if is_file:
+        try:
+            stat_result = await asyncio.to_thread(p.stat)
+        except (OSError, ValueError):
+            return 0
+
+        mode = stat_result.st_mode
+        if stat.S_ISREG(mode):
+            total = stat_result.st_size
+        elif stat.S_ISDIR(mode):
             try:
-                stat = await asyncio.to_thread(p.stat)
-                total = stat.st_size
-            except (OSError, ValueError):
+                children = await asyncio.to_thread(list, p.iterdir())
+                for child in children:
+                    total += await _calc_size(child, depth + 1)
+            except PermissionError:
                 pass
-        else:
-            is_dir = await asyncio.to_thread(p.is_dir)
-            if is_dir:
-                try:
-                    children = await asyncio.to_thread(list, p.iterdir())
-                    for child in children:
-                        total += await _calc_size(child, depth + 1)
-                except PermissionError:
-                    pass
 
         if not summarize and (max_depth is None or depth <= max_depth):
             sizes[str(p)] = total
