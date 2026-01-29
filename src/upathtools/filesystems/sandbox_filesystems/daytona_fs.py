@@ -513,7 +513,9 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         sandbox = await self._get_sandbox()
         try:
             matches = await sandbox.fs.find_files(path, pattern)
-            result = [GrepMatch(path=m.file, line_number=m.line, text=m.content) for m in matches]
+            result = [
+                GrepMatch(path=m.file, line_number=int(m.line), text=m.content) for m in matches
+            ]
         except Exception as exc:
             msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
             raise OSError(msg) from exc
@@ -537,10 +539,10 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             raise OSError(msg) from exc
 
     # Sync wrappers for async methods
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
-    put_file = sync_wrapper(_put_file)
-    pipe_file = sync_wrapper(_pipe_file)
+    put_file = sync_wrapper(_put_file)  # pyright: ignore[reportAssignmentType]
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)

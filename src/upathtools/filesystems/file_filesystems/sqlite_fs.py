@@ -241,7 +241,6 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         from sqlalchemy import text
 
         engine = await self._get_engine()
-
         async with engine.begin() as conn:
             # Get table names
             result = await conn.execute(
@@ -263,7 +262,7 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
 
         return items
 
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any

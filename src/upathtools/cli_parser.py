@@ -6,6 +6,7 @@ This module provides a shell-like interface for executing commands on filesystem
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import shlex
 from typing import TYPE_CHECKING, Any
 
@@ -14,12 +15,12 @@ if TYPE_CHECKING:
     from upath import UPath
 
 
+@dataclass
 class CLIResult:
     """Result from CLI command execution."""
 
-    def __init__(self, data: Any, command: str) -> None:
-        self.data = data
-        self.command = command
+    data: Any
+    command: str
 
     def __str__(self) -> str:
         """Format result as string."""
@@ -28,9 +29,6 @@ class CLIResult:
         if isinstance(self.data, list):
             return "\n".join(str(item) for item in self.data)
         return str(self.data)
-
-    def __repr__(self) -> str:
-        return f"CLIResult(command={self.command!r}, data={self.data!r})"
 
     def __iter__(self):
         """Allow iteration over results."""

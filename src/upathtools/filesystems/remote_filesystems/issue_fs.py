@@ -283,7 +283,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
             return results
         return [f["name"] for f in results]
 
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     async def _cat_file(
         self,
@@ -420,7 +420,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
 
         self.invalidate_cache()
 
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
 
     async def _info(self, path: str, **kwargs: Any) -> IssueInfo:
         """Get info for a path."""

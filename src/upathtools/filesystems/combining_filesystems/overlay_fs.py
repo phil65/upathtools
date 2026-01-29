@@ -213,9 +213,10 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         ) -> tuple[int, list[dict[str, Any]]]:
             try:
                 items = await fs._ls(path, detail=True, **kwargs)
-                return layer_index, items
             except (FileNotFoundError, NotImplementedError):
                 return layer_index, []
+            else:
+                return layer_index, items
 
         results = await asyncio.gather(*(_ls_layer(fs, i) for i, fs in enumerate(self.layers)))
 

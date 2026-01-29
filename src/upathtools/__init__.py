@@ -44,6 +44,8 @@ def register_http_filesystems() -> None:
     register_implementation("https", HTTPFileSystem, clobber=True)
     registry.register_implementation("https", HttpPath, clobber=True)
 
+    HTTPFileSystem.register_fs(clobber=True)
+
 
 def register_async_local_filesystem() -> None:
     """Register AsyncLocalFileSystem, replacing morefs implementation.
@@ -58,41 +60,25 @@ def register_async_local_filesystem() -> None:
 
 def register_all_filesystems() -> None:
     """Register all filesystem implementations provided by upathtools."""
-    from upathtools.filesystems import DistributionFileSystem, DistributionPath
-    from upathtools.filesystems import FlatUnionFileSystem, FlatUnionPath
-    from upathtools.filesystems import MarkdownFileSystem, MarkdownPath
-    from upathtools.filesystems import PackageFileSystem, PackagePath
-    from upathtools.filesystems import SqliteFileSystem, SqlitePath
-    from upathtools.filesystems import UnionFileSystem, UnionPath
-    from upathtools.filesystems import GistFileSystem, GistPath
-    from upathtools.filesystems import WikiFileSystem, WikiPath
+    from upathtools.filesystems import DistributionFileSystem
+    from upathtools.filesystems import FlatUnionFileSystem
+    from upathtools.filesystems import MarkdownFileSystem
+    from upathtools.filesystems import PackageFileSystem
+    from upathtools.filesystems import SqliteFileSystem
+    from upathtools.filesystems import UnionFileSystem
+    from upathtools.filesystems import GistFileSystem
+    from upathtools.filesystems import WikiFileSystem
 
     register_http_filesystems()
     register_async_local_filesystem()
-
-    register_implementation("distribution", DistributionFileSystem, clobber=True)
-    registry.register_implementation("distribution", DistributionPath, clobber=True)
-
-    register_implementation("flatunion", FlatUnionFileSystem, clobber=True)
-    registry.register_implementation("flatunion", FlatUnionPath, clobber=True)
-
-    register_implementation("md", MarkdownFileSystem, clobber=True)
-    registry.register_implementation("md", MarkdownPath, clobber=True)
-
-    register_implementation("pkg", PackageFileSystem, clobber=True)
-    registry.register_implementation("pkg", PackagePath, clobber=True)
-
-    register_implementation("sqlite", SqliteFileSystem, clobber=True)
-    registry.register_implementation("sqlite", SqlitePath, clobber=True)
-
-    register_implementation("union", UnionFileSystem, clobber=True)
-    registry.register_implementation("union", UnionPath, clobber=True)
-
-    register_implementation("gist", GistFileSystem, clobber=True)
-    registry.register_implementation("gist", GistPath, clobber=True)
-
-    register_implementation("wiki", WikiFileSystem, clobber=True)
-    registry.register_implementation("wiki", WikiPath, clobber=True)
+    DistributionFileSystem.register_fs(clobber=True)
+    FlatUnionFileSystem.register_fs(clobber=True)
+    MarkdownFileSystem.register_fs(clobber=True)
+    PackageFileSystem.register_fs(clobber=True)
+    SqliteFileSystem.register_fs(clobber=True)
+    UnionFileSystem.register_fs(clobber=True)
+    GistFileSystem.register_fs(clobber=True)
+    WikiFileSystem.register_fs(clobber=True)
 
 
 __all__ = [

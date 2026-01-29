@@ -147,11 +147,8 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         idx_star = path.find("*") if path.find("*") >= 0 else len(path)
         idx_qmark = path.find("?") if path.find("?") >= 0 else len(path)
         idx_brace = path.find("[") if path.find("[") >= 0 else len(path)
-
         min_idx = min(idx_star, idx_qmark, idx_brace)
-
         withdirs = kwargs.pop("withdirs", True)
-
         if not has_magic(path):
             if await self._exists(path, **kwargs):
                 if not detail:
@@ -179,10 +176,8 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
 
         # Use parallelized _find
         allpaths = await self._find(root, maxdepth=depth, withdirs=withdirs, detail=True, **kwargs)
-
         pattern = glob_translate(path + ("/" if ends_with_sep else ""))
         compiled_pattern = re.compile(pattern)
-
         out: dict[str, TInfoDict] = {}
         for p, info in sorted(allpaths.items()):
             # TInfoDict is typically dict[str, Any] or a TypedDict with "type" key
@@ -350,7 +345,6 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         # _strip_protocol can return list for multiple paths, but we only pass one
         path = stripped if isinstance(stripped, str) else stripped[0]
         out: dict[str, Any] = {}
-
         # Add root directory if withdirs is requested (for posix glob compliance)
         if withdirs and path != "" and await self._isdir(path):
             out[path] = await self._info(path)
@@ -411,7 +405,6 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         """
         stripped = self._strip_protocol(path)
         base_path = stripped if isinstance(stripped, str) else stripped[0]
-
         flags = 0 if case_sensitive else re.IGNORECASE
         if multiline:
             flags |= re.MULTILINE | re.DOTALL
@@ -422,7 +415,6 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
 
         # Build glob pattern for _find filtering
         all_files = await self._find(base_path, withdirs=False)
-
         # Apply glob filtering if specified
         if globs:
             import fnmatch
@@ -625,11 +617,11 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         return execute_cli(command, base)
 
     @classmethod
-    def register_fs(cls) -> None:
+    def register_fs(cls, clobber: bool = False) -> None:
         """Register the filesystem with fsspec + UPath."""
         assert isinstance(cls.protocol, str)
-        fsspec.register_implementation(cls.protocol, cls)
-        registry.register_implementation(cls.protocol, cls.upath_cls)
+        fsspec.register_implementation(cls.protocol, cls, clobber=clobber)
+        registry.register_implementation(cls.protocol, cls.upath_cls, clobber=clobber)
 
 
 class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSystem):
@@ -831,8 +823,8 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
         return await execute_cli_async(command, base)
 
     @classmethod
-    def register_fs(cls) -> None:
+    def register_fs(cls, clobber: bool = False) -> None:
         """Register the filesystem with fsspec + UPath."""
         assert isinstance(cls.protocol, str)
-        fsspec.register_implementation(cls.protocol, cls)
-        registry.register_implementation(cls.protocol, cls.upath_cls)
+        fsspec.register_implementation(cls.protocol, cls, clobber=clobber)
+        registry.register_implementation(cls.protocol, cls.upath_cls, clobber=clobber)
