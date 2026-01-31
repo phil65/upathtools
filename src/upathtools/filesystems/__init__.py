@@ -42,6 +42,7 @@ from .combining_filesystems import UnionFileSystem, UnionPath
 from .package_fs import PackageFileSystem, PackagePath
 from .httpx_fs import HTTPFileSystem, HttpPath
 from .async_local_fs import AsyncLocalFileSystem, LocalPath
+from .isolated_memory_fs import IsolatedMemoryFileSystem
 
 __all__ = [
     "E2BFS",
@@ -67,6 +68,7 @@ __all__ = [
     "GitLabPath",
     "HTTPFileSystem",
     "HttpPath",
+    "IsolatedMemoryFileSystem",
     "IssueFileSystem",
     "IssuePath",
     "JsonSchemaFileSystem",
