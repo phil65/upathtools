@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
+from functools import partial
 from glob import has_magic
 import logging
 import os
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
     from upathtools.async_upath import AsyncUPath
     from upathtools.filetree import SortCriteria
 
+
+JSONValue = str | int | float | bool | None | list["JSONValue"] | dict[str, "JSONValue"]
 
 CreationMode = Literal["create", "overwrite"]
 
@@ -480,6 +484,145 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         return matches
 
     @overload
+    async def jq(
+        self,
+        path: str,
+        filter: str,
+    ) -> JSONValue: ...
+
+    @overload
+    async def jq[T](
+        self,
+        path: str,
+        filter: str,
+        *,
+        return_type: type[T],
+    ) -> T: ...
+
+    async def jq[T](
+        self,
+        path: str,
+        filter: str,  # noqa: A002
+        *,
+        return_type: type[T] | None = None,
+        args: dict[str, str] | None = None,
+        json_args: dict[str, JSONValue] | None = None,
+    ) -> JSONValue | T:
+        """Apply a jq filter to a JSON file.
+
+        Args:
+            path: Path to the JSON file
+            filter: jq filter expression (e.g., '.foo', '.[] | select(.x > 1)')
+            return_type: Expected return type (validated at runtime)
+            args: String variables accessible as $name in filter
+            json_args: JSON variables accessible as $name in filter
+
+        Returns:
+            Filtered result, optionally validated against return_type
+
+        Raises:
+            TypeError: If result doesn't match return_type
+            ValueError: If jq filter is invalid
+
+        Examples:
+            >>> await fs.jq("config.json", ".version")
+            "1.0.0"
+            >>> await fs.jq("data.json", ".users[].name", return_type=list)
+            ["alice", "bob"]
+            >>> await fs.jq("data.json", ".count", return_type=int)
+            42
+        """
+        from upathtools.filesystems.base.cli_helpers import apply_jq_filter
+
+        content = await self._cat_file(path)
+        if isinstance(content, bytes):
+            content = content.decode("utf-8")
+
+        # Run jq filter in thread pool (can be CPU-intensive for large docs)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                apply_jq_filter,
+                content,
+                filter,
+                return_type=return_type,
+                args=args,
+                json_args=json_args,
+            ),
+        )
+
+    async def diff(
+        self,
+        path1: str,
+        path2: str,
+        *,
+        output_format: Literal["unified", "context"] = "unified",
+        context_lines: int = 3,
+        brief: bool = False,
+        report_identical: bool = False,
+        ignore_case: bool = False,
+        ignore_whitespace: bool = False,
+        ignore_blank_lines: bool = False,
+    ) -> str:
+        r"""Compare two files line by line.
+
+        Args:
+            path1: Path to the first file
+            path2: Path to the second file
+            output_format: Output format - 'unified' (-u) or 'context' (-c)
+            context_lines: Number of context lines around changes (default: 3)
+            brief: Only report whether files differ, not the actual diff (-q)
+            report_identical: Report when files are identical (-s)
+            ignore_case: Ignore case differences (-i)
+            ignore_whitespace: Ignore all whitespace (-w)
+            ignore_blank_lines: Ignore changes in blank lines (-B)
+
+        Returns:
+            Diff output as string, or status message if brief=True
+
+        Examples:
+            >>> await fs.diff("old.txt", "new.txt")
+            "--- old.txt\\n+++ new.txt\\n@@ -1,3 +1,3 @@..."
+            >>> await fs.diff("a.txt", "b.txt", brief=True)
+            "Files a.txt and b.txt differ"
+            >>> await fs.diff("a.txt", "a.txt", report_identical=True)
+            "Files a.txt and a.txt are identical"
+        """
+        from upathtools.filesystems.base.cli_helpers import compute_diff
+
+        # Read files concurrently
+        content1, content2 = await asyncio.gather(
+            self._cat_file(path1),
+            self._cat_file(path2),
+        )
+
+        if isinstance(content1, bytes):
+            content1 = content1.decode("utf-8")
+        if isinstance(content2, bytes):
+            content2 = content2.decode("utf-8")
+
+        # Run CPU-intensive diff computation in thread pool
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                compute_diff,
+                content1,
+                content2,
+                path1,
+                path2,
+                output_format=output_format,
+                context_lines=context_lines,
+                brief=brief,
+                report_identical=report_identical,
+                ignore_case=ignore_case,
+                ignore_whitespace=ignore_whitespace,
+                ignore_blank_lines=ignore_blank_lines,
+            ),
+        )
+
+    @overload
     def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...
 
     @overload
@@ -688,6 +831,131 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
             List of matching paths, or dict of path -> info if detail=True
         """
         return super().glob(path, maxdepth=maxdepth, detail=detail, **kwargs)  # pyright: ignore[reportReturnType]
+
+    @overload
+    def jq(
+        self,
+        path: str,
+        filter: str,
+    ) -> JSONValue: ...
+
+    @overload
+    def jq[T](
+        self,
+        path: str,
+        filter: str,
+        *,
+        return_type: type[T],
+    ) -> T: ...
+
+    def jq[T](
+        self,
+        path: str,
+        filter: str,  # noqa: A002
+        *,
+        return_type: type[T] | None = None,
+        args: dict[str, str] | None = None,
+        json_args: dict[str, JSONValue] | None = None,
+    ) -> JSONValue | T:
+        """Apply a jq filter to a JSON file.
+
+        Args:
+            path: Path to the JSON file
+            filter: jq filter expression (e.g., '.foo', '.[] | select(.x > 1)')
+            return_type: Expected return type (validated at runtime)
+            args: String variables accessible as $name in filter
+            json_args: JSON variables accessible as $name in filter
+
+        Returns:
+            Filtered result, optionally validated against return_type
+
+        Raises:
+            TypeError: If result doesn't match return_type
+            ValueError: If jq filter is invalid
+
+        Examples:
+            >>> fs.jq("config.json", ".version")
+            "1.0.0"
+            >>> fs.jq("data.json", ".users[].name", return_type=list)
+            ["alice", "bob"]
+            >>> fs.jq("data.json", ".count", return_type=int)
+            42
+        """
+        from upathtools.filesystems.base.cli_helpers import apply_jq_filter
+
+        content = self.cat_file(path)
+        if isinstance(content, bytes):
+            content = content.decode("utf-8")
+
+        return apply_jq_filter(
+            content,
+            filter,
+            return_type=return_type,
+            args=args,
+            json_args=json_args,
+        )
+
+    def diff(
+        self,
+        path1: str,
+        path2: str,
+        *,
+        output_format: Literal["unified", "context"] = "unified",
+        context_lines: int = 3,
+        brief: bool = False,
+        report_identical: bool = False,
+        ignore_case: bool = False,
+        ignore_whitespace: bool = False,
+        ignore_blank_lines: bool = False,
+    ) -> str:
+        r"""Compare two files line by line.
+
+        Args:
+            path1: Path to the first file
+            path2: Path to the second file
+            output_format: Output format - 'unified' (-u) or 'context' (-c)
+            context_lines: Number of context lines around changes (default: 3)
+            brief: Only report whether files differ, not the actual diff (-q)
+            report_identical: Report when files are identical (-s)
+            ignore_case: Ignore case differences (-i)
+            ignore_whitespace: Ignore all whitespace (-w)
+            ignore_blank_lines: Ignore changes in blank lines (-B)
+
+        Returns:
+            Diff output as string, or status message if brief=True
+
+        Examples:
+            >>> fs.diff("old.txt", "new.txt")
+            "--- old.txt\\n+++ new.txt\\n@@ -1,3 +1,3 @@..."
+            >>> fs.diff("a.txt", "b.txt", brief=True)
+            "Files a.txt and b.txt differ"
+            >>> fs.diff("a.txt", "a.txt", report_identical=True)
+            "Files a.txt and a.txt are identical"
+        """
+        from upathtools.filesystems.base.cli_helpers import compute_diff
+
+        # Read files
+        content1 = self.cat_file(path1)
+        content2 = self.cat_file(path2)
+
+        if isinstance(content1, bytes):
+            content1 = content1.decode("utf-8")
+        if isinstance(content2, bytes):
+            content2 = content2.decode("utf-8")
+
+        return compute_diff(
+            content1,
+            content2,
+            path1,
+            path2,
+            output_format=output_format,
+            context_lines=context_lines,
+            brief=brief,
+            report_identical=report_identical,
+            ignore_case=ignore_case,
+            ignore_whitespace=ignore_whitespace,
+            ignore_blank_lines=ignore_blank_lines,
+        )
 
     @overload
     def get_upath(self, path: str | None = None, *, as_async: Literal[True]) -> AsyncUPath: ...

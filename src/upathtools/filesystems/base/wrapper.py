@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, overload
 
@@ -35,11 +36,32 @@ if TYPE_CHECKING:
     OnFirstAccessCallback = Callable[["WrapperFileSystem"], None]
 
 
-def _to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
-    """Convert a sync filesystem to async if needed."""
+@dataclass(frozen=True)
+class ContentMount:
+    """A mount point with static content."""
+
+    path: str
+    content: bytes
+
+
+@dataclass(frozen=True)
+class FilesystemMount:
+    """A mount point backed by another filesystem."""
+
+    path: str
+    fs: AsyncFileSystem
+
+
+def _to_async(filesystem: AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
+    """Convert a sync filesystem to async if needed.
+
+    Args:
+        filesystem: The filesystem to convert
+        asynchronous: Value for the asynchronous flag (needed for DirFileSystem compatibility)
+    """
     if isinstance(filesystem, AsyncFileSystem):
         return filesystem
-    return AsyncFileSystemWrapper(filesystem)
+    return AsyncFileSystemWrapper(filesystem, asynchronous=asynchronous)
 
 
 class WrapperFileSystem(AsyncFileSystem):
@@ -100,6 +122,9 @@ class WrapperFileSystem(AsyncFileSystem):
         self._ls_info_callback = ls_info_callback
         self._on_first_access = on_first_access
         self._initialized = on_first_access is None
+        # Mount storage: path -> mount info
+        self._content_mounts: dict[str, ContentMount] = {}
+        self._fs_mounts: dict[str, FilesystemMount] = {}
 
     def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to wrapped filesystem."""
@@ -110,6 +135,8 @@ class WrapperFileSystem(AsyncFileSystem):
             "_ls_info_callback",
             "_on_first_access",
             "_initialized",
+            "_content_mounts",
+            "_fs_mounts",
         ):
             raise AttributeError(name)
         return getattr(self.fs, name)
@@ -121,6 +148,186 @@ class WrapperFileSystem(AsyncFileSystem):
         self._initialized = True
         if self._on_first_access is not None:
             self._on_first_access(self)
+
+    # Mount helpers
+
+    def _normalize_mount_path(self, path: str) -> str:
+        """Normalize a path for mount lookup."""
+        # Strip protocol if present, normalize slashes
+        if "://" in path:
+            path = path.split("://", 1)[1]
+        return "/" + path.strip("/")
+
+    def _resolve_mount(
+        self, path: str
+    ) -> tuple[Literal["content", "fs", "none"], ContentMount | FilesystemMount | None, str]:
+        """Resolve a path to its mount and relative path.
+
+        Returns:
+            Tuple of (mount_type, mount, relative_path)
+            - mount_type: 'content', 'fs', or 'none'
+            - mount: The mount object or None
+            - relative_path: Path relative to mount (or original path if no mount)
+        """
+        normalized = self._normalize_mount_path(path)
+
+        # Check exact content mount match first
+        if normalized in self._content_mounts:
+            return "content", self._content_mounts[normalized], ""
+
+        # Check filesystem mounts (longest prefix match)
+        for mount_path in sorted(self._fs_mounts, key=len, reverse=True):
+            if normalized == mount_path or normalized.startswith(mount_path + "/"):
+                relative = normalized[len(mount_path) :].lstrip("/") or "/"
+                return "fs", self._fs_mounts[mount_path], relative
+
+        return "none", None, path
+
+    def _get_virtual_entries_for_path(
+        self, path: str, detail: bool
+    ) -> list[str] | list[dict[str, Any]]:
+        """Get virtual directory entries for mounts under a path."""
+        normalized = self._normalize_mount_path(path)
+        if not normalized.endswith("/"):
+            normalized += "/"
+
+        entries: list[str] | list[dict[str, Any]] = []
+        seen_names: set[str] = set()
+
+        # Check content mounts
+        for mount_path, mount in self._content_mounts.items():
+            if mount_path.startswith(normalized):
+                # Get the immediate child name
+                relative = mount_path[len(normalized) :]
+                name = relative.split("/")[0]
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    full_path = normalized + name
+                    # Check if it's a direct file or a parent directory
+                    is_file = mount_path == full_path.rstrip("/")
+                    if detail:
+                        entries.append({  # type: ignore[union-attr]
+                            "name": full_path.rstrip("/"),
+                            "type": "file" if is_file else "directory",
+                            "size": len(mount.content) if is_file else 0,
+                        })
+                    else:
+                        entries.append(full_path.rstrip("/"))  # type: ignore[union-attr]
+
+        # Check filesystem mounts
+        for mount_path in self._fs_mounts:
+            if mount_path.startswith(normalized):
+                relative = mount_path[len(normalized) :]
+                name = relative.split("/")[0]
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    full_path = normalized + name
+                    if detail:
+                        entries.append({  # type: ignore[union-attr]
+                            "name": full_path.rstrip("/"),
+                            "type": "directory",
+                            "size": 0,
+                        })
+                    else:
+                        entries.append(full_path.rstrip("/"))  # type: ignore[union-attr]
+
+        return entries
+
+    @overload
+    def mount(
+        self,
+        path: str,
+        *,
+        content: bytes | str,
+    ) -> None: ...
+
+    @overload
+    def mount(
+        self,
+        path: str,
+        *,
+        fs: AbstractFileSystem,
+        root: str | None = None,
+    ) -> None: ...
+
+    def mount(
+        self,
+        path: str,
+        *,
+        content: bytes | str | None = None,
+        fs: AbstractFileSystem | None = None,
+        root: str | None = None,
+    ) -> None:
+        """Mount content or a filesystem at the given path.
+
+        Args:
+            path: Virtual path where the mount appears
+            content: Static content for a virtual file
+            fs: Filesystem to mount at this path
+            root: Root path within the mounted filesystem (wraps in DirFileSystem)
+
+        Raises:
+            ValueError: If neither or both content/fs are provided
+
+        Examples:
+            >>> fs.mount("/config.json", content=b'{"key": "value"}')
+            >>> fs.mount("/data", fs=S3FileSystem(bucket="my-bucket"))
+            >>> fs.mount("/subdir", fs=other_fs, root="/some/path")
+        """
+        if content is not None and fs is not None:
+            msg = "Cannot specify both 'content' and 'fs'"
+            raise ValueError(msg)
+        if content is None and fs is None:
+            msg = "Must specify either 'content' or 'fs'"
+            raise ValueError(msg)
+
+        normalized = self._normalize_mount_path(path)
+
+        if content is not None:
+            if isinstance(content, str):
+                content = content.encode("utf-8")
+            self._content_mounts[normalized] = ContentMount(path=normalized, content=content)
+        else:
+            assert fs is not None
+            if root is not None:
+                from fsspec.implementations.dirfs import DirFileSystem
+
+                # DirFileSystem requires matching sync/async mode with inner fs
+                # Both wrapper and DirFileSystem need asynchronous=True
+                async_fs = _to_async(fs, asynchronous=True)
+                async_fs = DirFileSystem(path=root, fs=async_fs, asynchronous=True)
+            else:
+                async_fs = _to_async(fs)
+            self._fs_mounts[normalized] = FilesystemMount(path=normalized, fs=async_fs)
+
+    def unmount(self, path: str) -> None:
+        """Remove a mount at the given path.
+
+        Args:
+            path: Path of the mount to remove
+
+        Raises:
+            KeyError: If no mount exists at the path
+        """
+        normalized = self._normalize_mount_path(path)
+        if normalized in self._content_mounts:
+            del self._content_mounts[normalized]
+        elif normalized in self._fs_mounts:
+            del self._fs_mounts[normalized]
+        else:
+            msg = f"No mount at path: {path}"
+            raise KeyError(msg)
+
+    def mounts(self) -> dict[str, ContentMount | FilesystemMount]:
+        """Return all current mounts.
+
+        Returns:
+            Dictionary mapping paths to mount info
+        """
+        result: dict[str, ContentMount | FilesystemMount] = {}
+        result.update(self._content_mounts)
+        result.update(self._fs_mounts)
+        return result
 
     # Callback helpers
 
@@ -183,6 +390,22 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            assert isinstance(mount, ContentMount)
+            return {
+                "name": mount.path,
+                "type": "file",
+                "size": len(mount.content),
+            }
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            info = await mount.fs._info(relative, **kwargs)
+            # Rewrite the name to use our mount path
+            info["name"] = self._normalize_mount_path(path)
+            return await self._apply_info_callback(info)
+
         info = await self.fs._info(path, **kwargs)
         return await self._apply_info_callback(info)
 
@@ -198,7 +421,43 @@ class WrapperFileSystem(AsyncFileSystem):
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[str] | list[dict[str, Any]]:
         self._ensure_initialized()
-        result = await self.fs._ls(path, detail=detail, **kwargs)
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            # Content mounts are files, not directories
+            msg = f"Not a directory: {path}"
+            raise NotADirectoryError(msg)
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            result = await mount.fs._ls(relative, detail=detail, **kwargs)
+            # Rewrite paths to use our mount namespace
+            if detail:
+                for item in result:  # type: ignore[union-attr]
+                    rel_name = item["name"].lstrip("/")
+                    item["name"] = f"{mount.path}/{rel_name}".rstrip("/")
+            else:
+                result = [
+                    f"{mount.path}/{name.lstrip('/')}".rstrip("/")
+                    for name in result  # type: ignore[union-attr]
+                ]
+        else:
+            result = await self.fs._ls(path, detail=detail, **kwargs)
+
+        # Merge in virtual entries from mounts
+        virtual = self._get_virtual_entries_for_path(path, detail=detail)
+        if virtual:
+            if detail:
+                existing = {item["name"] for item in result}  # type: ignore[union-attr]
+                for v in virtual:  # type: ignore[union-attr]
+                    if v["name"] not in existing:  # type: ignore[index]
+                        result.append(v)  # type: ignore[union-attr]
+            else:
+                existing = set(result)  # type: ignore[arg-type]
+                for v in virtual:  # type: ignore[union-attr]
+                    if v not in existing:
+                        result.append(v)  # type: ignore[union-attr]
+
         if detail and (self._ls_info_callback is not None or self._info_callback is not None):
             return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
         return result
@@ -207,6 +466,19 @@ class WrapperFileSystem(AsyncFileSystem):
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
     ) -> bytes:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            assert isinstance(mount, ContentMount)
+            content = mount.content
+            if start is not None or end is not None:
+                content = content[start:end]
+            return content
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return await mount.fs._cat_file(relative, start=start, end=end, **kwargs)
+
         return await self.fs._cat_file(path, start=start, end=end, **kwargs)
 
     async def _pipe_file(
@@ -239,10 +511,46 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            return False  # Content mounts are files
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return await mount.fs._isdir(relative, **kwargs)
+
+        # Also check if path is a virtual directory (has mounts underneath)
+        normalized = self._normalize_mount_path(path)
+        for mount_path in self._content_mounts:
+            if mount_path.startswith(normalized + "/"):
+                return True
+        for mount_path in self._fs_mounts:
+            if mount_path.startswith(normalized + "/"):
+                return True
+
         return await self.fs._isdir(path, **kwargs)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            return True
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return await mount.fs._exists(relative, **kwargs)
+
+        # Also check if path is a virtual directory (has mounts underneath)
+        normalized = self._normalize_mount_path(path)
+        for mount_path in self._content_mounts:
+            if mount_path.startswith(normalized + "/"):
+                return True
+        for mount_path in self._fs_mounts:
+            if mount_path.startswith(normalized + "/"):
+                return True
+
         return await self.fs._exists(path, **kwargs)
 
     # Additional filesystem operations with proper signatures
@@ -330,10 +638,29 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _size(self, path: str, **kwargs: Any) -> int:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            assert isinstance(mount, ContentMount)
+            return len(mount.content)
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return await mount.fs._size(relative, **kwargs)
+
         return await self.fs._size(path, **kwargs)
 
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
+        mount_type, mount, relative = self._resolve_mount(path)
+
+        if mount_type == "content":
+            return True  # Content mounts are always files
+
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return await mount.fs._isfile(relative, **kwargs)
+
         return await self.fs._isfile(path, **kwargs)
 
     async def _checksum(self, path: str, **kwargs: Any) -> str:

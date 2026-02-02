@@ -24,7 +24,11 @@ from upathtools.filesystems.base.filefilesystem import (
     FileFileSystemMixin,
     ProbeResult,
 )
-from upathtools.filesystems.base.wrapper import WrapperFileSystem
+from upathtools.filesystems.base.wrapper import (
+    ContentMount,
+    FilesystemMount,
+    WrapperFileSystem,
+)
 
 __all__ = [
     "AsyncBufferedFile",
@@ -38,9 +42,11 @@ __all__ = [
     "BaseFileSystem",
     "BaseUPath",
     "BufferedWriter",
+    "ContentMount",
     "CreationMode",
     "FileFileSystemMixin",
     "FileInfo",
+    "FilesystemMount",
     "GrepMatch",
     "ProbeResult",
     "WrapperFileSystem",
