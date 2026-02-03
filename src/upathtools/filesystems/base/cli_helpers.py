@@ -107,7 +107,7 @@ def _transform_lines(
 
 def apply_jq_filter[T](
     content: str,
-    filter: str,
+    filter: str,  # noqa: A002
     *,
     return_type: type[T] | None = None,
     args: dict[str, str] | None = None,

@@ -191,8 +191,9 @@ class WrapperFileSystem(AsyncFileSystem):
         if not normalized.endswith("/"):
             normalized += "/"
 
-        entries: list[str] | list[dict[str, Any]] = []
         seen_names: set[str] = set()
+        str_entries: list[str] = []
+        dict_entries: list[dict[str, Any]] = []
 
         # Check content mounts
         for mount_path, mount in self._content_mounts.items():
@@ -206,13 +207,13 @@ class WrapperFileSystem(AsyncFileSystem):
                     # Check if it's a direct file or a parent directory
                     is_file = mount_path == full_path.rstrip("/")
                     if detail:
-                        entries.append({  # type: ignore[union-attr]
+                        dict_entries.append({
                             "name": full_path.rstrip("/"),
                             "type": "file" if is_file else "directory",
                             "size": len(mount.content) if is_file else 0,
                         })
                     else:
-                        entries.append(full_path.rstrip("/"))  # type: ignore[union-attr]
+                        str_entries.append(full_path.rstrip("/"))
 
         # Check filesystem mounts
         for mount_path in self._fs_mounts:
@@ -223,15 +224,15 @@ class WrapperFileSystem(AsyncFileSystem):
                     seen_names.add(name)
                     full_path = normalized + name
                     if detail:
-                        entries.append({  # type: ignore[union-attr]
+                        dict_entries.append({
                             "name": full_path.rstrip("/"),
                             "type": "directory",
                             "size": 0,
                         })
                     else:
-                        entries.append(full_path.rstrip("/"))  # type: ignore[union-attr]
+                        str_entries.append(full_path.rstrip("/"))
 
-        return entries
+        return dict_entries if detail else str_entries
 
     @overload
     def mount(
