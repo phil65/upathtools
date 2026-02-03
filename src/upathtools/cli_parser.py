@@ -101,7 +101,7 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 if idx + 1 < len(args):
                     kwargs["name"] = args[idx + 1]
 
-            results = [result async for result in afind(path, base, **kwargs)]
+            results = [i async for i in afind(path, base, **kwargs)]
             return CLIResult(results, f"find {path}")
         case "head":
             if not args:
@@ -139,12 +139,12 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
 
         case "ls":
             path = args[0] if args else "."
-            results = await als(path, base, **kwargs)
-            return CLIResult(results, f"ls {path}")
+            ls_results = await als(path, base, **kwargs)
+            return CLIResult(ls_results, f"ls {path}")
         case "du":
             path = args[0] if args else "."
-            results = await adu(path, base, **kwargs)
-            return CLIResult(results, f"du {path}")
+            du_results = await adu(path, base, **kwargs)
+            return CLIResult(du_results, f"du {path}")
         case "diff":
             if len(args) < 2:  # noqa: PLR2004
                 msg = "diff requires two file arguments"
@@ -192,7 +192,7 @@ def _parse_args(args: list[str]) -> tuple[list[str], dict[str, Any]]:
         elif arg.startswith("-") and len(arg) > 1:
             # Short options
             for char in arg[1:]:
-                flag_name = SHORT_TO_LONG.get(char)
+                flag_name = SHORT_TO_LONG.get(char, char)
                 # Check if next arg is a value for this flag
                 if char in "nBAmdc" and i + 1 < len(args) and not args[i + 1].startswith("-"):
                     kwargs[flag_name] = _parse_value(args[i + 1])
