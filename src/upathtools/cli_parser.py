@@ -88,10 +88,9 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "grep requires pattern argument"
                 raise ValueError(msg)
 
-            pattern = args[0]
             path = args[1] if len(args) > 1 else "."
-            results = [result async for result in agrep(pattern, path, base, **kwargs)]
-            return CLIResult(results, f"grep {pattern} {path}")
+            grep_results = [result async for result in agrep(cmd, path, base, **kwargs)]
+            return CLIResult(grep_results, f"grep {cmd} {path}")
         case "find":
             path = args[0] if args else "."
 
@@ -101,24 +100,22 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 if idx + 1 < len(args):
                     kwargs["name"] = args[idx + 1]
 
-            results = [i async for i in afind(path, base, **kwargs)]
-            return CLIResult(results, f"find {path}")
+            find_results = [i async for i in afind(path, base, **kwargs)]
+            return CLIResult(find_results, f"find {path}")
         case "head":
             if not args:
                 msg = "head requires file argument"
                 raise ValueError(msg)
 
-            path = args[0]
-            result = await ahead(path, base, **kwargs)
-            return CLIResult(result, f"head {path}")
+            result = await ahead(cmd, base, **kwargs)
+            return CLIResult(result, f"head {cmd}")
         case "tail":
             if not args:
                 msg = "tail requires file argument"
                 raise ValueError(msg)
 
-            path = args[0]
-            result = await atail(path, base, **kwargs)
-            return CLIResult(result, f"tail {path}")
+            result = await atail(cmd, base, **kwargs)
+            return CLIResult(result, f"tail {cmd}")
 
         case "cat":
             if not args:
@@ -133,16 +130,15 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "wc requires file argument"
                 raise ValueError(msg)
 
-            path = args[0]
-            result = await awc(path, base, **kwargs)
-            return CLIResult(result, f"wc {path}")
+            result = await awc(cmd, base, **kwargs)
+            return CLIResult(result, f"wc {cmd}")
 
         case "ls":
-            path = args[0] if args else "."
+            path = cmd if args else "."
             ls_results = await als(path, base, **kwargs)
             return CLIResult(ls_results, f"ls {path}")
         case "du":
-            path = args[0] if args else "."
+            path = cmd if args else "."
             du_results = await adu(path, base, **kwargs)
             return CLIResult(du_results, f"du {path}")
         case "diff":
@@ -150,8 +146,8 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "diff requires two file arguments"
                 raise ValueError(msg)
 
-            result = await adiff(args[0], args[1], base, **kwargs)
-            return CLIResult(result, f"diff {args[0]} {args[1]}")
+            result = await adiff(cmd, args[1], base, **kwargs)
+            return CLIResult(result, f"diff {cmd} {args[1]}")
         case _:
             msg = f"Unknown command: {cmd}"
             raise ValueError(msg)
