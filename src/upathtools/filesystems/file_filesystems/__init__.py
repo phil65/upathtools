@@ -36,23 +36,28 @@ from upathtools.filesystems.file_filesystems.treesitter_fs import (
     TreeSitterPath,
 )
 
+
+FileFileSystem = (
+    JsonSchemaFileSystem
+    | MarkdownFileSystem
+    | OpenAPIFileSystem
+    | SqliteFileSystem
+    | TreeSitterFileSystem
+)
+
 __all__ = [
-    # TreeSitter
     "CodeNode",
-    # JSON Schema
+    "FileFileSystem",
     "JsonSchemaFileSystem",
     "JsonSchemaInfo",
     "JsonSchemaPath",
-    # Markdown
     "MarkdownFileSystem",
     "MarkdownInfo",
     "MarkdownNode",
     "MarkdownPath",
-    # OpenAPI
     "OpenAPIFileSystem",
     "OpenAPIPath",
     "OpenApiInfo",
-    # SQLite
     "SqliteFileSystem",
     "SqliteInfo",
     "SqlitePath",

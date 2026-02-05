@@ -696,16 +696,11 @@ async def adiff(
 
     resolved1 = _resolve_path(path1, base)
     resolved2 = _resolve_path(path2, base)
-
     text1 = (await asyncio.to_thread(resolved1.read_bytes)).decode(encoding, errors=errors)
     text2 = (await asyncio.to_thread(resolved2.read_bytes)).decode(encoding, errors=errors)
-
-    lines1 = text1.splitlines(keepends=True)
-    lines2 = text2.splitlines(keepends=True)
-
     diff_lines = difflib.unified_diff(
-        lines1,
-        lines2,
+        text1.splitlines(keepends=True),
+        text2.splitlines(keepends=True),
         fromfile=str(resolved1),
         tofile=str(resolved2),
         n=context_lines,
@@ -727,8 +722,7 @@ async def atouch(
     if parents:
         await asyncio.to_thread(resolved.parent.mkdir, parents=True, exist_ok=True)
 
-    exists = await asyncio.to_thread(resolved.exists)
-    if exists:
+    if await asyncio.to_thread(resolved.exists):
         if not exist_ok:
             msg = f"File exists: {resolved}"
             raise FileExistsError(msg)
@@ -769,8 +763,7 @@ async def arm(
     except (OSError, ValueError):
         if force:
             return
-        msg = f"Path not found: {resolved}"
-        raise FileNotFoundError(msg) from None
+        raise FileNotFoundError(f"Path not found: {resolved}") from None
 
     if stat.S_ISDIR(stat_result.st_mode):
         if not recursive:
@@ -778,12 +771,8 @@ async def arm(
             raise IsADirectoryError(msg)
         children = await asyncio.to_thread(list, resolved.iterdir())
         for child in children:
-            await arm(
-                str(child),
-                base=type(resolved)("/", protocol=resolved.protocol, **resolved.storage_options),
-                recursive=True,
-                force=force,
-            )
+            typ = type(resolved)("/", protocol=resolved.protocol, **resolved.storage_options)
+            await arm(str(child), base=typ, recursive=True, force=force)
         await asyncio.to_thread(resolved.rmdir)
     else:
         await asyncio.to_thread(resolved.unlink)

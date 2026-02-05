@@ -926,7 +926,3 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             content_str = content.decode()
             return io.StringIO(content_str)
         return io.BytesIO(content)
-
-
-# Register the filesystem
-fsspec.register_implementation("jsonschema", JsonSchemaFileSystem)

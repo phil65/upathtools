@@ -7,8 +7,10 @@ from dataclasses import dataclass
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+from fsspec import filesystem
 from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
+from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from upath.registry import get_upath_class
 
@@ -52,16 +54,16 @@ class FilesystemMount:
     fs: AsyncFileSystem
 
 
-def _to_async(filesystem: AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
+def to_async_fs(fs: AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
     """Convert a sync filesystem to async if needed.
 
     Args:
-        filesystem: The filesystem to convert
+        fs: The filesystem to convert
         asynchronous: Value for the asynchronous flag (needed for DirFileSystem compatibility)
     """
-    if isinstance(filesystem, AsyncFileSystem):
-        return filesystem
-    return AsyncFileSystemWrapper(filesystem, asynchronous=asynchronous)
+    if isinstance(fs, AsyncFileSystem):
+        return fs
+    return AsyncFileSystemWrapper(fs, asynchronous=asynchronous)
 
 
 class WrapperFileSystem(AsyncFileSystem):
@@ -114,10 +116,8 @@ class WrapperFileSystem(AsyncFileSystem):
         )
 
         if fs is None:
-            from fsspec import filesystem
-
             fs = filesystem(protocol=target_protocol, **(target_options or {}))
-        self.fs = _to_async(fs)
+        self.fs = to_async_fs(fs)
         self._info_callback = info_callback
         self._ls_info_callback = ls_info_callback
         self._on_first_access = on_first_access
@@ -291,14 +291,12 @@ class WrapperFileSystem(AsyncFileSystem):
         else:
             assert fs is not None
             if root is not None:
-                from fsspec.implementations.dirfs import DirFileSystem
-
                 # DirFileSystem requires matching sync/async mode with inner fs
                 # Both wrapper and DirFileSystem need asynchronous=True
-                async_fs = _to_async(fs, asynchronous=True)
+                async_fs = to_async_fs(fs, asynchronous=True)
                 async_fs = DirFileSystem(path=root, fs=async_fs, asynchronous=True)
             else:
-                async_fs = _to_async(fs)
+                async_fs = to_async_fs(fs)
             self._fs_mounts[normalized] = FilesystemMount(path=normalized, fs=async_fs)
 
     def unmount(self, path: str) -> None:
@@ -395,11 +393,7 @@ class WrapperFileSystem(AsyncFileSystem):
 
         if mount_type == "content":
             assert isinstance(mount, ContentMount)
-            return {
-                "name": mount.path,
-                "type": "file",
-                "size": len(mount.content),
-            }
+            return {"name": mount.path, "type": "file", "size": len(mount.content)}
         if mount_type == "fs":
             assert isinstance(mount, FilesystemMount)
             info = await mount.fs._info(relative, **kwargs)
@@ -677,16 +671,16 @@ class WrapperFileSystem(AsyncFileSystem):
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
     mkdir = sync_wrapper(_mkdir)
     rmdir = sync_wrapper(_rmdir)
-    mv = sync_wrapper(_mv)
-    copy = sync_wrapper(_copy)
-    put_file = sync_wrapper(_put_file)
-    get_file = sync_wrapper(_get_file)
+    mv = sync_wrapper(_mv)  # pyright: ignore[reportAssignmentType]
+    copy = sync_wrapper(_copy)  # pyright: ignore[reportAssignmentType]
+    put_file = sync_wrapper(_put_file)  # pyright: ignore[reportAssignmentType]
+    get_file = sync_wrapper(_get_file)  # pyright: ignore[reportAssignmentType]
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
     glob = sync_wrapper(_glob)  # pyright: ignore[reportAssignmentType]
     du = sync_wrapper(_du)  # pyright: ignore[reportAssignmentType]
     size = sync_wrapper(_size)
     isfile = sync_wrapper(_isfile)
-    checksum = sync_wrapper(_checksum)
+    checksum = sync_wrapper(_checksum)  # pyright: ignore[reportAssignmentType]
     modified = sync_wrapper(_modified)
 
     def __repr__(self) -> str:

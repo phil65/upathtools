@@ -15,9 +15,6 @@ import time
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
-import fsspec.asyn
-import fsspec.registry
-import fsspec.utils
 import pytest
 
 from upathtools.filesystems import HTTPFileSystem
@@ -25,13 +22,11 @@ from upathtools.filesystems.httpx_fs import HTTPStreamFile as OurHTTPStreamFile
 
 
 logger = logging.getLogger(__name__)
-fsspec.register_implementation("http", HTTPFileSystem, clobber=True)
+HTTPFileSystem.register_fs(clobber=True)
 
 data = b"\n".join([b"some test data"] * 1000)
-listing = open(  # noqa: PTH123, SIM115
-    os.path.join(os.path.dirname(__file__), "data", "listing.html"),  # noqa: PTH118, PTH120
-    "rb",
-).read()
+listing_path = os.path.join(os.path.dirname(__file__), "data", "listing.html")  # noqa: PTH118, PTH120
+listing = open(listing_path, "rb").read()  # noqa: PTH123, SIM115
 win = os.name == "nt"
 
 
@@ -46,9 +41,8 @@ def _make_index_listing(baseurl):
 
 def _make_listing(*paths):
     def _make_listing_port(baseurl):
-        return "\n".join(
-            f'<a href="{baseurl}{f}">Link_{i}</a>' for i, f in enumerate(paths)
-        ).encode()
+        path_strs = f'<a href="{baseurl}{f}">Link_{i}</a>' for i, f in enumerate(paths)
+        return "\n".join(path_strs).encode()
 
     return _make_listing_port
 

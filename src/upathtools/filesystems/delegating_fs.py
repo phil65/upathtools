@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
+from fsspec import filesystem
 from fsspec.asyn import AsyncFileSystem
 from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 
@@ -41,14 +42,9 @@ FileFS = BaseFileFileSystem[Any, Any] | BaseAsyncFileFileSystem[Any, Any]
 FileFSClass = type[BaseFileFileSystem[Any, Any]] | type[BaseAsyncFileFileSystem[Any, Any]]
 
 
-def _to_async(filesystem: AbstractFileSystem | None) -> AsyncFileSystem:
+def to_async_fs(fs: AbstractFileSystem) -> AsyncFileSystem:
     """Convert a sync filesystem to async if needed."""
-    if filesystem is None:
-        msg = "filesystem cannot be None"
-        raise ValueError(msg)
-    if isinstance(filesystem, AsyncFileSystem):
-        return filesystem
-    return AsyncFileSystemWrapper(filesystem)
+    return fs if isinstance(fs, AsyncFileSystem) else AsyncFileSystemWrapper(fs)
 
 
 # Registry of file filesystem classes
@@ -74,9 +70,7 @@ def get_registered_filesystems() -> list[type[FileFileSystemMixin]]:
     return list(_FILE_FS_REGISTRY)
 
 
-def find_filesystems_for_extension(
-    extension: str,
-) -> list[type[FileFileSystemMixin]]:
+def find_filesystems_for_extension(extension: str) -> list[type[FileFileSystemMixin]]:
     """Find all registered filesystems that support the given extension.
 
     Args:
@@ -91,9 +85,7 @@ def find_filesystems_for_extension(
     return sorted(matches, key=lambda cls: cls.priority)
 
 
-def find_filesystem_for_extension(
-    extension: str,
-) -> type[FileFileSystemMixin] | None:
+def find_fs_for_extension(extension: str) -> type[FileFileSystemMixin] | None:
     """Find the highest-priority filesystem that supports the given extension.
 
     Args:
@@ -122,6 +114,11 @@ def _discover_file_filesystems() -> None:
         TreeSitterFileSystem,
     ]:
         register_file_filesystem(fs_class)
+
+
+def _get_extension(path: str) -> str:
+    """Get file extension from path."""
+    return PurePosixPath(path).suffix.lstrip(".").lower()
 
 
 class DelegatingFileSystem(AsyncFileSystem):
@@ -164,21 +161,17 @@ class DelegatingFileSystem(AsyncFileSystem):
             **storage_options: Additional storage options.
         """
         super().__init__(**storage_options)
-
-        if fs is None:
-            from fsspec import filesystem
-
-            fs = filesystem(target_protocol or "file", **(target_options or {}))
-
-        self.fs = _to_async(fs)
+        fs = fs or filesystem(target_protocol or "file", **(target_options or {}))
+        self.fs = to_async_fs(fs)
         self.target_protocol = target_protocol
         self.target_options = target_options or {}
-
         # Cache for file filesystem instances
         self._fs_cache: dict[str, FileFS] = {}
-
         if auto_discover and not _FILE_FS_REGISTRY:
             _discover_file_filesystems()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__qualname__}(fs={self.fs}, registered={len(_FILE_FS_REGISTRY)})"
 
     def _parse_path(self, path: str) -> tuple[str, str | None]:
         """Parse a path into file path and internal path.
@@ -193,10 +186,6 @@ class DelegatingFileSystem(AsyncFileSystem):
             file_path, internal_path = path.split(self.SEPARATOR, 1)
             return file_path, internal_path
         return path, None
-
-    def _get_extension(self, path: str) -> str:
-        """Get file extension from path."""
-        return PurePosixPath(path).suffix.lstrip(".").lower()
 
     async def _get_file_fs(self, file_path: str) -> FileFS | None:
         """Get or create a file filesystem for the given file.
@@ -214,7 +203,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         if file_path in self._fs_cache:
             return self._fs_cache[file_path]
 
-        ext = self._get_extension(file_path)
+        ext = _get_extension(file_path)
         candidates: list[FileFSClass] = [
             c  # type: ignore[misc]
             for c in find_filesystems_for_extension(ext)
@@ -266,8 +255,8 @@ class DelegatingFileSystem(AsyncFileSystem):
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
             return True
-        ext = self._get_extension(file_path)
-        return find_filesystem_for_extension(ext) is not None
+        ext = _get_extension(file_path)
+        return find_fs_for_extension(ext) is not None
 
     def _call_fs_method(self, file_fs: FileFS, method: str, *args: Any, **kwargs: Any) -> Any:
         """Call a method on a file filesystem, handling sync/async differences."""
@@ -288,8 +277,8 @@ class DelegatingFileSystem(AsyncFileSystem):
         info = await self.fs._info(file_path, **kwargs)
 
         if info.get("type") == "file":
-            ext = self._get_extension(file_path)
-            if find_filesystem_for_extension(ext):
+            ext = _get_extension(file_path)
+            if find_fs_for_extension(ext):
                 # Mark as directory since it can be "entered"
                 info["type"] = "directory"
                 info["delegated"] = True
@@ -314,16 +303,14 @@ class DelegatingFileSystem(AsyncFileSystem):
             # Delegate to file filesystem
             file_fs = await self._get_file_fs(file_path)
             if file_fs is None:
-                msg = f"No filesystem available for: {file_path}"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"No filesystem available for: {file_path}")
 
             result = self._call_fs_method(file_fs, "ls", internal_path, detail=detail, **kwargs)
 
             # Prefix paths with file_path::
             if detail:
                 for item in result:
-                    if isinstance(item, dict) and "name" in item:
-                        item["name"] = f"{file_path}{self.SEPARATOR}{item['name']}"
+                    item["name"] = f"{file_path}{self.SEPARATOR}{item['name']}"
             else:
                 result = [f"{file_path}{self.SEPARATOR}{p}" for p in result]
 
@@ -333,21 +320,18 @@ class DelegatingFileSystem(AsyncFileSystem):
         try:
             info = await self.fs._info(file_path, **kwargs)
             if info.get("type") == "file":
-                ext = self._get_extension(file_path)
-                if find_filesystem_for_extension(ext):
-                    file_fs = await self._get_file_fs(file_path)
-                    if file_fs:
-                        # List root of file filesystem
-                        result = self._call_fs_method(file_fs, "ls", "/", detail=detail, **kwargs)
+                ext = _get_extension(file_path)
+                if find_fs_for_extension(ext) and (file_fs := await self._get_file_fs(file_path)):
+                    # List root of file filesystem
+                    result = self._call_fs_method(file_fs, "ls", "/", detail=detail, **kwargs)
 
-                        if detail:
-                            for item in result:
-                                if isinstance(item, dict) and "name" in item:
-                                    item["name"] = f"{file_path}{self.SEPARATOR}{item['name']}"
-                        else:
-                            result = [f"{file_path}{self.SEPARATOR}{p}" for p in result]
+                    if detail:
+                        for item in result:
+                            item["name"] = f"{file_path}{self.SEPARATOR}{item['name']}"
+                    else:
+                        result = [f"{file_path}{self.SEPARATOR}{p}" for p in result]
 
-                        return result
+                    return result
         except FileNotFoundError:
             pass
 
@@ -357,10 +341,10 @@ class DelegatingFileSystem(AsyncFileSystem):
         if detail:
             # Enhance entries for files with supported extensions
             for item in result:
-                if isinstance(item, dict) and item.get("type") == "file":
+                if item.get("type") == "file":
                     name = item.get("name", "")
-                    ext = self._get_extension(name)
-                    if find_filesystem_for_extension(ext):
+                    ext = _get_extension(name)
+                    if find_fs_for_extension(ext):
                         item["type"] = "directory"
                         item["delegated"] = True
                         item["original_type"] = "file"
@@ -375,8 +359,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         if internal_path is not None:
             file_fs = await self._get_file_fs(file_path)
             if file_fs is None:
-                msg = f"No filesystem available for: {file_path}"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"No filesystem available for: {file_path}")
 
             # Try cat_file first (standard fsspec), fall back to cat
             if hasattr(file_fs, "cat_file"):
@@ -421,8 +404,8 @@ class DelegatingFileSystem(AsyncFileSystem):
         try:
             info = await self.fs._info(file_path, **kwargs)
             if info.get("type") == "file":
-                ext = self._get_extension(file_path)
-                if find_filesystem_for_extension(ext):
+                ext = _get_extension(file_path)
+                if find_fs_for_extension(ext):
                     return True
         except FileNotFoundError:
             pass
@@ -443,8 +426,8 @@ class DelegatingFileSystem(AsyncFileSystem):
         try:
             info = await self.fs._info(file_path, **kwargs)
             if info.get("type") == "file":
-                ext = self._get_extension(file_path)
-                if find_filesystem_for_extension(ext):
+                ext = _get_extension(file_path)
+                if find_fs_for_extension(ext):
                     return False  # Treated as directory
         except FileNotFoundError:
             pass
@@ -455,8 +438,7 @@ class DelegatingFileSystem(AsyncFileSystem):
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
-            msg = "Cannot write to internal paths in delegated filesystems"
-            raise NotImplementedError(msg)
+            raise NotImplementedError("Cannot write to internal paths in delegated filesystems")
         await self.fs._pipe_file(file_path, value, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
@@ -473,16 +455,14 @@ class DelegatingFileSystem(AsyncFileSystem):
     ) -> None:
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
-            msg = "Cannot remove internal paths in delegated filesystems"
-            raise NotImplementedError(msg)
+            raise NotImplementedError("Cannot remove internal paths in delegated filesystems")
         self._fs_cache.pop(file_path, None)
         await self.fs._rm(file_path, recursive=recursive, maxdepth=maxdepth, **kwargs)
 
     async def _makedirs(self, path: str, exist_ok: bool = False, **kwargs: Any) -> None:
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
-            msg = "Cannot create directories inside delegated filesystems"
-            raise NotImplementedError(msg)
+            raise NotImplementedError("Cannot create directories inside delegated filesystems")
         await self.fs._makedirs(file_path, exist_ok=exist_ok, **kwargs)
 
     async def _cp_file(self, path1: str, path2: str, overwrite: bool = True, **kwargs: Any) -> None:
@@ -490,8 +470,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         _, internal1 = self._parse_path(path1)
         _, internal2 = self._parse_path(path2)
         if internal1 is not None or internal2 is not None:
-            msg = "Cannot copy internal paths in delegated filesystems"
-            raise NotImplementedError(msg)
+            raise NotImplementedError("Cannot copy internal paths in delegated filesystems")
         await self.fs._cp_file(path1, path2, overwrite=overwrite, **kwargs)
 
     def clear_cache(self, path: str | None = None) -> None:
@@ -512,11 +491,8 @@ class DelegatingFileSystem(AsyncFileSystem):
     exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isdir = sync_wrapper(_isdir)
     isfile = sync_wrapper(_isfile)
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
     rm_file = sync_wrapper(_rm_file)
     rm = sync_wrapper(_rm)
     makedirs = sync_wrapper(_makedirs)
     cp_file = sync_wrapper(_cp_file)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__qualname__}(fs={self.fs}, registered={len(_FILE_FS_REGISTRY)})"
