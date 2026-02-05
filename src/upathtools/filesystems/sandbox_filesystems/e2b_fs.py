@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
@@ -228,8 +229,6 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
                     content = value.decode("utf-8")
                 except UnicodeDecodeError:
                     # For binary files, encode as base64 and write a script to decode
-                    import base64
-
                     encoded = base64.b64encode(value).decode("ascii")
                     decode_script = f"""
 import base64
@@ -314,32 +313,28 @@ with open({path!r}, 'wb') as f:
 
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file."""
+        from e2b.sandbox.filesystem.filesystem import FileType
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             if not await sandbox.files.exists(path):
                 return False
-
             info = await sandbox.files.get_info(path)
-            from e2b.sandbox.filesystem.filesystem import FileType
-
             return info.type == FileType.FILE  # noqa: TRY300
         except Exception:  # noqa: BLE001
             return False
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
+        from e2b.sandbox.filesystem.filesystem import FileType
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             if not await sandbox.files.exists(path):
                 return False
-
             info = await sandbox.files.get_info(path)
-            from e2b.sandbox.filesystem.filesystem import FileType
-
             return info.type == FileType.DIR  # noqa: TRY300
         except Exception:  # noqa: BLE001
             return False
@@ -354,8 +349,7 @@ with open({path!r}, 'wb') as f:
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get file size for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get file size for {path}: {exc}") from exc
         else:
             return info.size
 
@@ -370,18 +364,16 @@ with open({path!r}, 'wb') as f:
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get modification time for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get modification time for {path}: {exc}") from exc
 
     async def _info(self, path: str, **kwargs: Any) -> E2BInfo:
         """Get info about a file or directory."""
+        from e2b.sandbox.filesystem.filesystem import FileType
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         try:
             info = await sandbox.files.get_info(path)
-            from e2b.sandbox.filesystem.filesystem import FileType
-
             return E2BInfo(
                 name=path,
                 size=info.size,
@@ -434,12 +426,12 @@ with open({path!r}, 'wb') as f:
 
         More efficient than walking the directory tree with multiple _ls calls.
         """
+        from e2b.sandbox.filesystem.filesystem import FileType
+
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         # Use a large depth for recursive listing (E2B doesn't support None for unlimited)
         depth = maxdepth if maxdepth is not None else 100
-
         try:
             items = await sandbox.files.list(path, depth=depth)
         except Exception as exc:
@@ -448,15 +440,12 @@ with open({path!r}, 'wb') as f:
             msg = f"Failed to find files in {path}: {exc}"
             raise OSError(msg) from exc
         else:
-            from e2b.sandbox.filesystem.filesystem import FileType
-
             filtered = items if withdirs else [item for item in items if item.type == FileType.FILE]
-
             if detail:
                 return {
                     item.path: E2BInfo(
                         name=item.path,
-                        type="directory" if item.type == FileType.DIRECTORY else "file",
+                        type="directory" if item.type == FileType.DIR else "file",
                         size=0,  # E2B list doesn't return size
                         mtime=0.0,
                         mode=0,
@@ -473,9 +462,9 @@ with open({path!r}, 'wb') as f:
     # This would be faster than fsspec's default implementations.
 
     # Sync wrappers for async methods
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
