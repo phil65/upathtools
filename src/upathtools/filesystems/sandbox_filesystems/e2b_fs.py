@@ -80,28 +80,17 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
 
     async def _get_sandbox(self):
         """Get or create E2B sandbox instance."""
+        from e2b_code_interpreter import AsyncSandbox
+
         if self._sandbox is not None:
             return self._sandbox
 
-        try:
-            # Import here to avoid requiring e2b as a hard dependency
-            from e2b_code_interpreter import AsyncSandbox
-        except ImportError as exc:
-            msg = "e2b_code_interpreter package is required for E2BFS"
-            raise ImportError(msg) from exc
-
         if self._sandbox_id:
             # Connect to existing sandbox
-            self._sandbox = await AsyncSandbox.connect(
-                sandbox_id=self._sandbox_id,
-                api_key=self._api_key,
-            )
+            self._sandbox = await AsyncSandbox.connect(self._sandbox_id, api_key=self._api_key)
         else:
             # Create new sandbox
-            self._sandbox = await AsyncSandbox.create(
-                template=self._template,
-                api_key=self._api_key,
-            )
+            self._sandbox = await AsyncSandbox.create(self._template, api_key=self._api_key)
             assert self._sandbox
             self._sandbox_id = self._sandbox.sandbox_id
 
