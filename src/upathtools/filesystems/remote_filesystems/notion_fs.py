@@ -330,7 +330,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _write_page_content(self, path: str, content: str | bytes) -> None:
         """Write content to a Notion page."""
-        page_title = path.split("/")[-1]
+        page_title = path.rsplit("/", maxsplit=1)[-1]
         properties = {"title": {"title": [{"text": {"content": page_title}}]}}
 
         page_id = await self._get_page_id_from_path(path)

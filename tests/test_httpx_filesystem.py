@@ -15,6 +15,7 @@ import time
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
+import fsspec
 import pytest
 
 from upathtools.filesystems import HTTPFileSystem
@@ -41,7 +42,7 @@ def _make_index_listing(baseurl):
 
 def _make_listing(*paths):
     def _make_listing_port(baseurl):
-        path_strs = f'<a href="{baseurl}{f}">Link_{i}</a>' for i, f in enumerate(paths)
+        path_strs = [f'<a href="{baseurl}{f}">Link_{i}</a>' for i, f in enumerate(paths)]
         return "\n".join(path_strs).encode()
 
     return _make_listing_port

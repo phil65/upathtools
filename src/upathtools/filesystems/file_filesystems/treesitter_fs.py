@@ -542,7 +542,7 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
     def info(self, path: str, **kwargs: Any) -> TreeSitterInfo:
         """Get info about a code entity."""
         node = self._get_node(path)
-        name = "root" if not path or path == "/" else path.split("/")[-1]
+        name = "root" if not path or path == "/" else path.rsplit("/", maxsplit=1)[-1]
 
         return TreeSitterInfo(
             name=name,

@@ -1274,12 +1274,13 @@ def _comment_to_info(
 ) -> LinearCommentInfo:
     """Convert Linear API comment response to LinearCommentInfo."""
     body = comment.get("body") or ""
+    identifier = issue_base.rsplit("/", maxsplit=1)[-1] if "/" in issue_base else issue_base
     return LinearCommentInfo(
         name=f"{issue_base}/comments/{index:03d}.md",
         type="file",
         size=len(body.encode()),
         comment_id=comment["id"],
-        issue_identifier=issue_base.split("/")[-1] if "/" in issue_base else issue_base,
+        issue_identifier=identifier,
         body=body,
         created_at=comment.get("createdAt"),
         updated_at=comment.get("updatedAt"),

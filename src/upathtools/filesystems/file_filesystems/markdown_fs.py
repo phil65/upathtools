@@ -315,7 +315,7 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
     def info(self, path: str, **kwargs: Any) -> MarkdownInfo:
         """Get info about a path."""
         node = self._get_node(path)
-        name = "root" if not path or path == "/" else path.split("/")[-1]
+        name = "root" if not path or path == "/" else path.rsplit("/", maxsplit=1)[-1]
 
         return MarkdownInfo(
             name=name,
