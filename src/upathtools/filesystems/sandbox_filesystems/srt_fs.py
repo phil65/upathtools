@@ -6,6 +6,7 @@ with configurable network and filesystem restrictions.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 from pathlib import Path
@@ -58,7 +59,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         deny_read: list[str] | None = None,
         allow_write: list[str] | None = None,
         deny_write: list[str] | None = None,
-        timeout: float = 30.0,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize SRT filesystem.
@@ -118,16 +119,10 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
             self._settings_file.write_text(json.dumps(settings, indent=2))
         return self._settings_file
 
-    def _wrap_command(self, command: str) -> str:
-        """Wrap a command with srt sandbox."""
-        settings_file = self._get_settings_file()
-        return shlex.join(["srt", "--settings", str(settings_file), command])
-
     async def _run_command(self, command: str) -> tuple[str, str, int]:
         """Run a command in the sandbox and return (stdout, stderr, exit_code)."""
-        import asyncio
-
-        wrapped = self._wrap_command(command)
+        settings_file = self._get_settings_file()
+        wrapped = shlex.join(["srt", "--settings", str(settings_file), command])
         proc = await asyncio.create_subprocess_shell(
             wrapped,
             stdout=asyncio.subprocess.PIPE,
@@ -166,10 +161,8 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
             raise OSError(msg)
 
         entries = ls_cmd.parse_command(stdout, path)
-
         if not detail:
             return [entry.path for entry in entries]
-
         return [
             SRTInfo(name=e.path, size=e.size or 0, type=e.type, permissions=e.permissions)
             for e in entries
@@ -181,7 +174,6 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         """Read file contents."""
         provider = self._get_command_provider()
         b64_cmd = provider.get_command("base64_encode")
-
         command = b64_cmd.create_command(path)
         stdout, stderr, exit_code = await self._run_command(command)
 
@@ -194,12 +186,10 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
             raise OSError(msg)
 
         content = b64_cmd.parse_command(stdout)
-
         if start is not None or end is not None:
             start = start or 0
             end = end or len(content)
             content = content[start:end]
-
         return content
 
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
@@ -208,7 +198,6 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         encoded = base64.b64encode(value).decode("ascii")
         command = f'echo "{encoded}" | base64 -d > {shlex.quote(path)}'
         _stdout, stderr, exit_code = await self._run_command(command)
-
         if exit_code != 0:
             msg = f"Failed to write file {path}: {stderr}"
             raise OSError(msg)
@@ -229,10 +218,8 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         """Remove a file."""
         provider = self._get_command_provider()
         rm_cmd = provider.get_command("remove_path")
-
         command = rm_cmd.create_command(path, recursive=False)
         _stdout, stderr, exit_code = await self._run_command(command)
-
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
@@ -243,10 +230,8 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         """Remove a directory."""
         provider = self._get_command_provider()
         rm_cmd = provider.get_command("remove_path")
-
         command = rm_cmd.create_command(path, recursive=True)
         _stdout, stderr, exit_code = await self._run_command(command)
-
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
@@ -257,20 +242,16 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         """Check if a path exists."""
         provider = self._get_command_provider()
         exists_cmd = provider.get_command("exists")
-
         command = exists_cmd.create_command(path)
         stdout, _stderr, exit_code = await self._run_command(command)
-
         return exists_cmd.parse_command(stdout, exit_code)
 
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file."""
         provider = self._get_command_provider()
         isfile_cmd = provider.get_command("is_file")
-
         command = isfile_cmd.create_command(path)
         stdout, _stderr, exit_code = await self._run_command(command)
-
         return isfile_cmd.parse_command(stdout, exit_code)
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
@@ -285,7 +266,6 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         """Get file/directory info."""
         provider = self._get_command_provider()
         info_cmd = provider.get_command("file_info")
-
         command = info_cmd.create_command(path)
         stdout, stderr, exit_code = await self._run_command(command)
 
@@ -315,9 +295,9 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
             self._settings_file.unlink(missing_ok=True)
 
     # Sync wrappers
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
     cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
