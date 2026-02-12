@@ -225,7 +225,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 None,
                 partial(
                     files_with_info,
-                    patterns=["*"],
                     paths=[abs_path],
                     hidden=kwargs.get("hidden", False),
                     no_ignore=kwargs.get("no_ignore", False),
@@ -258,7 +257,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             None,
             partial(
                 rg_files,
-                patterns=["*"],
                 paths=[abs_path],
                 hidden=kwargs.get("hidden", False),
                 no_ignore=kwargs.get("no_ignore", False),
@@ -338,7 +336,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                 None,
                 partial(
                     files_with_info,
-                    patterns=["*"],
                     paths=[abs_base],
                     globs=[glob_pattern],
                     hidden=kwargs.get("hidden", False),
@@ -370,7 +367,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             None,
             partial(
                 rg_files,
-                patterns=["*"],
                 paths=[abs_base],
                 globs=[glob_pattern],
                 hidden=kwargs.get("hidden", False),
