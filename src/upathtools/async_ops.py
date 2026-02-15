@@ -13,14 +13,14 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 from fsspec.asyn import AsyncFileSystem
 from upath import UPath
 
-from upathtools.filesystems.base import WrapperFileSystem
-
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     import fsspec
     from upath.types import JoinablePathLike
+
+    from upathtools.filesystems.base import WrapperFileSystem
 
 
 logger = logging.getLogger(__name__)
@@ -59,13 +59,28 @@ async def get_async_fs(
     return _get_cached_fs(path_obj.protocol)
 
 
-def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
+@overload
+def to_async_fs[T: AsyncFileSystem](fs: T, asynchronous: bool = True) -> T: ...
+
+
+@overload
+def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> WrapperFileSystem: ...
+
+
+def to_async_fs(
+    fs: fsspec.AbstractFileSystem, asynchronous: bool = True
+) -> AsyncFileSystem | WrapperFileSystem:
     """Convert a sync filesystem to async if needed.
+
+    If the filesystem is already async, it is returned unchanged.
+    Otherwise, it is wrapped in a WrapperFileSystem.
 
     Args:
         fs: The filesystem to convert
         asynchronous: Value for the asynchronous flag (needed for DirFileSystem compatibility)
     """
+    from upathtools.filesystems.base import WrapperFileSystem
+
     if isinstance(fs, AsyncFileSystem):
         return fs
     return WrapperFileSystem(fs, asynchronous=asynchronous)
