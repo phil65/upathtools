@@ -3,22 +3,19 @@
 from __future__ import annotations
 
 from asyncio import get_running_loop
-from functools import partial, wraps
+from functools import partial
 from inspect import iscoroutinefunction
 import json
 import os
 from pathlib import Path
 import shutil
-from typing import TYPE_CHECKING, Any, Literal, Required, overload
+from typing import Any, Literal, Required, overload
 
 from fsspec.implementations.local import LocalFileSystem
 
+from upathtools.async_helpers import wrap
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, GrepMatch
 from upathtools.filesystems.base.file_objects import FileInfo
-
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
 
 
 class LocalFileInfo(FileInfo, total=False):
@@ -49,16 +46,6 @@ class LocalPath(BaseUPath[LocalFileInfo]):
     """UPath implementation for local filesystem."""
 
     __slots__ = ()
-
-
-def wrap[**P, R](func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
-    @wraps(func)
-    async def run(*args: P.args, **kwargs: P.kwargs) -> R:
-        loop = get_running_loop()
-        pfunc = partial(func, *args, **kwargs)
-        return await loop.run_in_executor(None, pfunc)
-
-    return run
 
 
 class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalFileSystem):
@@ -414,7 +401,6 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         """
         from ripgrep_rs import search as rg_search
 
-        loop = get_running_loop()
         abs_path = str(Path(self._strip_protocol(path)).resolve())
 
         # Build kwargs for ripgrep
@@ -439,8 +425,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
             rg_kwargs["multiline"] = True
 
         # Run ripgrep in thread pool (ripgrep-rs releases the GIL)
-        raw_results = await loop.run_in_executor(None, partial(rg_search, **rg_kwargs))
-
+        raw_results = await wrap(rg_search)(**rg_kwargs)
         # Parse JSON Lines output into GrepMatch objects
         matches: list[GrepMatch] = []
         for file_result in raw_results:

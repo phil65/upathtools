@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from asyncio import get_running_loop
 import asyncio.events
 import functools
+from functools import partial, wraps
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -95,3 +97,13 @@ def sync_wrapper[**P, T](func: Callable[P, Awaitable[T]], obj: Any = None) -> Ca
         return sync(self.loop, func, *args, **kwargs)  # type: ignore[arg-type, union-attr]
 
     return wrapper  # type: ignore[return-value]
+
+
+def wrap[**P, R](func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
+    @wraps(func)
+    async def run(*args: P.args, **kwargs: P.kwargs) -> R:
+        loop = get_running_loop()
+        pfunc = partial(func, *args, **kwargs)
+        return await loop.run_in_executor(None, pfunc)
+
+    return run
