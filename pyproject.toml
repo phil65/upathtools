@@ -109,7 +109,7 @@ vercel = "upathtools.filesystems:VercelPath"
 microsandbox = "upathtools.filesystems:MicrosandboxPath"
 
 [project.optional-dependencies]
-adlfs = ["adlfs"]
+adlfs = ["adlfs"]  # ADLS integration
 # agentfs = [
 #   "agentfs-sdk>=0.4.0rc17",
 # ]
@@ -119,17 +119,18 @@ beam = [
 ]  # Beam integration
 daytona = ["daytona; python_version < '3.14'"]  # Daytona integration
 e2b = ["e2b-code-interpreter"]  # E2B integration
-gcsfs = ["gcsfs"]
+gcsfs = ["gcsfs"]  # GCS integration
 gitlab = ["python-gitlab>=7.0.0"]  # GitLab integration
 httpx = ["httpx", "yarl", "brotli"]  # HTTPX based filesystem
-huggingface_hub = ["huggingface_hub"]
+huggingface_hub = ["huggingface_hub"]  # HuggingFace integration
 jq = ["jq>=1.8.0"]  # jq JSON processor
+jsonschema = ["yaml"]  # JSON Schema integration
 mcp = ["fastmcp", "mcp"]  # Virtual MCP Tools & MCP Resources filesystem
 microsandbox = ["microsandbox"]  # Microsandbox integration
 modal = ["modal"]  # Modal integration
 notion-client = ["notion-client"]  # Notion integration
 openapi3 = ["openapi3"]  # OpenAPI integration
-s3fs = ["s3fs"]
+s3fs = ["s3fs"]  # S3 integration
 sqlite = ["sqlalchemy[aiosqlite]"]  # SQLite integration
 tree-sitter = [
   "tree-sitter>=0.25.2",
@@ -145,7 +146,7 @@ tree-sitter = [
   "tree-sitter-yaml>=0.6.0",
 ]  # Tree-sitter based filesystem
 vercel = ["vercel"]  # Vercel integration
-webdav4 = ["webdav4"]
+webdav4 = ["webdav4"]  # WebDAV integration
 
 [dependency-groups]
 dev = [
