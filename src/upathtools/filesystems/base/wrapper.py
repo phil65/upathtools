@@ -54,6 +54,14 @@ class FilesystemMount:
     fs: AsyncFileSystem
 
 
+def _normalize_mount_path(path: str) -> str:
+    """Normalize a path for mount lookup."""
+    # Strip protocol if present, normalize slashes
+    if "://" in path:
+        path = path.split("://", 1)[1]
+    return "/" + path.strip("/")
+
+
 class WrapperFileSystem(AsyncFileSystem):
     """Base class for filesystems that wrap another filesystem.
 
@@ -140,13 +148,6 @@ class WrapperFileSystem(AsyncFileSystem):
 
     # Mount helpers
 
-    def _normalize_mount_path(self, path: str) -> str:
-        """Normalize a path for mount lookup."""
-        # Strip protocol if present, normalize slashes
-        if "://" in path:
-            path = path.split("://", 1)[1]
-        return "/" + path.strip("/")
-
     def _resolve_mount(
         self, path: str
     ) -> tuple[Literal["content", "fs", "none"], ContentMount | FilesystemMount | None, str]:
@@ -158,7 +159,7 @@ class WrapperFileSystem(AsyncFileSystem):
             - mount: The mount object or None
             - relative_path: Path relative to mount (or original path if no mount)
         """
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
 
         # Check exact content mount match first
         if normalized in self._content_mounts:
@@ -176,7 +177,7 @@ class WrapperFileSystem(AsyncFileSystem):
         self, path: str, detail: bool
     ) -> list[str] | list[dict[str, Any]]:
         """Get virtual directory entries for mounts under a path."""
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
         if not normalized.endswith("/"):
             normalized += "/"
 
@@ -271,7 +272,7 @@ class WrapperFileSystem(AsyncFileSystem):
             msg = "Must specify either 'content' or 'fs'"
             raise ValueError(msg)
 
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
 
         if content is not None:
             if isinstance(content, str):
@@ -297,7 +298,7 @@ class WrapperFileSystem(AsyncFileSystem):
         Raises:
             KeyError: If no mount exists at the path
         """
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
         if normalized in self._content_mounts:
             del self._content_mounts[normalized]
         elif normalized in self._fs_mounts:
@@ -387,7 +388,7 @@ class WrapperFileSystem(AsyncFileSystem):
             assert isinstance(mount, FilesystemMount)
             info = await mount.fs._info(relative, **kwargs)
             # Rewrite the name to use our mount path
-            info["name"] = self._normalize_mount_path(path)
+            info["name"] = _normalize_mount_path(path)
             return await self._apply_info_callback(info)
 
         info = await self.fs._info(path, **kwargs)
@@ -505,7 +506,7 @@ class WrapperFileSystem(AsyncFileSystem):
             return await mount.fs._isdir(relative, **kwargs)
 
         # Also check if path is a virtual directory (has mounts underneath)
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
         for mount_path in self._content_mounts:
             if mount_path.startswith(normalized + "/"):
                 return True
@@ -527,7 +528,7 @@ class WrapperFileSystem(AsyncFileSystem):
             return await mount.fs._exists(relative, **kwargs)
 
         # Also check if path is a virtual directory (has mounts underneath)
-        normalized = self._normalize_mount_path(path)
+        normalized = _normalize_mount_path(path)
         for mount_path in self._content_mounts:
             if mount_path.startswith(normalized + "/"):
                 return True
