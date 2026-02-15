@@ -33,6 +33,7 @@ class GithubInfo(FileInfo):
 
 
 logger = logging.getLogger(__name__)
+TYPES: dict[str, Literal["file", "directory"]] = {"blob": "file", "tree": "directory"}
 
 
 class GithubPath(BaseUPath[GithubInfo]):
@@ -277,19 +278,18 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
                 raise FileNotFoundError(path)
             r.raise_for_status()
 
-            types = {"blob": "file", "tree": "directory"}
             results: list[GithubInfo] = []
             for f in r.json()["tree"]:
-                if f["type"] not in types:
+                if f["type"] not in TYPES:
                     continue
-                ftype = types[f["type"]]
-                info: GithubInfo = {
-                    "name": f"{path}/{f['path']}" if path else f["path"],
-                    "mode": f["mode"],
-                    "type": ftype,  # type: ignore[typeddict-item]
-                    "size": f.get("size", 0),
-                    "sha": f["sha"],
-                }
+                ftype = TYPES[f["type"]]
+                info = GithubInfo(
+                    name=f"{path}/{f['path']}" if path else f["path"],
+                    mode=f["mode"],
+                    type=ftype,
+                    size=f.get("size", 0),
+                    sha=f["sha"],
+                )
                 results.append(info)
             if "_sha" not in kwargs:
                 self.dircache[cache_key] = results
