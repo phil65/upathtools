@@ -124,7 +124,7 @@ gitlab = ["python-gitlab>=7.0.0"]  # GitLab integration
 httpx = ["httpx", "yarl", "brotli"]  # HTTPX based filesystem
 huggingface_hub = ["huggingface_hub"]  # HuggingFace integration
 jq = ["jq>=1.8.0"]  # jq JSON processor
-jsonschema = ["yaml"]  # JSON Schema integration
+jsonschema = ["PyYAML"]  # JSON Schema integration
 mcp = ["fastmcp", "mcp"]  # Virtual MCP Tools & MCP Resources filesystem
 microsandbox = ["microsandbox"]  # Microsandbox integration
 modal = ["modal"]  # Modal integration
