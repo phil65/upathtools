@@ -113,12 +113,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
     ) -> list[LocalFileInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[False],
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: bool, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,

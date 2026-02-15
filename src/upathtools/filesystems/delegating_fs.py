@@ -16,7 +16,7 @@ both JSON Schema and OpenAPI), content probing determines the best match.
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
 
 from fsspec import filesystem
 from fsspec.asyn import AsyncFileSystem
@@ -282,7 +282,9 @@ class DelegatingFileSystem(AsyncFileSystem):
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(
+        self, path: str, detail: bool, **kwargs: Any
+    ) -> list[str] | list[dict[str, Any]]: ...
 
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
@@ -330,7 +332,7 @@ class DelegatingFileSystem(AsyncFileSystem):
 
         if detail:
             # Enhance entries for files with supported extensions
-            for item in result:
+            for item in cast(list[dict[str, Any]], result):
                 if item.get("type") == "file":
                     name = item.get("name", "")
                     ext = _get_extension(name)

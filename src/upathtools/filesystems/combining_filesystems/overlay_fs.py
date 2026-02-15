@@ -180,12 +180,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
     ) -> list[OverlayInfo]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str,
-        detail: Literal[False],
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str, detail: bool, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,

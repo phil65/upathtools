@@ -202,12 +202,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
     ) -> list[dict[str, Any]]: ...
 
     @overload
-    async def _ls(
-        self,
-        path: str = "",
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
+    async def _ls(self, path: str = "", detail: bool = False, **kwargs: Any) -> list[str]: ...
 
     async def _ls(
         self,
