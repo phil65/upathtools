@@ -11,8 +11,9 @@ import re
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from upath import UPath
+
+from upathtools.filesystems.base import WrapperFileSystem
 
 
 if TYPE_CHECKING:
@@ -67,7 +68,7 @@ def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> Asy
     """
     if isinstance(fs, AsyncFileSystem):
         return fs
-    return AsyncFileSystemWrapper(fs, asynchronous=asynchronous)
+    return WrapperFileSystem(fs, asynchronous=asynchronous)
 
 
 async def is_directory(
