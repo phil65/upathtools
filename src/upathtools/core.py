@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, overload
 
+from fsspec.asyn import AsyncFileSystem
 from fsspec.core import _un_chain, stringify_path
 from fsspec.registry import get_filesystem_class
 
@@ -12,14 +13,31 @@ if TYPE_CHECKING:
     from fsspec.spec import AbstractFileSystem
 
 
-def filesystem(protocol: str, **storage_options: Any) -> AbstractFileSystem:
+@overload
+def filesystem(
+    protocol: str, ensure_async: Literal[True] = True, **storage_options: Any
+) -> AsyncFileSystem: ...
+
+
+@overload
+def filesystem(
+    protocol: str, ensure_async: bool = False, **storage_options: Any
+) -> AbstractFileSystem: ...
+
+
+def filesystem(
+    protocol: str, ensure_async: bool = False, **storage_options: Any
+) -> AbstractFileSystem:
     """Instantiate filesystems for given protocol and arguments.
 
     ``storage_options`` are specific to the protocol being chosen, and are
     passed directly to the class.
     """
+    from upathtools.filesystems.base import WrapperFileSystem
+
     cls = get_filesystem_class(protocol)
-    return cls(**storage_options)
+    fs = cls(**storage_options)
+    return WrapperFileSystem(fs) if ensure_async and not isinstance(fs, AsyncFileSystem) else fs
 
 
 def url_to_fs(url: str, **kwargs: Any) -> tuple[AbstractFileSystem, str]:
