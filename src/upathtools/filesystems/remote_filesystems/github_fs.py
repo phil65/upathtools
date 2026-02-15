@@ -355,7 +355,7 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         msg = "Writing to GitHub repositories is not implemented"
         raise NotImplementedError(msg)
 
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
 
     async def _info(self, path: str, **kwargs: Any) -> GithubInfo:
         """Get file info.

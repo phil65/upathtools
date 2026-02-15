@@ -310,7 +310,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
 
         return []
 
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     async def _cat_file(
         self,
@@ -453,7 +453,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
         msg = "MCPToolsFileSystem is read-only"
         raise NotImplementedError(msg)
 
-    touch = sync_wrapper(_touch)
+    touch = sync_wrapper(_touch)  # pyright: ignore[reportAssignmentType]
 
 
 def _tool_to_filename(tool_name: str) -> str:

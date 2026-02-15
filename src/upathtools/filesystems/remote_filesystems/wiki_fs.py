@@ -346,7 +346,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
 
         self.dircache.clear()  # Invalidate cache
 
-    pipe_file = sync_wrapper(_pipe_file)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Delete a wiki page.
