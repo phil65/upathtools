@@ -210,7 +210,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         return [item["name"] for item in items]
 
     # Sync wrapper
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
@@ -338,7 +338,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
-    mkdir = sync_wrapper(_mkdir)
+    mkdir = sync_wrapper(_mkdir)  # pyright: ignore[reportAssignmentType]
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory (not supported)."""
@@ -359,7 +359,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         msg = "MCP filesystem is read-only"
         raise NotImplementedError(msg)
 
-    touch = sync_wrapper(_touch)
+    touch = sync_wrapper(_touch)  # pyright: ignore[reportAssignmentType]
 
     def invalidate_cache(self, path: str | None = None) -> None:
         """Invalidate the resource cache.

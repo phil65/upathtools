@@ -284,20 +284,17 @@ class JsonSchemaFileSystem(BaseAsyncFileFileSystem[JsonSchemaPath, JsonSchemaInf
                 ) as f:
                     content = f.read()  # pyright: ignore[reportAttributeAccessIssue]
                 if self.schema_url.endswith((".yaml", ".yml")):
-                    try:
-                        import yaml
+                    import yaml
 
-                        self._schema = yaml.safe_load(content)
-                    except ImportError as exc:
-                        msg = "PyYAML required for YAML files"
-                        raise ImportError(msg) from exc
+                    self._schema = yaml.safe_load(content)
+
                 else:
                     self._schema = json.loads(content)
 
         except Exception as exc:
             msg = f"Failed to load JSON Schema from {self.schema_url}: {exc}"
             raise FileNotFoundError(msg) from exc
-
+        assert self._schema is not None
         return self._schema
 
     def _serialize(self, data: dict[str, Any] | list[Any]) -> bytes:
@@ -315,13 +312,9 @@ class JsonSchemaFileSystem(BaseAsyncFileFileSystem[JsonSchemaPath, JsonSchemaInf
             return result.encode() if isinstance(result, str) else result
 
         if self.serializer == "yaml":
-            try:
-                import yaml
+            import yaml
 
-                return yaml.dump(data, default_flow_style=False, sort_keys=False).encode()
-            except ImportError as exc:
-                msg = "PyYAML is required for YAML serialization. Install with: pip install pyyaml"
-                raise ImportError(msg) from exc
+            return yaml.dump(data, default_flow_style=False, sort_keys=False).encode()
 
         if self.serializer == "json-formatted":
             return json.dumps(data, indent=2).encode()

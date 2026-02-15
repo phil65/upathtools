@@ -272,7 +272,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
             return out  # pyright: ignore[reportReturnType]
         return sorted(out)  # pyright: ignore[reportArgumentType]
 
-    ls = sync_wrapper(_ls)
+    ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
     def _raise_not_found_for_status(self, response: httpx.Response, url: str) -> None:
         """Raise FileNotFoundError for 404s, otherwise raises HTTP errors."""
