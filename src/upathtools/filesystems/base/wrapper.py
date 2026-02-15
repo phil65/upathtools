@@ -113,7 +113,13 @@ class WrapperFileSystem(AsyncFileSystem):
 
         if fs is None:
             fs = filesystem(protocol=target_protocol, **(target_options or {}))
-        self.fs = to_async_fs(fs)
+        # Avoid to_async_fs here to prevent recursion (it creates WrapperFileSystem)
+        if isinstance(fs, AsyncFileSystem):
+            self.fs = fs
+        else:
+            from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
+
+            self.fs = AsyncFileSystemWrapper(fs, asynchronous=asynchronous)
         self._info_callback = info_callback
         self._ls_info_callback = ls_info_callback
         self._on_first_access = on_first_access
