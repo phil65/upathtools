@@ -39,6 +39,34 @@ def _get_mtime(module: ModuleType) -> float | None:
     return None
 
 
+def _get_module(module_name: str) -> ModuleType:
+    """Get or import a module."""
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        msg = f"Module {module_name} not found"
+        raise FileNotFoundError(msg) from exc
+
+
+def _list_packages(detail: bool) -> list[DistributionInfo] | list[str]:
+    """List all installed packages."""
+    packages = list(importlib.metadata.distributions())
+
+    if not detail:
+        return [pkg.metadata["Name"] for pkg in packages]
+
+    return [
+        DistributionInfo(
+            name=pkg.metadata["Name"],
+            type="package",
+            size=0,
+            version=pkg.version,
+            mtime=None,
+        )
+        for pkg in packages
+    ]
+
+
 class DistributionPath(BaseUPath[DistributionInfo]):
     """UPath implementation for browsing Python distributions."""
 
@@ -61,11 +89,6 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
     protocol = "distribution"
     upath_cls = DistributionPath
 
-    def __init__(self, *args: Any, **storage_options: Any) -> None:
-        """Initialize the filesystem."""
-        super().__init__(*args, **storage_options)
-        self._module_cache: dict[str, ModuleType] = {}
-
     @staticmethod
     def _get_kwargs_from_urls(path: str) -> dict[str, Any]:
         return {}
@@ -73,29 +96,14 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
     def _normalize_path(self, path: str) -> str:
         """Convert any path format to internal path format."""
         clean_path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-        if not clean_path:
-            return ""
         return clean_path.replace(".", "/")
 
-    def isdir(self, path):
+    def isdir(self, path: str) -> bool:
         """Is this entry directory-like?"""
         try:
             return self.info(path)["type"] in ("directory", "package")
         except OSError:
             return False
-
-    def _get_module(self, module_name: str) -> ModuleType:
-        """Get or import a module."""
-        if module_name in self._module_cache:
-            return self._module_cache[module_name]
-
-        try:
-            module = importlib.import_module(module_name)
-            self._module_cache[module_name] = module
-        except ImportError as exc:
-            msg = f"Module {module_name} not found"
-            raise FileNotFoundError(msg) from exc
-        return module
 
     @overload
     def ls(
@@ -110,12 +118,12 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
         norm_path = self._normalize_path(path)
 
         if not norm_path:
-            return self._list_packages(detail)
+            return _list_packages(detail)
 
         # Convert path to module name
         module_name = norm_path.replace("/", ".")
         try:
-            module = self._get_module(module_name)
+            module = _get_module(module_name)
             contents: list[str | DistributionInfo] = []
 
             if hasattr(module, "__path__"):
@@ -125,7 +133,7 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
                     if not detail:
                         contents.append(item.name)
                     else:
-                        sub_module = self._get_module(full_name)
+                        sub_module = _get_module(full_name)
                         contents.append(
                             DistributionInfo(
                                 name=item.name,
@@ -136,28 +144,9 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
                             )
                         )
         except ImportError as exc:
-            msg = f"Cannot access {path}"
-            raise FileNotFoundError(msg) from exc
+            raise FileNotFoundError(f"Cannot access {path}") from exc
         else:
             return contents
-
-    def _list_packages(self, detail: bool) -> list[DistributionInfo] | list[str]:
-        """List all installed packages."""
-        packages = list(importlib.metadata.distributions())
-
-        if not detail:
-            return [pkg.metadata["Name"] for pkg in packages]
-
-        return [
-            DistributionInfo(
-                name=pkg.metadata["Name"],
-                type="package",
-                size=0,
-                version=pkg.version,
-                mtime=None,
-            )
-            for pkg in packages
-        ]
 
     def info(self, path: str, **kwargs: Any) -> DistributionInfo:
         """Get info about a path."""
@@ -168,7 +157,7 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
 
         module_name = norm_path.replace("/", ".")
         try:
-            module = self._get_module(module_name)
+            module = _get_module(module_name)
             type_: Literal["package", "module"] = (
                 "package" if hasattr(module, "__path__") else "module"
             )
@@ -181,28 +170,24 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
                 doc=module.__doc__,
             )
         except ImportError as exc:
-            msg = f"Path {path} not found"
-            raise FileNotFoundError(msg) from exc
+            raise FileNotFoundError(f"Path {path} not found") from exc
 
     def cat(self, path: str) -> bytes:
         """Get module file content."""
         norm_path = self._normalize_path(path)
         if not norm_path:
-            msg = "Cannot read source of root directory"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError("Cannot read source of root directory")
 
         module_name = norm_path.replace("/", ".")
         try:
-            module = self._get_module(module_name)
+            module = _get_module(module_name)
             if not module.__file__:
-                msg = f"No source file for {path}"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(f"No source file for {path}")
 
             with fsspec.open(module.__file__, "rb") as f:
                 return f.read()  # type: ignore
         except ImportError as exc:
-            msg = f"Cannot read source of {path}"
-            raise FileNotFoundError(msg) from exc
+            raise FileNotFoundError(f"Cannot read source of {path}") from exc
 
 
 if __name__ == "__main__":
