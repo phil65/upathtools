@@ -35,6 +35,8 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from fsspec.spec import AbstractFileSystem
+
 
 class AutoExpandInfo(FileInfo, total=False):
     """Info dict for auto-expand filesystem paths."""
@@ -84,7 +86,7 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
 
     def __init__(
         self,
-        fs: AsyncFileSystem | None = None,
+        fs: AbstractFileSystem | None = None,
         target_protocol: str | None = None,
         target_options: dict[str, Any] | None = None,
         expanders: dict[str, tuple[str, ExpanderFactory]] | None = None,
