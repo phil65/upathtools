@@ -300,8 +300,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
             return results
         return sorted([f["name"] for f in results])
 
-    ls = sync_wrapper(_ls)
-
     async def _cat_file(self, path: str, **kwargs: Any) -> bytes:
         """Read file contents.
 
@@ -342,8 +340,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         r.raise_for_status()
         return r.content
 
-    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
-
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write file contents (not implemented for GitHub).
 
@@ -354,8 +350,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         """
         msg = "Writing to GitHub repositories is not implemented"
         raise NotImplementedError(msg)
-
-    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
 
     async def _info(self, path: str, **kwargs: Any) -> GithubInfo:
         """Get file info.
@@ -392,8 +386,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
 
         raise FileNotFoundError(path)
 
-    info = sync_wrapper(_info)
-
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists.
 
@@ -411,8 +403,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         else:
             return True
 
-    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
-
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory.
 
@@ -429,8 +419,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         except FileNotFoundError:
             return False
 
-    isdir = sync_wrapper(_isdir)
-
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file.
 
@@ -446,8 +434,6 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
             return info["type"] == "file"
         except FileNotFoundError:
             return False
-
-    isfile = sync_wrapper(_isfile)
 
     def invalidate_cache(self, path: str | None = None) -> None:
         """Invalidate directory cache.
@@ -494,6 +480,14 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
             r = client.get(url)
             r.raise_for_status()
             return [repo["name"] for repo in r.json()]
+
+    ls = sync_wrapper(_ls)
+    isfile = sync_wrapper(_isfile)
+    isdir = sync_wrapper(_isdir)
+    exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
+    info = sync_wrapper(_info)
+    pipe_file = sync_wrapper(_pipe_file)  # pyright: ignore[reportAssignmentType]
+    cat_file = sync_wrapper(_cat_file)  # pyright: ignore[reportAssignmentType]
 
 
 if __name__ == "__main__":
