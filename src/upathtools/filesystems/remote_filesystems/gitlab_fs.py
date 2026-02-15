@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import io
+import asyncio
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class GitLabPath(BaseUPath[GitLabInfo]):
     __slots__ = ()
 
 
-class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
+class GitLabFileSystem(BaseAsyncFileSystem[GitLabPath, GitLabInfo]):
     """Filesystem for accessing GitLab repository contents.
 
     Uses python-gitlab client for API access. Supports browsing repository
@@ -161,13 +161,9 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
     def _get_client(self) -> gitlab.Gitlab:
         """Get or create GitLab client."""
-        if self._client is None:
-            try:
-                import gitlab
-            except ImportError as exc:
-                msg = "python-gitlab package is required for GitLabFileSystem"
-                raise ImportError(msg) from exc
+        import gitlab
 
+        if self._client is None:
             self._client = gitlab.Gitlab(
                 url=self._url,
                 private_token=self._private_token,
@@ -197,12 +193,16 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
         return self._default_branch or "main"
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[GitLabInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[GitLabInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[GitLabInfo] | list[str]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[GitLabInfo] | list[str]:
         """List directory contents.
 
         Args:
@@ -218,7 +218,8 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
         recursive = kwargs.get("recursive", False)
 
         try:
-            items = project.repository_tree(
+            items = await asyncio.to_thread(
+                project.repository_tree,
                 path=path or "",
                 ref=self.ref,
                 recursive=recursive,
@@ -242,19 +243,7 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
             for item in items
         ]
 
-    def cat(self, path: str, **kwargs: Any) -> bytes:
-        """Read file contents.
-
-        Args:
-            path: Path to file
-            **kwargs: Additional keyword arguments
-
-        Returns:
-            File contents as bytes
-        """
-        return self._cat_file(path, **kwargs)
-
-    def _cat_file(
+    async def _cat_file(
         self,
         path: str,
         start: int | None = None,
@@ -276,8 +265,7 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
         project = self._get_project()
 
         try:
-            # Use raw endpoint for direct content
-            content = project.files.raw(file_path=path, ref=self.ref)
+            content = await asyncio.to_thread(project.files.raw, file_path=path, ref=self.ref)
         except Exception as exc:
             if "not found" in str(exc).lower() or "404" in str(exc):
                 raise FileNotFoundError(path) from exc
@@ -291,7 +279,7 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
         return content
 
-    def info(self, path: str, **kwargs: Any) -> GitLabInfo:
+    async def _info(self, path: str, **kwargs: Any) -> GitLabInfo:
         """Get info about a path.
 
         Args:
@@ -311,7 +299,7 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
         # Try to get file info first
         try:
-            f = project.files.get(file_path=path, ref=self.ref)
+            f = await asyncio.to_thread(project.files.get, file_path=path, ref=self.ref)
             return GitLabInfo(
                 name=path,
                 type="file",
@@ -323,7 +311,7 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
         # Check if it's a directory by listing it
         try:
-            items = project.repository_tree(path=path, ref=self.ref)
+            items = await asyncio.to_thread(project.repository_tree, path=path, ref=self.ref)
             if items is not None:
                 return GitLabInfo(name=path, type="directory")
         except Exception:  # noqa: BLE001
@@ -331,70 +319,47 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
         raise FileNotFoundError(path)
 
-    def exists(self, path: str, **kwargs: Any) -> bool:
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
         try:
-            self.info(path)
+            await self._info(path)
         except FileNotFoundError:
             return False
         else:
             return True
 
-    def isfile(self, path: str) -> bool:
+    async def _isfile(self, path: str) -> bool:
         """Check if path is a file."""
         try:
-            info = self.info(path)
+            info = await self._info(path)
             return info["type"] == "file"
         except FileNotFoundError:
             return False
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory."""
         try:
-            info = self.info(path)
+            info = await self._info(path)
             return info["type"] == "directory"
         except FileNotFoundError:
             return False
 
-    def _open(
-        self,
-        path: str,
-        mode: str = "rb",
-        **kwargs: Any,
-    ) -> io.BytesIO:
-        """Open a file for reading.
-
-        Args:
-            path: Path to file
-            mode: File mode (only 'rb' supported)
-            **kwargs: Additional keyword arguments
-
-        Returns:
-            BytesIO object with file contents
-        """
-        if mode != "rb":
-            msg = f"Mode {mode!r} not supported, only 'rb' is available"
-            raise NotImplementedError(msg)
-
-        content = self._cat_file(path)
-        return io.BytesIO(content)
-
-    @property
-    def tags(self) -> list[str]:
+    async def get_tags(self) -> list[str]:
         """Get list of tag names in the repository."""
         project = self._get_project()
-        return [tag.name for tag in project.tags.list(get_all=True)]
+        tags = await asyncio.to_thread(project.tags.list, get_all=True)
+        return [tag.name for tag in tags]
 
-    @property
-    def branches(self) -> list[str]:
+    async def get_branches(self) -> list[str]:
         """Get list of branch names in the repository."""
         project = self._get_project()
-        return [branch.name for branch in project.branches.list(get_all=True)]
+        branches = await asyncio.to_thread(project.branches.list, get_all=True)
+        return [branch.name for branch in branches]
 
-    @property
-    def refs(self) -> dict[str, list[str]]:
+    async def get_refs(self) -> dict[str, list[str]]:
         """Get all named references (tags and branches)."""
-        return {"tags": self.tags, "branches": self.branches}
+        tags, branches = await asyncio.gather(self.get_tags(), self.get_branches())
+        return {"tags": tags, "branches": branches}
 
     def invalidate_cache(self, path: str | None = None) -> None:
         """Invalidate any cached directory listings."""
@@ -402,7 +367,11 @@ class GitLabFileSystem(BaseFileSystem[GitLabPath, GitLabInfo]):
 
 
 if __name__ == "__main__":
-    fs = GitLabFileSystem("phil65/test")
-    print(fs.tags)
-    print(fs.branches)
-    print(fs.refs)
+
+    async def main() -> None:
+        fs = GitLabFileSystem("phil65/test")
+        print(await fs.get_tags())
+        print(await fs.get_branches())
+        print(await fs.get_refs())
+
+    asyncio.run(main())

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -83,7 +83,7 @@ class DistributionPath(BaseUPath[DistributionInfo]):
         return "/" if path == "." else path
 
 
-class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo]):
+class DistributionFileSystem(BaseAsyncFileSystem[DistributionPath, DistributionInfo]):
     """Hierarchical filesystem for browsing Python packages of current environment."""
 
     protocol = "distribution"
@@ -98,22 +98,24 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
         clean_path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         return clean_path.replace(".", "/")
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Is this entry directory-like?"""
         try:
-            return self.info(path)["type"] in ("directory", "package")
+            return (await self._info(path))["type"] in ("directory", "package")
         except OSError:
             return False
 
     @overload
-    def ls(
+    async def _ls(
         self, path: str, detail: Literal[True] = ..., **kwargs: Any
     ) -> list[DistributionInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | DistributionInfo]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> Sequence[str | DistributionInfo]:
         """List contents of a path."""
         norm_path = self._normalize_path(path)
 
@@ -148,7 +150,7 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
         else:
             return contents
 
-    def info(self, path: str, **kwargs: Any) -> DistributionInfo:
+    async def _info(self, path: str, **kwargs: Any) -> DistributionInfo:
         """Get info about a path."""
         norm_path = self._normalize_path(path)
 
@@ -172,8 +174,15 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
         except ImportError as exc:
             raise FileNotFoundError(f"Path {path} not found") from exc
 
-    def cat(self, path: str) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get module file content."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:
+        """Get the raw content bytes for a path."""
         norm_path = self._normalize_path(path)
         if not norm_path:
             raise FileNotFoundError("Cannot read source of root directory")
@@ -191,5 +200,10 @@ class DistributionFileSystem(BaseFileSystem[DistributionPath, DistributionInfo])
 
 
 if __name__ == "__main__":
-    fs = DistributionFileSystem()
-    print(fs.get_tree())
+    import asyncio
+
+    async def main() -> None:
+        fs = DistributionFileSystem()
+        print(fs.get_tree())
+
+    asyncio.run(main())

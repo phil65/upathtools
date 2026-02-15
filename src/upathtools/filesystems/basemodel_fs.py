@@ -6,8 +6,7 @@ import importlib
 import json
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args, get_origin, overload
 
-from upathtools import core
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ class BaseModelPath(BaseUPath[BaseModelInfo]):
         return "/" if path == "." else path
 
 
-class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
+class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     protocol = "basemodel"
@@ -132,12 +131,16 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         return current_model, parts[-1] if parts else ""
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = True, **kwargs: Any) -> list[BaseModelInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[BaseModelInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False] = False, **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[BaseModelInfo] | list[str]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[BaseModelInfo] | list[str]:
         """List model fields and special paths."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -226,8 +229,15 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
 
         return result
 
-    def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get field definition, schema, or other information."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:  # noqa: PLR0911
+        """Get the raw content bytes for a path."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
@@ -354,7 +364,7 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
 
         return json.dumps(field_data, indent=2, default=str).encode()
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (model or nested model field)."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -386,7 +396,7 @@ class BaseModelFileSystem(BaseFileSystem[BaseModelPath, BaseModelInfo]):
         else:
             return False
 
-    def info(self, path: str, **kwargs: Any) -> BaseModelInfo:
+    async def _info(self, path: str, **kwargs: Any) -> BaseModelInfo:
         """Get detailed info about a model or field."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -458,6 +468,8 @@ def _import_model(import_path: str) -> type[BaseModel]:
 
 
 if __name__ == "__main__":
+    import asyncio
+
     from pydantic import BaseModel, Field
     import upath
 
@@ -466,21 +478,26 @@ if __name__ == "__main__":
         age: int = Field(ge=0, le=120)
         email: str
 
-    fs = BaseModelFileSystem(User)
-    print("Fields:", fs.ls("/", detail=False))
-    print("User info:", fs.info("/"))
-    print("Name field:", fs.info("/name"))
-    # Test with UPath using explicit storage options
-    path = upath.UPath("/", protocol="basemodel", model="schemez.Schema")
-    print("UPath with explicit options:", path)
-    print("Storage options:", path.storage_options)
-    print("Fields:", list(path.iterdir())[:5])
-    # Test the original failing URL syntax
-    path = upath.UPath("basemodel://schemez.Schema")
-    print("Original URL syntax works:", path)
-    print("Storage options:", path.storage_options)
-    print("Fields:", list(path.iterdir())[:5])
-    # Test fsspec directly
-    fs, parsed_path = core.url_to_fs("basemodel://schemez.Schema")
-    print("fsspec works - parsed path:", parsed_path)
-    print("Filesystem fields:", fs.ls("/", detail=False)[:5])
+    async def main() -> None:
+        from upathtools import core
+
+        fs = BaseModelFileSystem(User)
+        print("Fields:", fs.ls("/", detail=False))
+        print("User info:", fs.info("/"))
+        print("Name field:", fs.info("/name"))
+        # Test with UPath using explicit storage options
+        path = upath.UPath("/", protocol="basemodel", model="schemez.Schema")
+        print("UPath with explicit options:", path)
+        print("Storage options:", path.storage_options)
+        print("Fields:", list(path.iterdir())[:5])
+        # Test the original failing URL syntax
+        path = upath.UPath("basemodel://schemez.Schema")
+        print("Original URL syntax works:", path)
+        print("Storage options:", path.storage_options)
+        print("Fields:", list(path.iterdir())[:5])
+        # Test fsspec directly
+        fs, parsed_path = core.url_to_fs("basemodel://schemez.Schema")
+        print("fsspec works - parsed path:", parsed_path)
+        print("Filesystem fields:", fs.ls("/", detail=False)[:5])
+
+    asyncio.run(main())

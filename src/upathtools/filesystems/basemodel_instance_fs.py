@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -46,7 +46,9 @@ class BaseModelInstancePath(BaseUPath[BaseModelInstanceInfo]):
         return "/" if path == "." else path
 
 
-class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseModelInstanceInfo]):
+class BaseModelInstanceFileSystem(
+    BaseAsyncFileSystem[BaseModelInstancePath, BaseModelInstanceInfo]
+):
     """Filesystem for browsing Pydantic BaseModel instance data and values."""
 
     protocol = "basemodel-instance"
@@ -63,7 +65,7 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
         self.instance = instance
 
     @overload
-    def ls(
+    async def _ls(
         self,
         path: str,
         detail: Literal[True] = ...,
@@ -71,9 +73,9 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
     ) -> list[BaseModelInstanceInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(
+    async def _ls(
         self,
         path: str,
         detail: bool = True,
@@ -173,7 +175,7 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
 
         return result
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (BaseModel instance, list, or dict)."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -204,8 +206,15 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
             or _is_dict_like(current_obj)
         )
 
-    def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get field values, JSON representation, or other information."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:  # noqa: PLR0911
+        """Get the raw content bytes for a path."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
         if not path:
@@ -321,7 +330,7 @@ class BaseModelInstanceFileSystem(BaseFileSystem[BaseModelInstancePath, BaseMode
             return field_value.model_dump_json(indent=2).encode()
         return json.dumps(field_value, indent=2, default=str).encode()
 
-    def info(self, path: str, **kwargs: Any) -> BaseModelInstanceInfo:
+    async def _info(self, path: str, **kwargs: Any) -> BaseModelInstanceInfo:
         """Get detailed info about an instance field or value."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -437,7 +446,8 @@ def _get_nested_value_at_path(instance: BaseModel, path: str) -> tuple[Any, str]
 
 
 if __name__ == "__main__":
-    # Example usage
+    import asyncio
+
     from pydantic import BaseModel, Field
 
     class Address(BaseModel):
@@ -452,16 +462,19 @@ if __name__ == "__main__":
         address: Address
         tags: list[str] = []
 
-    user = User(
-        name="John Doe",
-        age=30,
-        email="john@example.com",
-        address=Address(street="123 Main St", city="New York"),
-        tags=["developer", "python"],
-    )
+    async def main() -> None:
+        user = User(
+            name="John Doe",
+            age=30,
+            email="john@example.com",
+            address=Address(street="123 Main St", city="New York"),
+            tags=["developer", "python"],
+        )
 
-    fs = BaseModelInstanceFileSystem(user)
-    print("Fields:", fs.ls("/", detail=False))
-    print("User info:", fs.info("/"))
-    print("Address info:", fs.info("/address"))
-    print("Tags:", fs.cat("/tags"))
+        fs = BaseModelInstanceFileSystem(user)
+        print("Fields:", fs.ls("/", detail=False))
+        print("User info:", fs.info("/"))
+        print("Address info:", fs.info("/address"))
+        print("Tags:", fs.cat_file("/tags"))
+
+    asyncio.run(main())

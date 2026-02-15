@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class PackagePath(BaseUPath[PackageInfo]):
         return "/" if path == "." else path
 
 
-class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
+class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
     """Filesystem for browsing a single package's structure."""
 
     protocol = "pkg"
@@ -84,12 +84,16 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
         return module
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = True, **kwargs: Any) -> list[PackageInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = True, **kwargs: Any
+    ) -> list[PackageInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | PackageInfo]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> Sequence[str | PackageInfo]:
         """List contents of a path within the package."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
@@ -132,7 +136,7 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
             pass
         return None
 
-    def info(self, path: str, **kwargs: Any) -> PackageInfo:
+    async def _info(self, path: str, **kwargs: Any) -> PackageInfo:
         """Get info about a path."""
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -158,7 +162,7 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
             msg = f"Path {path} not found"
             raise FileNotFoundError(msg) from exc
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (package).
 
         Args:
@@ -180,8 +184,15 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
         except (ImportError, FileNotFoundError):
             return False
 
-    def cat(self, path: str) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get module file content."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:
+        """Get the raw content bytes for a path."""
         path = path.removesuffix(".py")
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         # Construct full module name
@@ -202,8 +213,12 @@ class PackageFileSystem(BaseFileSystem[PackagePath, PackageInfo]):
 
 
 if __name__ == "__main__":
-    # Create a filesystem instance
+    import asyncio
+
     from upath import UPath
 
-    fs = UPath("pkg://pydantic")
-    print(list(fs.iterdir()))
+    async def main() -> None:
+        fs = UPath("pkg://pydantic")
+        print(list(fs.iterdir()))
+
+    asyncio.run(main())
