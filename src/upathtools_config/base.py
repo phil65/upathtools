@@ -6,15 +6,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 from urllib.parse import urlparse
 
 import fsspec
-from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.implementations.cached import WholeFileCacheFileSystem
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, SecretStr
 from upath import UPath
 
+from upathtools.async_ops import to_async_fs
+
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+    from fsspec.asyn import AsyncFileSystem
 
 
 # Define filesystem categories as literals
@@ -80,8 +81,8 @@ class FileSystemConfig(BaseModel):
 
         if self.cached:
             fs = WholeFileCacheFileSystem(fs=fs)
-        if not isinstance(fs, AsyncFileSystem) and ensure_async:
-            fs = AsyncFileSystemWrapper(fs)
+        if ensure_async:
+            fs = to_async_fs(fs)
         return fs
 
     def create_upath(self, path: str | None = None) -> UPath:
@@ -164,8 +165,8 @@ class URIFileSystemConfig(FileSystemConfig):
             fs = fsspec.filesystem("dir", path=effective_root, fs=fs)
         if self.cached:
             fs = WholeFileCacheFileSystem(fs=fs)
-        if not isinstance(fs, AsyncFileSystem) and ensure_async:
-            fs = AsyncFileSystemWrapper(fs)
+        if ensure_async:
+            fs = to_async_fs(fs)
         return fs
 
 

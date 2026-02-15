@@ -5,16 +5,16 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
+from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
 
 
@@ -26,12 +26,6 @@ class FlatUnionInfo(FileInfo, total=False):
 
 
 logger = logging.getLogger(__name__)
-
-
-def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
-    if not isinstance(filesystem, AsyncFileSystem):
-        return AsyncFileSystemWrapper(filesystem)
-    return filesystem
 
 
 class FlatUnionPath(BaseUPath[FlatUnionInfo]):
@@ -114,7 +108,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         for fs_or_path in filesystems:
             if isinstance(fs_or_path, AbstractFileSystem):
                 # It's already a filesystem
-                resolved_filesystems.append(to_async(fs_or_path))
+                resolved_filesystems.append(to_async_fs(fs_or_path))
             else:
                 # It's a path - convert to filesystem
                 resolved_filesystems.append(upath_to_fs(fs_or_path, asynchronous=True))

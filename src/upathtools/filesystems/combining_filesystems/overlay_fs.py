@@ -11,9 +11,7 @@ import errno
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
-
+from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 from upathtools.filesystems.base.file_objects import FileInfo
 
@@ -21,6 +19,7 @@ from upathtools.filesystems.base.file_objects import FileInfo
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from fsspec.asyn import AsyncFileSystem
     from fsspec.spec import AbstractFileSystem
 
     from upathtools.filesystems.base import CreationMode
@@ -39,13 +38,6 @@ class OverlayPath(BaseUPath[OverlayInfo]):
     """UPath implementation for overlay filesystem."""
 
     __slots__ = ()
-
-
-def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
-    """Convert a sync filesystem to async if needed."""
-    if isinstance(filesystem, AsyncFileSystem):
-        return filesystem
-    return AsyncFileSystemWrapper(filesystem)
 
 
 class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
@@ -95,7 +87,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         super().__init__(**kwargs)
         self.layers: list[AsyncFileSystem] = []
         if filesystems:
-            self.layers.extend(to_async(fs) for fs in filesystems)
+            self.layers.extend(to_async_fs(fs) for fs in filesystems)
         # Support creating filesystems from protocol kwargs
         for key, options in kwargs.items():
             if key.startswith("_") or key in ("asynchronous", "loop"):
@@ -103,7 +95,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
             if options is None:
                 options = {}
 
-            self.layers.append(to_async(core.filesystem(key, **options)))
+            self.layers.append(to_async_fs(core.filesystem(key, **options)))
 
         if not self.layers:
             msg = "Must provide at least one filesystem layer"

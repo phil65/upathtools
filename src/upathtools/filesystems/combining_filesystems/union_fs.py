@@ -6,23 +6,17 @@ from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.spec import AbstractFileSystem
 
+from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
-
-
-def to_async(filesystem: AbstractFileSystem) -> AsyncFileSystem:
-    if not isinstance(filesystem, AsyncFileSystem):
-        return AsyncFileSystemWrapper(filesystem)
-    return filesystem
 
 
 class UnionInfo(FileInfo, total=False):
@@ -97,13 +91,13 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
         if isinstance(filesystems, Mapping):
             for name, fs_or_path in filesystems.items():
                 if isinstance(fs_or_path, AbstractFileSystem):
-                    resolved[name] = to_async(fs_or_path)
+                    resolved[name] = to_async_fs(fs_or_path)
                 else:
                     resolved[name] = upath_to_fs(fs_or_path, asynchronous=True)
         else:
             for fs_or_path in filesystems:
                 if isinstance(fs_or_path, AbstractFileSystem):
-                    fs = to_async(fs_or_path)
+                    fs = to_async_fs(fs_or_path)
                 else:
                     fs = upath_to_fs(fs_or_path, asynchronous=True)
                 # Use protocol as key, handle tuple protocols
@@ -372,7 +366,7 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
             raise ValueError(msg)
 
         if isinstance(filesystem, AbstractFileSystem):
-            fs = to_async(filesystem)
+            fs = to_async_fs(filesystem)
         else:
             fs = upath_to_fs(filesystem, asynchronous=True)
 
