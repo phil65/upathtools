@@ -10,6 +10,8 @@ import os
 import re
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+from fsspec.asyn import AsyncFileSystem
+from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from upath import UPath
 
 
@@ -17,7 +19,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     import fsspec
-    from fsspec.asyn import AsyncFileSystem
     from upath.types import JoinablePathLike
 
 
@@ -59,6 +60,18 @@ async def get_async_fs(
 
     path_obj = to_upath(path_or_fs)
     return _get_cached_fs(path_obj.protocol)
+
+
+def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
+    """Convert a sync filesystem to async if needed.
+
+    Args:
+        fs: The filesystem to convert
+        asynchronous: Value for the asynchronous flag (needed for DirFileSystem compatibility)
+    """
+    if isinstance(fs, AsyncFileSystem):
+        return fs
+    return AsyncFileSystemWrapper(fs, asynchronous=asynchronous)
 
 
 async def is_directory(

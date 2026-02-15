@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 from fsspec import filesystem
 from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 
 from upathtools.async_helpers import sync_wrapper
+from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base.filefilesystem import (
     BaseAsyncFileFileSystem,
     ProbeResult,
@@ -37,11 +37,6 @@ if TYPE_CHECKING:
 # Type alias for file filesystem instances
 FileFS = BaseAsyncFileFileSystem[Any, Any]
 FileFSClass = type[BaseAsyncFileFileSystem[Any, Any]]
-
-
-def to_async_fs(fs: AbstractFileSystem) -> AsyncFileSystem:
-    """Convert a sync filesystem to async if needed."""
-    return fs if isinstance(fs, AsyncFileSystem) else AsyncFileSystemWrapper(fs)
 
 
 # Registry of file filesystem classes

@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec import filesystem
 from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from fsspec.implementations.dirfs import DirFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from upath.registry import get_upath_class
 
 from upathtools.async_helpers import sync_wrapper
+from upathtools.async_ops import to_async_fs
 from upathtools.async_upath import AsyncUPath
 
 
@@ -52,18 +52,6 @@ class FilesystemMount:
 
     path: str
     fs: AsyncFileSystem
-
-
-def to_async_fs(fs: AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
-    """Convert a sync filesystem to async if needed.
-
-    Args:
-        fs: The filesystem to convert
-        asynchronous: Value for the asynchronous flag (needed for DirFileSystem compatibility)
-    """
-    if isinstance(fs, AsyncFileSystem):
-        return fs
-    return AsyncFileSystemWrapper(fs, asynchronous=asynchronous)
 
 
 class WrapperFileSystem(AsyncFileSystem):
