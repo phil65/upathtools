@@ -90,22 +90,20 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
             **kwargs: Additional arguments, can include protocol names with options
                       to create filesystems (e.g., `memory={}`, `file={"auto_mkdir": True}`)
         """
+        from upathtools import core
+
         super().__init__(**kwargs)
-
         self.layers: list[AsyncFileSystem] = []
-
         if filesystems:
             self.layers.extend(to_async(fs) for fs in filesystems)
-
         # Support creating filesystems from protocol kwargs
         for key, options in kwargs.items():
             if key.startswith("_") or key in ("asynchronous", "loop"):
                 continue
             if options is None:
                 options = {}
-            import fsspec
 
-            self.layers.append(to_async(fsspec.filesystem(key, **options)))
+            self.layers.append(to_async(core.filesystem(key, **options)))
 
         if not self.layers:
             msg = "Must provide at least one filesystem layer"

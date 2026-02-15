@@ -166,12 +166,14 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
 
     def _get_expansion_fs(self, file_path: str, ext: str) -> AsyncFileSystem:
         """Get or create filesystem for expanding a file."""
+        from upathtools import core
+
         if file_path in self._expansion_cache:
             return self._expansion_cache[file_path]
 
         protocol, kwargs_factory = self.expanders[ext]
         kwargs = kwargs_factory(self.fs, file_path)
-        expansion_fs = fsspec.filesystem(protocol, **kwargs)
+        expansion_fs = core.filesystem(protocol, **kwargs)
 
         # Wrap non-async filesystems
         if not isinstance(expansion_fs, AsyncFileSystem):
@@ -349,6 +351,8 @@ if __name__ == "__main__":
     from pathlib import Path
     import tempfile
 
+    from upathtools import core
+
     # Create test files
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create a markdown file
@@ -364,7 +368,7 @@ Content 2
         md_path.write_text(md_content)
 
         # Create AutoExpandFS with markdown support
-        local_fs = fsspec.filesystem("file")
+        local_fs = core.filesystem("file")
         auto_fs = AutoExpandFS(
             fs=local_fs,
             expanders={

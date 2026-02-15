@@ -61,6 +61,10 @@ class FileSystemConfig(BaseModel):
         Returns:
             Instantiated filesystem with the proper configuration.
         """
+        from fsspec.implementations.dirfs import DirFileSystem
+
+        from upathtools import core
+
         fs_kwargs = self.model_dump(exclude={"type", "root_path", "cached"}, exclude_none=True)
         for key, value in fs_kwargs.items():
             if isinstance(value, SecretStr):
@@ -68,10 +72,10 @@ class FileSystemConfig(BaseModel):
             elif isinstance(value, AnyUrl):
                 fs_kwargs[key] = str(value)
 
-        fs = fsspec.filesystem(self.type, **fs_kwargs)
+        fs = core.filesystem(self.type, **fs_kwargs)
         # Apply path prefix (DirFileSystem wrapper) - sandboxed, can't escape
         if self.root_path:
-            fs = fsspec.filesystem("dir", path=self.root_path, fs=fs)
+            fs = DirFileSystem(path=self.root_path, fs=fs)
         # Apply caching wrapper
 
         if self.cached:
