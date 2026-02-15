@@ -19,7 +19,7 @@ __url__ = "https://github.com/phil65/upathtools"
 from fsspec import register_implementation
 from upath import registry, UPath
 
-from upathtools.core import url_to_fs
+from upathtools.core import url_to_fs, filesystem
 from upathtools.helpers import to_upath, upath_to_fs
 from upathtools.async_ops import (
     read_path,
@@ -29,6 +29,7 @@ from upathtools.async_ops import (
     is_directory_sync,
     is_directory,
     fsspec_grep,
+    to_async_fs,
 )
 from upathtools.async_upath import AsyncUPath
 
@@ -86,6 +87,7 @@ __all__ = [
     "JoinablePathLike",
     "UPath",
     "__version__",
+    "filesystem",
     "fsspec_grep",
     "is_directory",
     "is_directory_sync",
@@ -96,6 +98,7 @@ __all__ = [
     "register_all_filesystems",
     "register_async_local_filesystem",
     "register_http_filesystems",
+    "to_async_fs",
     "to_upath",
     "upath_to_fs",
     "url_to_fs",
