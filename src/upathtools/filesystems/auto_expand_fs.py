@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import fsspec
 from fsspec.asyn import AsyncFileSystem
-from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 
 from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
@@ -172,10 +171,8 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         protocol, kwargs_factory = self.expanders[ext]
         kwargs = kwargs_factory(self.fs, file_path)
         expansion_fs = core.filesystem(protocol, **kwargs)
-
         # Wrap non-async filesystems
-        if not isinstance(expansion_fs, AsyncFileSystem):
-            expansion_fs = AsyncFileSystemWrapper(expansion_fs)
+        expansion_fs = to_async_fs(expansion_fs)
 
         self._expansion_cache[file_path] = expansion_fs
         return expansion_fs
