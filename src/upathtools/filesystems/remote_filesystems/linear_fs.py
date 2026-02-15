@@ -297,11 +297,21 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)
 
+    @overload
     @classmethod
-    def _strip_protocol(cls, path: str) -> str:
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
         """Strip protocol prefix from path."""
-        path = infer_storage_options(path).get("path", path)
-        return path.lstrip("/")
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
+        p = infer_storage_options(path).get("path", path)
+        return p.lstrip("/")
 
     @classmethod
     def _get_kwargs_from_urls(cls, path: str) -> dict[str, Any]:

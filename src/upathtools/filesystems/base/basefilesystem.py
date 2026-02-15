@@ -98,6 +98,22 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         return []
 
     @overload
+    @classmethod
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
+        """Turn path from fully-qualified to file-system-specific.
+
+        May require FS-specific handling, e.g., for relative paths or links.
+        """
+        return super()._strip_protocol(path)
+
+    @overload
     async def _glob(
         self,
         path: str,
@@ -165,7 +181,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         if "/" in path[:min_idx]:
             min_idx = path[:min_idx].rindex("/")
             root = path[: min_idx + 1]
-            depth = path[min_idx + 1 :].count("/") + 1
+            depth: int | None = path[min_idx + 1 :].count("/") + 1
         else:
             root = ""
             depth = path[min_idx + 1 :].count("/") + 1
@@ -174,6 +190,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
             if maxdepth is not None:
                 idx_double_stars = path.find("**")
                 depth_double_stars = path[idx_double_stars:].count("/") + 1
+                assert depth is not None
                 depth = depth - depth_double_stars + maxdepth
             else:
                 depth = None

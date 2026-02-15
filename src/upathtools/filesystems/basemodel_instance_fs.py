@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelInstanceInfo(TypedDict, total=False):
+class BaseModelInstanceInfo(FileInfo, total=False):
     """Info dict for BaseModel instance paths."""
 
-    name: Required[str]
-    type: Literal["instance", "nested_object", "value", "special", "key", "item", "field"]
+    entry_kind: Literal["instance", "nested_object", "value", "special", "key", "item", "field"]
     class_name: str
     is_basemodel: bool
     field_count: int
@@ -131,40 +130,64 @@ class BaseModelInstanceFileSystem(
         for item in items:
             if item.startswith("__"):
                 desc = f"Special path for {item[2:-2]} information"
-                info = BaseModelInstanceInfo(name=item, type="special", size=0, description=desc)
+                info = BaseModelInstanceInfo(
+                    name=item, type="file", entry_kind="special", size=0, description=desc
+                )
                 result.append(info)
             # It's a field or item
             elif _is_basemodel_instance(current_obj):
                 field_value = getattr(current_obj, item)
-                result.append({
-                    "name": item,
-                    "type": "field",
-                    "value_type": type(field_value).__name__,
-                    "value": str(field_value)[:100] + "..."
-                    if len(str(field_value)) > 100  # noqa: PLR2004
-                    else str(field_value),
-                    "is_nested": _is_basemodel_instance(field_value),
-                    "is_collection": _is_list_like(field_value) or _is_dict_like(field_value),
-                })
-            elif _is_list_like(current_obj):
-                idx = int(item)
-                item_value = current_obj[idx]
-                result.append({
-                    "name": item,
-                    "type": "item",
-                    "index": idx,
-                    "value_type": type(item_value).__name__,
-                    "value": str(item_value)[:100] + "..."
-                    if len(str(item_value)) > 100  # noqa: PLR2004
-                    else str(item_value),
-                    "is_nested": _is_basemodel_instance(item_value),
-                })
-            elif _is_dict_like(current_obj):
-                dict_value = current_obj[item]
+                is_navigable = (
+                    _is_basemodel_instance(field_value)
+                    or _is_list_like(field_value)
+                    or _is_dict_like(field_value)
+                )
                 result.append(
                     BaseModelInstanceInfo(
                         name=item,
-                        type="key",
+                        type="directory" if is_navigable else "file",
+                        entry_kind="field",
+                        value_type=type(field_value).__name__,
+                        value=str(field_value)[:100] + "..."
+                        if len(str(field_value)) > 100  # noqa: PLR2004
+                        else str(field_value),
+                        is_nested=_is_basemodel_instance(field_value),
+                        is_collection=_is_list_like(field_value) or _is_dict_like(field_value),
+                    )
+                )
+            elif _is_list_like(current_obj):
+                idx = int(item)
+                item_value = current_obj[idx]
+                is_navigable = (
+                    _is_basemodel_instance(item_value)
+                    or _is_list_like(item_value)
+                    or _is_dict_like(item_value)
+                )
+                result.append(
+                    BaseModelInstanceInfo(
+                        name=item,
+                        type="directory" if is_navigable else "file",
+                        entry_kind="item",
+                        index=idx,
+                        value_type=type(item_value).__name__,
+                        value=str(item_value)[:100] + "..."
+                        if len(str(item_value)) > 100  # noqa: PLR2004
+                        else str(item_value),
+                        is_nested=_is_basemodel_instance(item_value),
+                    )
+                )
+            elif _is_dict_like(current_obj):
+                dict_value = current_obj[item]
+                is_navigable = (
+                    _is_basemodel_instance(dict_value)
+                    or _is_list_like(dict_value)
+                    or _is_dict_like(dict_value)
+                )
+                result.append(
+                    BaseModelInstanceInfo(
+                        name=item,
+                        type="directory" if is_navigable else "file",
+                        entry_kind="key",
                         value_type=type(dict_value).__name__,
                         value=str(dict_value)[:100] + "..."
                         if len(str(dict_value)) > 100  # noqa: PLR2004
@@ -338,7 +361,8 @@ class BaseModelInstanceFileSystem(
             # Root instance info
             return BaseModelInstanceInfo(
                 name=type(self.instance).__name__,
-                type="instance",
+                type="directory",
+                entry_kind="instance",
                 class_name=f"{type(self.instance).__module__}.{type(self.instance).__name__}",
                 is_basemodel=_is_basemodel_instance(self.instance),
                 field_count=len(type(self.instance).model_fields)
@@ -356,9 +380,15 @@ class BaseModelInstanceFileSystem(
 
         if not field_name:
             # Nested object info
+            is_navigable = (
+                _is_basemodel_instance(current_obj)
+                or _is_list_like(current_obj)
+                or _is_dict_like(current_obj)
+            )
             return BaseModelInstanceInfo(
                 name=type(current_obj).__name__,
-                type="nested_object",
+                type="directory" if is_navigable else "file",
+                entry_kind="nested_object",
                 class_name=f"{type(current_obj).__module__}.{type(current_obj).__name__}",
                 is_basemodel=_is_basemodel_instance(current_obj),
                 is_collection=_is_list_like(current_obj) or _is_dict_like(current_obj),
@@ -386,9 +416,15 @@ class BaseModelInstanceFileSystem(
         else:
             raise FileNotFoundError(f"Cannot access {field_name} on {type(current_obj)}")
 
+        is_navigable = (
+            _is_basemodel_instance(field_value)
+            or _is_list_like(field_value)
+            or _is_dict_like(field_value)
+        )
         return BaseModelInstanceInfo(
             name=field_name,
-            type="value",
+            type="directory" if is_navigable else "file",
+            entry_kind="value",
             value_type=type(field_value).__name__,
             value=str(field_value)[:200] + "..."
             if len(str(field_value)) > 200  # noqa: PLR2004

@@ -323,8 +323,19 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
     # Sync wrapper
     isdir = sync_wrapper(_isdir)
 
-    def _strip_protocol(self, path: str) -> str:
-        """Strip protocol from path."""
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
+        """Strip protocol prefix from path."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         if path.startswith("mcp://"):
             return path[6:]
         return path

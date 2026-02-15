@@ -75,9 +75,19 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
         path = path.removeprefix("basemodel://")
         return {"model": path}
 
+    @overload
     @classmethod
-    def _strip_protocol(cls, path):
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
         """Override to handle model name in URL by treating it as root path."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         stripped = super()._strip_protocol(path)
         # If the stripped path equals the model identifier, treat it as root
         # This handles URLs like basemodel://schemez.Schema where schemez.Schema

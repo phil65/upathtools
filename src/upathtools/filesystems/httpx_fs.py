@@ -145,9 +145,19 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                 weakref.finalize(self, self.close_session, self.loop, self._session)
         return self._session
 
+    @overload
     @classmethod
-    def _strip_protocol(cls, path: str) -> str:
-        """For HTTP, we always want to keep the full URL."""
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
+        """Strip protocol from path. For HTTP, we always want to keep the full URL."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         return path
 
     @classmethod

@@ -178,14 +178,24 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)
 
+    @overload
     @classmethod
-    def _strip_protocol(cls, path: str) -> str:
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
         """Strip protocol prefix from path."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         opts = infer_storage_options(path)
         if "username" not in opts:
             # Simple path without org:repo format
-            path = opts.get("path", path)
-            return path.lstrip("/")
+            p = opts.get("path", path)
+            return p.lstrip("/")
         # Extract path from github://org:repo@sha/path format
         return opts["path"].lstrip("/")
 

@@ -22,7 +22,20 @@ class OpenApiInfo(TypedDict, total=False):
     """Info dict for OpenAPI filesystem paths."""
 
     name: Required[str]
-    type: Required[str]
+    type: Required[
+        Literal[
+            "section",  # noqa: PYI051
+            "special",  # noqa: PYI051
+            "info_field",  # noqa: PYI051
+            "server",  # noqa: PYI051
+            "api_path",  # noqa: PYI051
+            "component_section",  # noqa: PYI051
+            "operation",  # noqa: PYI051
+            "openapi_spec",  # noqa: PYI051
+            "tag",  # noqa: PYI051
+        ]
+        | str
+    ]
     size: int
     version: str
     url: str
@@ -863,8 +876,7 @@ class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
                     if path_key in self._spec.paths:
                         path_obj = self._spec.paths[path_key]
-                        if hasattr(path_obj, method) and getattr(path_obj, method):
-                            operation = getattr(path_obj, method)
+                        if operation := getattr(path_obj, method, None):
                             op_info = self._get_operation_info(operation, method, path_key)
                             return OpenApiInfo(
                                 name=f"{method.upper()} {path_key}",
@@ -896,22 +908,18 @@ class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
                             component_type=component_type,
                         )
 
-        msg = f"Path {path} not found"
-        raise FileNotFoundError(msg)
+        raise FileNotFoundError(f"Path {path} not found")
 
     async def _isdir(self, path: str) -> bool:  # noqa: PLR0911
         """Check if path is a directory (has navigable children)."""
         self._load_spec()
         assert self._spec is not None
-
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
-
         if not path:
             # Root is always a directory
             return True
 
         parts = path.split("/")
-
         # Top-level sections are directories
         if len(parts) == 1:
             return parts[0] in {"info", "servers", "paths", "components", "tags"}

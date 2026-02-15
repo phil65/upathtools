@@ -123,9 +123,19 @@ class GitLabFileSystem(BaseAsyncFileSystem[GitLabPath, GitLabInfo]):
 
         return out
 
+    @overload
     @classmethod
-    def _strip_protocol(cls, path: str) -> str:  # noqa: PLR0911
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:  # noqa: PLR0911
         """Strip protocol and extract file path."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         path = path.removeprefix("gitlab://")
         if not path:
             return ""

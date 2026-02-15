@@ -38,10 +38,8 @@ async def _skill_info_callback(  # noqa: PLR0911
         return info
 
     try:
-        content = await fs.fs._cat_file(skill_path)
-        if isinstance(content, bytes):
-            content = content.decode("utf-8")
-
+        raw_content = await fs.fs._cat_file(skill_path)
+        content = raw_content.decode("utf-8") if isinstance(raw_content, bytes) else raw_content
         if not content.startswith("---\n"):
             return info
 

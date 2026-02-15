@@ -406,8 +406,19 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
 
     isdir = sync_wrapper(_isdir)
 
-    def _strip_protocol(self, path: str) -> str:
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: str) -> str: ...
+
+    @overload
+    @classmethod
+    def _strip_protocol(cls, path: list[str]) -> list[str]: ...
+
+    @classmethod
+    def _strip_protocol(cls, path: str | list[str]) -> str | list[str]:
         """Strip protocol from path."""
+        if isinstance(path, list):
+            return [cls._strip_protocol(p) for p in path]
         if path.startswith("mcptools://"):
             return path[11:]
         return path
