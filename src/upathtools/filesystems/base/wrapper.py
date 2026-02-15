@@ -113,6 +113,7 @@ class WrapperFileSystem(AsyncFileSystem):
         # Mount storage: path -> mount info
         self._content_mounts: dict[str, ContentMount] = {}
         self._fs_mounts: dict[str, FilesystemMount] = {}
+        self.protocol = self.fs.protocol
 
     def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to wrapped filesystem."""
