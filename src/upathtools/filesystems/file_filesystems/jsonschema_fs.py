@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class JsonSchemaPath(BaseUPath[JsonSchemaInfo]):
         return "/" if path == "." else path
 
 
-class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
+class JsonSchemaFileSystem(BaseAsyncFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
     """Filesystem for browsing JSON Schema specifications.
 
     Provides a virtual filesystem interface to explore JSON Schema documents,
@@ -448,12 +448,16 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
         return info
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[JsonSchemaInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[JsonSchemaInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[JsonSchemaInfo] | list[str]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[JsonSchemaInfo] | list[str]:
         """List JSON Schema contents."""
         schema = self._load_schema()
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
@@ -740,8 +744,15 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             case _:
                 return []
 
-    def cat(self, path: str, **kwargs: Any) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Read file contents."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:
+        """Get the raw content bytes for a path."""
         schema = self._load_schema()
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
         parts = path.split("/") if path else []
@@ -815,7 +826,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
         return current
 
-    def info(self, path: str, **kwargs: Any) -> JsonSchemaInfo:
+    async def _info(self, path: str, **kwargs: Any) -> JsonSchemaInfo:
         """Get info about a path."""
         schema = self._load_schema()
         path = self._strip_protocol(path).strip("/")  # pyright: ignore[reportAttributeAccessIssue]
@@ -832,7 +843,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
 
         # Special files
         if parts[-1] in ("__raw__", "__meta__", "__schema__"):
-            content = self.cat(path)
+            content = self._get_content(path)
             return JsonSchemaInfo(
                 name=parts[-1],
                 type="file",
@@ -866,7 +877,7 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             size=len(json.dumps(node)),
         )
 
-    def isdir(self, path: str) -> bool:  # noqa: PLR0911
+    async def _isdir(self, path: str) -> bool:  # noqa: PLR0911
         """Check if path is a directory.
 
         Args:
@@ -912,17 +923,3 @@ class JsonSchemaFileSystem(BaseFileFileSystem[JsonSchemaPath, JsonSchemaInfo]):
             return False
         else:
             return False
-
-    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
-        """Open a file for reading."""
-        import io
-
-        if "w" in mode or "a" in mode:
-            msg = "Write mode not supported"
-            raise NotImplementedError(msg)
-
-        content = self.cat(path)
-        if "b" not in mode:
-            content_str = content.decode()
-            return io.StringIO(content_str)
-        return io.BytesIO(content)

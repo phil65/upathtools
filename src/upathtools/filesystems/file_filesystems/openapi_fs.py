@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, ProbeResult
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ class OpenAPIPath(BaseUPath[OpenApiInfo]):
         return "/" if path == "." else path
 
 
-class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
+class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
     """Filesystem for browsing OpenAPI specifications and API documentation."""
 
     protocol = "openapi"
@@ -293,12 +293,16 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         }
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[OpenApiInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[OpenApiInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[OpenApiInfo] | list[str]:  # noqa: PLR0911
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[OpenApiInfo] | list[str]:
         """List OpenAPI specification contents."""
         self._load_spec()
         assert self._spec is not None
@@ -563,8 +567,15 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
         return []
 
-    def cat(self, path: str = "") -> bytes:  # noqa: PLR0911
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get OpenAPI specification content."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:  # noqa: PLR0911
+        """Get the raw content bytes for a path."""
         self._load_spec()
         assert self._spec is not None
 
@@ -774,29 +785,20 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
-    def cat_file(
-        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
-    ) -> bytes:
-        """Async version of cat for fsspec compatibility."""
-        content = self.cat(path)
-        if start is not None or end is not None:
-            return content[start:end]
-        return content
-
-    def exists(self, path: str, **kwargs: Any) -> bool:
+    async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists in OpenAPI spec."""
         try:
-            self.info(path, **kwargs)
+            await self._info(path, **kwargs)
         except FileNotFoundError:
             return False
         else:
             return True
 
-    def isfile(self, path: str, **kwargs: Any) -> bool:
+    async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file (not a directory)."""
-        return not self.isdir(path)
+        return not await self._isdir(path)
 
-    def info(self, path: str, **kwargs: Any) -> OpenApiInfo:
+    async def _info(self, path: str, **kwargs: Any) -> OpenApiInfo:
         """Get detailed info about an OpenAPI element."""
         self._load_spec()
         assert self._spec is not None
@@ -805,7 +807,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
 
         if not path:
             # Root spec info
-            spec_content = self.cat("").decode()
+            spec_content = self._get_content("").decode()
             return OpenApiInfo(
                 name=self._spec.info.title,
                 type="openapi_spec",
@@ -897,7 +899,7 @@ class OpenAPIFileSystem(BaseFileFileSystem[OpenAPIPath, OpenApiInfo]):
         msg = f"Path {path} not found"
         raise FileNotFoundError(msg)
 
-    def isdir(self, path: str) -> bool:  # noqa: PLR0911
+    async def _isdir(self, path: str) -> bool:  # noqa: PLR0911
         """Check if path is a directory (has navigable children)."""
         self._load_spec()
         assert self._spec is not None

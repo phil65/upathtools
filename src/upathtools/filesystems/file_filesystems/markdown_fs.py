@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import io
 import re
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, FileInfo, ProbeResult
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, FileInfo, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -66,7 +65,7 @@ class MarkdownPath(BaseUPath[MarkdownInfo]):
         yield from super().iterdir()
 
 
-class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
+class MarkdownFileSystem(BaseAsyncFileFileSystem[MarkdownPath, MarkdownInfo]):
     """Filesystem for browsing markdown documents by header hierarchy."""
 
     protocol = "md"
@@ -271,12 +270,16 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
         return current
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[MarkdownInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[MarkdownInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | MarkdownInfo]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> Sequence[str | MarkdownInfo]:
         """List contents of a path."""
         node = self._get_node(path)
 
@@ -293,8 +296,15 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
             for name, child in node.children.items()
         ]
 
-    def cat(self, path: str) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get section content including header and all content up to next header."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:
+        """Get the raw content bytes for a path."""
         node = self._get_node(path)
 
         # Skip header generation for root
@@ -312,7 +322,7 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
 
         return "\n".join(lines).encode()
 
-    def info(self, path: str, **kwargs: Any) -> MarkdownInfo:
+    async def _info(self, path: str, **kwargs: Any) -> MarkdownInfo:
         """Get info about a path."""
         node = self._get_node(path)
         name = "root" if not path or path == "/" else path.rsplit("/", maxsplit=1)[-1]
@@ -324,23 +334,13 @@ class MarkdownFileSystem(BaseFileFileSystem[MarkdownPath, MarkdownInfo]):
             level=node.level,
         )
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (has children)."""
         try:
             node = self._get_node(path)
             return node.is_dir()
         except FileNotFoundError:
             return False
-
-    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
-        """Provide file-like access to section content."""
-        if "w" in mode or "a" in mode:
-            msg = "Write mode not supported"
-            raise NotImplementedError(msg)
-
-        node = self._get_node(path)
-        content = node.content.encode()
-        return io.BytesIO(content)
 
 
 if __name__ == "__main__":

@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import io
 import os
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import fsspec
 
-from upathtools.filesystems.base import BaseFileFileSystem, BaseUPath, FileInfo, ProbeResult
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, BaseUPath, FileInfo, ProbeResult
 
 
 LANGUAGE_MAP = {
@@ -124,7 +123,7 @@ class TreeSitterPath(BaseUPath[TreeSitterInfo]):
         yield from super().iterdir()
 
 
-class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
+class TreeSitterFileSystem(BaseAsyncFileFileSystem[TreeSitterPath, TreeSitterInfo]):
     """Browse source code structure using tree-sitter."""
 
     protocol = "ts"
@@ -493,12 +492,16 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
         return current
 
     @overload
-    def ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[TreeSitterInfo]: ...
+    async def _ls(
+        self, path: str, detail: Literal[True] = ..., **kwargs: Any
+    ) -> list[TreeSitterInfo]: ...
 
     @overload
-    def ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    def ls(self, path: str, detail: bool = True, **kwargs: Any) -> Sequence[str | TreeSitterInfo]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> Sequence[str | TreeSitterInfo]:
         """List code entities at path."""
         node = self._get_node(path)
 
@@ -520,8 +523,15 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
             for name, child in node.children.items()
         ]
 
-    def cat(self, path: str) -> bytes:
+    async def _cat_file(
+        self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
+    ) -> bytes:
         """Get source code of entity."""
+        data = self._get_content(path)
+        return data[start:end]
+
+    def _get_content(self, path: str) -> bytes:
+        """Get the raw content bytes for a path."""
         self._load()
         assert self._source is not None
 
@@ -531,7 +541,7 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
         source_bytes = self._source.encode()
         return source_bytes[node.start_byte : node.end_byte]
 
-    def isdir(self, path: str) -> bool:
+    async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (has children)."""
         try:
             node = self._get_node(path)
@@ -539,7 +549,7 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
         except FileNotFoundError:
             return False
 
-    def info(self, path: str, **kwargs: Any) -> TreeSitterInfo:
+    async def _info(self, path: str, **kwargs: Any) -> TreeSitterInfo:
         """Get info about a code entity."""
         node = self._get_node(path)
         name = "root" if not path or path == "/" else path.rsplit("/", maxsplit=1)[-1]
@@ -555,15 +565,6 @@ class TreeSitterFileSystem(BaseFileFileSystem[TreeSitterPath, TreeSitterInfo]):
             end_line=node.end_line,
             doc=node.doc,
         )
-
-    def _open(self, path: str, mode: str = "rb", **kwargs: Any) -> Any:
-        """Provide file-like access to entity source code."""
-        if "w" in mode or "a" in mode:
-            msg = "Write mode not supported"
-            raise NotImplementedError(msg)
-
-        content = self.cat(path)
-        return io.BytesIO(content)
 
 
 def _import_language_module(language: Any):

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import fsspec
 import pytest
 
+from upathtools import core
+
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -37,7 +39,7 @@ class TestClass:
 
 def test_static_module_direct_file(example_py: Path) -> None:
     """Test direct file access."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     # Test listing
     members = fs.ls("/", detail=True)
@@ -55,7 +57,7 @@ def test_static_module_direct_file(example_py: Path) -> None:
 
 def test_hierarchical_structure(example_py: Path) -> None:
     """Test that TreeSitter supports nested structure (methods in classes)."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     # List class members
     class_members = fs.ls("/TestClass", detail=True)
@@ -71,7 +73,7 @@ def test_hierarchical_structure(example_py: Path) -> None:
 
 def test_static_module_without_extension(example_py: Path) -> None:
     """Test access without extension."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     members = fs.ls("/", detail=False)
     assert len(members) >= 2  # noqa: PLR2004
@@ -87,7 +89,7 @@ def test_chained_access(example_py: Path) -> None:
     url = f"ts::file://{example_py.as_posix()}"
 
     # Verify with explicit filesystem first
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
     content = fs.cat("/").decode()
     assert "test_func" in content
 
@@ -99,7 +101,7 @@ def test_chained_access(example_py: Path) -> None:
 
 def test_member_not_found(example_py: Path) -> None:
     """Test error when requesting non-existent member."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     with pytest.raises(FileNotFoundError):
         fs.cat("non_existent")
@@ -108,12 +110,12 @@ def test_member_not_found(example_py: Path) -> None:
 def test_ts_fs_init_requires_path() -> None:
     """Test that source_file is required."""
     with pytest.raises(ValueError, match="Source file path required"):
-        fsspec.filesystem("ts", source_file="")
+        core.filesystem("ts", source_file="")
 
 
 def test_lazy_loading(example_py: Path) -> None:
     """Test that file is only loaded when needed."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
     assert fs._source is None
 
     # Access triggers loading
@@ -123,7 +125,7 @@ def test_lazy_loading(example_py: Path) -> None:
 
 def test_info_with_metadata(example_py: Path) -> None:
     """Test that info includes TreeSitter-specific metadata."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     info = fs.info("/test_func")
     assert info["name"] == "test_func"
@@ -138,7 +140,7 @@ def test_info_with_metadata(example_py: Path) -> None:
 
 def test_docstring_extraction(example_py: Path) -> None:
     """Test that docstrings are extracted correctly."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     func_info = fs.info("/test_func")
     assert func_info.get("doc") == "Test function"
@@ -149,7 +151,7 @@ def test_docstring_extraction(example_py: Path) -> None:
 
 def test_isdir_behavior(example_py: Path) -> None:
     """Test directory behavior for nodes with children."""
-    fs = fsspec.filesystem("ts", source_file=str(example_py))
+    fs = core.filesystem("ts", source_file=str(example_py))
 
     # Root is a directory
     assert fs.isdir("/")
