@@ -44,7 +44,7 @@ class IsolatedMemoryFileSystem(BaseFileSystem[MemoryPath], MemoryFileSystem):
     store: dict[str, Any]  # type: ignore[assignment]
     pseudo_dirs: list[str]  # type: ignore[assignment]
 
-    protocol = "isolated-memory"
+    protocol = "memory"
 
     # Disable fsspec's instance caching - each call should create a new instance
     # with its own isolated storage (unless using the same key)
