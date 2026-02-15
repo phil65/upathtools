@@ -23,10 +23,7 @@ from fsspec.asyn import AsyncFileSystem
 
 from upathtools.async_helpers import sync_wrapper
 from upathtools.async_ops import to_async_fs
-from upathtools.filesystems.base.filefilesystem import (
-    BaseAsyncFileFileSystem,
-    ProbeResult,
-)
+from upathtools.filesystems.base.filefilesystem import BaseAsyncFileFileSystem, ProbeResult
 
 
 if TYPE_CHECKING:
@@ -154,6 +151,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         """
         super().__init__(**storage_options)
         fs = fs or filesystem(target_protocol or "file", **(target_options or {}))
+        assert fs
         self.fs = to_async_fs(fs)
         self.target_protocol = target_protocol
         self.target_options = target_options or {}

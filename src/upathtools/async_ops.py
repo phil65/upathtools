@@ -29,9 +29,6 @@ DEFAULT_MAX_SIZE = 64_000
 @lru_cache(maxsize=32)
 def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFileSystem:
     """Cached filesystem creation."""
-    from fsspec.asyn import AsyncFileSystem
-    from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
-
     from upathtools import core
     from upathtools.filesystems import AsyncLocalFileSystem
 
@@ -42,9 +39,8 @@ def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFile
         fs = core.filesystem(protocol_or_fs, asynchronous=True)
     else:
         fs = protocol_or_fs
-    if not isinstance(fs, AsyncFileSystem):
-        fs = AsyncFileSystemWrapper(fs)
-    return fs
+
+    return to_async_fs(fs)
 
 
 async def get_async_fs(
