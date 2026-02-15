@@ -111,12 +111,10 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
             self._session_started = False
 
     @overload
-    async def _ls(
-        self, path: str, detail: Literal[True] = True, **kwargs: Any
-    ) -> list[E2BInfo]: ...
+    async def _ls(self, path: str, detail: Literal[True] = ..., **kwargs: Any) -> list[E2BInfo]: ...
 
     @overload
-    async def _ls(self, path: str, detail: bool = False, **kwargs: Any) -> list[str]: ...
+    async def _ls(self, path: str, detail: bool, **kwargs: Any) -> list[str]: ...
 
     async def _ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[E2BInfo] | list[str]:
         """List directory contents with caching."""
