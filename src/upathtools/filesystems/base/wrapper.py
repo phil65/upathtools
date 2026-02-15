@@ -683,3 +683,14 @@ class WrapperFileSystem(AsyncFileSystem):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__qualname__}(fs={self.fs})"
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        fs = filesystem("file")
+        wrapped = WrapperFileSystem(fs)
+        print(await wrapped._ls("/"))
+
+    asyncio.run(main())
