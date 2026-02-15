@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from fsspec.implementations.memory import MemoryFileSystem
 import pytest
 from upath import UPath
 
 import upathtools
-from upathtools.filesystems import AsyncLocalFileSystem, UnionFileSystem, UnionPath
+from upathtools.filesystems import (
+    AsyncLocalFileSystem,
+    IsolatedMemoryFileSystem,
+    UnionFileSystem,
+    UnionPath,
+)
 
 
 upathtools.register_all_filesystems()
@@ -14,7 +18,7 @@ upathtools.register_all_filesystems()
 @pytest.fixture
 def union_fs() -> UnionFileSystem:
     """Create a UnionFileSystem with memory and local backends."""
-    mem_fs = MemoryFileSystem()
+    mem_fs = IsolatedMemoryFileSystem()
     local_fs = AsyncLocalFileSystem()
 
     # Create some test files in memory
@@ -31,7 +35,7 @@ def union_fs() -> UnionFileSystem:
 @pytest.fixture
 def union_fs_from_list() -> UnionFileSystem:
     """Create a UnionFileSystem from a list of filesystems."""
-    mem_fs = MemoryFileSystem()
+    mem_fs = IsolatedMemoryFileSystem()
     local_fs = AsyncLocalFileSystem()
 
     # Create some test files in memory
@@ -260,7 +264,7 @@ async def test_empty_initialization():
     assert listing == []
 
     # Add a filesystem
-    mem_fs = MemoryFileSystem()
+    mem_fs = IsolatedMemoryFileSystem()
     mem_fs.pipe("test.txt", b"test content")
 
     union_fs.register("memory", mem_fs)
@@ -281,7 +285,7 @@ async def test_register_operations():
     union_fs = UnionFileSystem()
 
     # Register filesystem
-    mem_fs = MemoryFileSystem()
+    mem_fs = IsolatedMemoryFileSystem()
     union_fs.register("cache", mem_fs)
     assert union_fs.list_mount_points() == ["cache"]
 

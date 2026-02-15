@@ -501,15 +501,15 @@ if __name__ == "__main__":
 
     async def main() -> None:
         # Create test directories in memory
-        from fsspec.implementations.memory import MemoryFileSystem
+        from upathtools.filesystems import IsolatedMemoryFileSystem
 
         # Create two memory filesystems with different content
-        mem1 = MemoryFileSystem()
+        mem1 = IsolatedMemoryFileSystem()
         mem1.mkdir("dir1")
         mem1.pipe("file1.txt", b"content from fs1")
         mem1.pipe("dir1/nested.txt", b"nested content from fs1")
 
-        mem2 = MemoryFileSystem()
+        mem2 = IsolatedMemoryFileSystem()
         mem2.mkdir("dir2")
         mem2.pipe("file2.txt", b"content from fs2")
         mem2.pipe("dir2/nested.txt", b"nested content from fs2")

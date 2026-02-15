@@ -402,11 +402,10 @@ class UnionFileSystem(BaseAsyncFileSystem[UnionPath, UnionInfo]):
 
 if __name__ == "__main__":
     # Example usage
-    from fsspec.implementations.memory import MemoryFileSystem
 
-    from upathtools.filesystems import UnionFileSystem
+    from upathtools.filesystems import IsolatedMemoryFileSystem, UnionFileSystem
 
     fs = UnionFileSystem({})
-    fs.register("fs1", MemoryFileSystem())
-    fs.register("fs2", MemoryFileSystem())
+    fs.register("fs1", IsolatedMemoryFileSystem())
+    fs.register("fs2", IsolatedMemoryFileSystem())
     print(fs.ls(""))

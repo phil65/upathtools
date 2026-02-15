@@ -296,16 +296,10 @@ class GitLabFileSystem(BaseAsyncFileSystem[GitLabPath, GitLabInfo]):
             return GitLabInfo(name="", type="directory")
 
         project = self._get_project()
-
         # Try to get file info first
         try:
             f = await asyncio.to_thread(project.files.get, file_path=path, ref=self.ref)
-            return GitLabInfo(
-                name=path,
-                type="file",
-                size=f.size,
-                sha=f.blob_id,
-            )
+            return GitLabInfo(name=path, type="file", size=f.size, sha=f.blob_id)
         except Exception:  # noqa: BLE001
             pass
 
