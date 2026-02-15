@@ -4,20 +4,19 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args, get_origin, overload
+from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
 
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-class BaseModelInfo(TypedDict, total=False):
+class BaseModelInfo(FileInfo, total=False):
     """Info dict for BaseModel paths."""
 
-    name: str
-    type: Literal["model", "nested_model", "field", "special"]
+    entry_kind: Literal["model", "nested_model", "field", "special"]
     size: int
     module: str | None
     doc: str | None
@@ -193,7 +192,11 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
         for item in items:
             if item.startswith("__"):
                 desc = f"Special path for {item[2:-2]} information"
-                result.append(BaseModelInfo(name=item, type="special", size=0, description=desc))
+                result.append(
+                    BaseModelInfo(
+                        name=item, type="file", entry_kind="special", size=0, description=desc
+                    )
+                )
             else:
                 # It's a field
                 field_info = current_model.model_fields[item]
@@ -217,7 +220,8 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
                 result.append(
                     BaseModelInfo(
                         name=item,
-                        type="field",
+                        type="directory" if is_nested else "file",
+                        entry_kind="field",
                         field_type=str(field_type),
                         required=field_info.is_required(),
                         default=str(field_info.default) if field_info.default is not ... else None,
@@ -404,7 +408,8 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
             # Root model info
             return BaseModelInfo(
                 name=self.model_class.__name__,
-                type="model",
+                type="directory",
+                entry_kind="model",
                 module=self.model_class.__module__,
                 doc=self.model_class.__doc__,
                 field_count=len(self.model_class.model_fields),
@@ -422,7 +427,8 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
             # Nested model info
             return BaseModelInfo(
                 name=current_model.__name__,
-                type="nested_model",
+                type="directory",
+                entry_kind="nested_model",
                 module=current_model.__module__,
                 doc=current_model.__doc__,
                 field_count=len(current_model.model_fields),
@@ -435,9 +441,27 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
             raise FileNotFoundError(msg)
 
         field_info = current_model.model_fields[field_name]
+
+        # Determine if field is a nested model (directory)
+        field_type = field_info.annotation
+        is_nested = False
+        origin = get_origin(field_type)
+        if origin is not None:
+            args = get_args(field_type)
+            if origin in (list, tuple, set) and args:
+                field_type = args[0]
+            elif hasattr(field_type, "__args__"):
+                for arg in field_type.__args__:  # type: ignore
+                    if arg is not type(None) and hasattr(arg, "model_fields"):
+                        is_nested = True
+                        break
+        if not is_nested:
+            is_nested = hasattr(field_type, "model_fields")
+
         return BaseModelInfo(
             name=field_name,
-            type="field",
+            type="directory" if is_nested else "file",
+            entry_kind="field",
             annotation=str(field_info.annotation),
             required=field_info.is_required(),
             default=field_info.default if field_info.default is not ... else None,
