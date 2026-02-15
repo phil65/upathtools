@@ -25,7 +25,6 @@ from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base.filefilesystem import (
     BaseAsyncFileFileSystem,
-    BaseFileFileSystem,
     ProbeResult,
 )
 
@@ -35,11 +34,9 @@ if TYPE_CHECKING:
 
     from fsspec.spec import AbstractFileSystem
 
-    from upathtools.filesystems.base.filefilesystem import FileFileSystemMixin
-
 # Type alias for file filesystem instances
-FileFS = BaseFileFileSystem[Any, Any] | BaseAsyncFileFileSystem[Any, Any]
-FileFSClass = type[BaseFileFileSystem[Any, Any]] | type[BaseAsyncFileFileSystem[Any, Any]]
+FileFS = BaseAsyncFileFileSystem[Any, Any]
+FileFSClass = type[BaseAsyncFileFileSystem[Any, Any]]
 
 
 def to_async_fs(fs: AbstractFileSystem) -> AsyncFileSystem:
@@ -48,14 +45,14 @@ def to_async_fs(fs: AbstractFileSystem) -> AsyncFileSystem:
 
 
 # Registry of file filesystem classes
-_FILE_FS_REGISTRY: list[type[FileFileSystemMixin]] = []
+_FILE_FS_REGISTRY: list[FileFSClass] = []
 
 
-def register_file_filesystem(fs_class: type[FileFileSystemMixin]) -> type[FileFileSystemMixin]:
+def register_file_filesystem(fs_class: FileFSClass) -> FileFSClass:
     """Register a file filesystem class for auto-delegation.
 
     Args:
-        fs_class: A filesystem class that implements FileFileSystemMixin.
+        fs_class: A filesystem class that extends BaseAsyncFileFileSystem.
 
     Returns:
         The same class (for use as decorator).
@@ -65,12 +62,12 @@ def register_file_filesystem(fs_class: type[FileFileSystemMixin]) -> type[FileFi
     return fs_class
 
 
-def get_registered_filesystems() -> list[type[FileFileSystemMixin]]:
+def get_registered_filesystems() -> list[FileFSClass]:
     """Get all registered file filesystem classes."""
     return list(_FILE_FS_REGISTRY)
 
 
-def find_filesystems_for_extension(extension: str) -> list[type[FileFileSystemMixin]]:
+def find_filesystems_for_extension(extension: str) -> list[FileFSClass]:
     """Find all registered filesystems that support the given extension.
 
     Args:
@@ -85,7 +82,7 @@ def find_filesystems_for_extension(extension: str) -> list[type[FileFileSystemMi
     return sorted(matches, key=lambda cls: cls.priority)
 
 
-def find_fs_for_extension(extension: str) -> type[FileFileSystemMixin] | None:
+def find_fs_for_extension(extension: str) -> FileFSClass | None:
     """Find the highest-priority filesystem that supports the given extension.
 
     Args:
@@ -207,7 +204,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         candidates: list[FileFSClass] = [
             c  # type: ignore[misc]
             for c in find_filesystems_for_extension(ext)
-            if issubclass(c, (BaseFileFileSystem, BaseAsyncFileFileSystem))
+            if issubclass(c, BaseAsyncFileFileSystem)
         ]
 
         if not candidates:

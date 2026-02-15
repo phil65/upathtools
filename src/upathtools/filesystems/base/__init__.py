@@ -20,8 +20,6 @@ from upathtools.filesystems.base.file_objects import (
 )
 from upathtools.filesystems.base.filefilesystem import (
     BaseAsyncFileFileSystem,
-    BaseFileFileSystem,
-    FileFileSystemMixin,
     ProbeResult,
 )
 from upathtools.filesystems.base.wrapper import (
@@ -38,13 +36,11 @@ __all__ = [
     "AsyncWritable",
     "BaseAsyncFileFileSystem",
     "BaseAsyncFileSystem",
-    "BaseFileFileSystem",
     "BaseFileSystem",
     "BaseUPath",
     "BufferedWriter",
     "ContentMount",
     "CreationMode",
-    "FileFileSystemMixin",
     "FileInfo",
     "FilesystemMount",
     "GrepMatch",

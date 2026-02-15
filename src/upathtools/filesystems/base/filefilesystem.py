@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from upath import UPath
 
-from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem, BaseFileSystem
+from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem
 
 
 if TYPE_CHECKING:
@@ -24,18 +24,30 @@ class ProbeResult(Enum):
     MAYBE = "maybe"  # Extension matches but can't verify without full parse
 
 
-class FileFileSystemMixin:
-    """Mixin providing extension and content probing for file-based filesystems.
+class BaseAsyncFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
+    BaseAsyncFileSystem[TPath, TInfoDict]
+):
+    """Base class for file-based filesystems.
 
-    File filesystems are filesystems that parse and expose the internal structure
-    of specific file types (e.g., markdown headers, SQLite tables, Python AST).
+    File filesystems parse specific file types and expose their internal structure
+    as a virtual filesystem. Examples include:
+    - MarkdownFileSystem: Exposes markdown headers as directories
+    - SqliteFileSystem: Exposes database tables as directories
 
-    The detection system works in two phases:
+    Provides extension and content probing for auto-detection. The detection
+    system works in two phases:
     1. Extension check via `supports_extension()` - quick filter
     2. Content probing via `probe_content()` - verify content is valid
 
     For filesystems that share extensions (e.g., JSON Schema vs OpenAPI both use .json),
     the `priority` class variable determines which is tried first.
+
+    Subclasses should:
+    1. Set `supported_extensions` class variable
+    2. Set `priority` if competing with other filesystems for same extensions
+    3. Override `probe_content()` for content-based detection
+    4. Implement `from_content()` for content-based creation
+    5. Implement standard async filesystem methods (_ls, _cat_file, etc.)
     """
 
     supported_extensions: ClassVar[frozenset[str]] = frozenset()
@@ -98,115 +110,6 @@ class FileFileSystemMixin:
             For example, a filesystem checking for magic bytes might return 16.
         """
         return None
-
-
-class BaseFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
-    FileFileSystemMixin, BaseFileSystem[TPath, TInfoDict]
-):
-    """Base class for sync file-based filesystems.
-
-    File filesystems parse specific file types and expose their internal structure
-    as a virtual filesystem. Examples include:
-    - MarkdownFileSystem: Exposes markdown headers as directories
-    - SqliteFileSystem: Exposes database tables as directories
-
-    Subclasses should:
-    1. Set `supported_extensions` class variable
-    2. Set `priority` if competing with other filesystems for same extensions
-    3. Override `probe_content()` for content-based detection
-    4. Implement `from_content()` for content-based creation
-    5. Implement standard filesystem methods (_ls, _cat_file, etc.)
-    """
-
-    @classmethod
-    @abstractmethod
-    def from_file(
-        cls,
-        path: str,
-        target_protocol: str | None = None,
-        target_options: dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> BaseFileFileSystem[TPath, TInfoDict]:
-        """Create filesystem instance from a file path.
-
-        Args:
-            path: Path to the source file.
-            target_protocol: Protocol for accessing the source file.
-            target_options: Options for the target protocol.
-            **kwargs: Additional filesystem options.
-
-        Returns:
-            Configured filesystem instance.
-        """
-        ...
-
-    @classmethod
-    def from_filesystem(
-        cls,
-        path: str,
-        fs: AbstractFileSystem,
-        **kwargs: Any,
-    ) -> BaseFileFileSystem[TPath, TInfoDict]:
-        """Create filesystem instance with access to a parent filesystem.
-
-        This method allows the file filesystem to access the source file
-        through the parent filesystem, enabling read-write operations for
-        filesystems that need direct file access (e.g., SQLite).
-
-        Args:
-            path: Path to the file within the parent filesystem.
-            fs: Parent filesystem to read/write through.
-            **kwargs: Additional filesystem options.
-
-        Returns:
-            Configured filesystem instance.
-
-        Note:
-            Default implementation reads content via from_content.
-            Subclasses that need direct file access should override this.
-        """
-        content = fs.cat_file(path)
-        if isinstance(content, str):
-            content = content.encode()
-        return cls.from_content(content, **kwargs)
-
-    @classmethod
-    def from_content(
-        cls,
-        content: bytes,
-        **kwargs: Any,
-    ) -> BaseFileFileSystem[TPath, TInfoDict]:
-        """Create filesystem instance from raw content bytes.
-
-        Args:
-            content: Raw file content as bytes.
-            **kwargs: Additional filesystem options.
-
-        Returns:
-            Configured filesystem instance.
-
-        Raises:
-            NotImplementedError: If the filesystem doesn't support content-based creation.
-        """
-        msg = f"{cls.__name__} does not support creation from content"
-        raise NotImplementedError(msg)
-
-
-class BaseAsyncFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
-    FileFileSystemMixin, BaseAsyncFileSystem[TPath, TInfoDict]
-):
-    """Base class for async file-based filesystems.
-
-    Async variant of BaseFileFileSystem for filesystems that require
-    async I/O operations.
-
-    Subclasses should:
-    1. Set `supported_extensions` class variable
-    2. Set `priority` if competing with other filesystems for same extensions
-    3. Override `probe_content()` for content-based detection
-    4. Implement `from_content()` for content-based creation
-    5. Implement standard async filesystem methods (_ls, _cat_file, etc.)
-    """
 
     @classmethod
     @abstractmethod
