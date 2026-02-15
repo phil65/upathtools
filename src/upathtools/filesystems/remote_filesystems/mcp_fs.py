@@ -20,6 +20,34 @@ if TYPE_CHECKING:
     from fastmcp import Client as FastMCPClient
 
 
+def _uri_to_path(uri: str) -> str:
+    """Convert MCP resource URI to filesystem path.
+
+    Args:
+        uri: MCP resource URI like 'file:///path/to/file.txt'
+
+    Returns:
+        Filesystem path like '/file___path_to_file.txt'
+    """
+    # URL encode the URI to handle special characters safely
+    encoded_uri = quote(uri, safe="")
+    return "/" + encoded_uri
+
+
+def _path_to_uri(path: str) -> str:
+    """Convert filesystem path back to MCP resource URI.
+
+    Args:
+        path: Filesystem path like '/file___path_to_file.txt'
+
+    Returns:
+        MCP resource URI like 'file:///path/to/file.txt'
+    """
+    # Remove leading slash and URL decode
+    path = path.lstrip("/")
+    return unquote(path)
+
+
 class McpInfo(FileInfo, total=False):
     """Info dict for MCP filesystem paths."""
 
@@ -127,32 +155,6 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
         if not self.client.is_connected():
             await self.client.__aenter__()
 
-    def _uri_to_path(self, uri: str) -> str:
-        """Convert MCP resource URI to filesystem path.
-
-        Args:
-            uri: MCP resource URI like 'file:///path/to/file.txt'
-
-        Returns:
-            Filesystem path like '/file___path_to_file.txt'
-        """
-        # URL encode the URI to handle special characters safely
-        encoded_uri = quote(uri, safe="")
-        return "/" + encoded_uri
-
-    def _path_to_uri(self, path: str) -> str:
-        """Convert filesystem path back to MCP resource URI.
-
-        Args:
-            path: Filesystem path like '/file___path_to_file.txt'
-
-        Returns:
-            MCP resource URI like 'file:///path/to/file.txt'
-        """
-        # Remove leading slash and URL decode
-        path = path.lstrip("/")
-        return unquote(path)
-
     async def _refresh_resources(self) -> None:
         """Refresh the resource cache from MCP server."""
         await self._ensure_connected()
@@ -163,7 +165,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
             self._resource_cache = {}
 
             for resource in result:
-                path = self._uri_to_path(str(resource.uri))
+                path = _uri_to_path(str(resource.uri))
                 self._resource_cache[path] = {
                     "name": path,
                     "size": resource.size,
@@ -227,7 +229,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
             File contents as bytes
         """
         # Convert path back to URI
-        uri = self._path_to_uri(path)
+        uri = _path_to_uri(path)
         content = await self._read_resource_async(uri)
 
         if start is not None or end is not None:
