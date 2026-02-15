@@ -300,7 +300,7 @@ class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
     @overload
     async def _ls(self, path: str, detail: Literal[False], **kwargs: Any) -> list[str]: ...
 
-    async def _ls(
+    async def _ls(  # noqa: PLR0911
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[OpenApiInfo] | list[str]:
         """List OpenAPI specification contents."""

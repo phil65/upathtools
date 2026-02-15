@@ -7,8 +7,8 @@ from fsspec.implementations.data import DataFileSystem as _DataFileSystem
 from fsspec.implementations.github import GithubFileSystem as _GithubFileSystem
 
 # from fsspec.implementations.http import HTTPFileSystem as _HTTPFileSystem
-from fsspec.implementations.local import LocalFileSystem as _LocalFileSystem
-from fsspec.implementations.memory import MemoryFileSystem as _MemoryFileSystem
+# from fsspec.implementations.local import LocalFileSystem as _LocalFileSystem
+# from fsspec.implementations.memory import MemoryFileSystem as _MemoryFileSystem
 from fsspec.implementations.tar import TarFileSystem as _TarFileSystem
 from fsspec.implementations.zip import ZipFileSystem as _ZipFileSystem
 from upath.implementations.cached import SimpleCachePath
@@ -16,24 +16,24 @@ from upath.implementations.data import DataPath
 from upath.implementations.github import GitHubPath
 
 # from upath.implementations.http import HTTPPath
-from upath.implementations.local import FilePath
-from upath.implementations.memory import MemoryPath
+# from upath.implementations.local import FilePath
+# from upath.implementations.memory import MemoryPath
 from upath.implementations.tar import TarPath
 from upath.implementations.zip import ZipPath
 
 from upathtools.filesystems.base import BaseFileSystem
 
 
-class LocalFileSystem(BaseFileSystem[FilePath], _LocalFileSystem):
-    """Local filesystem with UPath integration."""
+# class LocalFileSystem(BaseFileSystem[FilePath], _LocalFileSystem):
+#     """Local filesystem with UPath integration."""
 
-    upath_cls = FilePath
+#     upath_cls = FilePath
 
 
-class MemoryFileSystem(BaseFileSystem[MemoryPath], _MemoryFileSystem):
-    """In-memory filesystem with UPath integration."""
+# class MemoryFileSystem(BaseFileSystem[MemoryPath], _MemoryFileSystem):
+#     """In-memory filesystem with UPath integration."""
 
-    upath_cls = MemoryPath
+#     upath_cls = MemoryPath
 
 
 # class HTTPFileSystem(BaseFileSystem[HTTPPath], _HTTPFileSystem):
