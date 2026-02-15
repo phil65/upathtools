@@ -16,19 +16,19 @@ if TYPE_CHECKING:
 
 EXAMPLE_PY = """
 def test_func():
-'''Test function'''
-pass
+    '''Test function'''
+    pass
 
 class TestClass:
-'''Test class'''
+    '''Test class'''
 
-def method_one(self):
-    '''Method one'''
-    return 1
+    def method_one(self):
+        '''Method one'''
+        return 1
 
-def method_two(self):
-    '''Method two'''
-    return 2
+    def method_two(self):
+        '''Method two'''
+        return 2
 """
 
 
