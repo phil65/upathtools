@@ -6,9 +6,12 @@ from typing import Any, ClassVar
 import uuid
 
 from fsspec.implementations.memory import MemoryFileSystem
+from upath.implementations.memory import MemoryPath
+
+from upathtools.filesystems.base import BaseFileSystem
 
 
-class IsolatedMemoryFileSystem(MemoryFileSystem):
+class IsolatedMemoryFileSystem(BaseFileSystem[MemoryPath], MemoryFileSystem):
     """MemoryFileSystem with per-key isolated storage.
 
     Unlike the standard MemoryFileSystem which uses global class-level storage,
@@ -30,6 +33,8 @@ class IsolatedMemoryFileSystem(MemoryFileSystem):
         fs6 = IsolatedMemoryFileSystem(key="global")
         # All instances with key="global" share storage
     """
+
+    upath_cls = MemoryPath
 
     # Class-level storage maps, keyed by isolation key
     _stores: ClassVar[dict[str, dict[str, Any]]] = {}
