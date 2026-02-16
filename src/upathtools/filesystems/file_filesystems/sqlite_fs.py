@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import csv
 import io
+from pathlib import Path
 import tempfile
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload
 
@@ -150,11 +152,7 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         return instance
 
     @classmethod
-    def from_content(
-        cls,
-        content: bytes,
-        **kwargs: Any,
-    ) -> SqliteFileSystem:
+    def from_content(cls, content: bytes, **kwargs: Any) -> SqliteFileSystem:
         """Create filesystem instance from raw SQLite database content.
 
         Note: This creates a read-only temp copy. Use from_filesystem_async
@@ -173,9 +171,6 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
 
         Only applicable when created via from_filesystem_async with a remote fs.
         """
-        import asyncio
-        from pathlib import Path
-
         if not self._is_temp_copy or self._parent_fs is None or self._parent_path is None:
             return
 
@@ -603,9 +598,6 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
     def __del__(self) -> None:
         """Clean up resources."""
         if self._temp_file:
-            import contextlib
-            from pathlib import Path
-
             with contextlib.suppress(OSError):
                 Path(self._temp_file).unlink()
 
