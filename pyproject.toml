@@ -150,6 +150,9 @@ webdav4 = ["webdav4"]  # WebDAV integration
 ssh = [
     "sshfs[bcrypt]>=2025.11.0",
 ]
+monty = [
+    "pydantic-monty>=0.0.5",
+]
 
 [dependency-groups]
 dev = [
