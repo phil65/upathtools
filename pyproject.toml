@@ -147,6 +147,9 @@ tree-sitter = [
 ]  # Tree-sitter based filesystem
 vercel = ["vercel"]  # Vercel integration
 webdav4 = ["webdav4"]  # WebDAV integration
+ssh = [
+    "sshfs[bcrypt]>=2025.11.0",
+]
 
 [dependency-groups]
 dev = [
