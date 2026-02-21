@@ -139,10 +139,8 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         if result.exit_code != 0:
             stderr_str = await result.stderr() or ""
             if "No such file or directory" in stderr_str:
-                msg = f"Path not found: {path}"
-                raise FileNotFoundError(msg)
-            msg = f"Failed to list directory {path}: {stderr_str}"
-            raise OSError(msg)
+                raise FileNotFoundError(f"Path not found: {path}")
+            raise OSError(f"Failed to list directory {path}: {stderr_str}")
 
         files = []
         stdout_str = await result.stdout() or ""
@@ -176,8 +174,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         sandbox = await self._get_sandbox()
         content = await sandbox.read_file(path)
         if content is None:
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"File not found: {path}")
 
         if start is not None or end is not None:
             return content[start:end]
@@ -203,16 +200,14 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("rm", ["-f", path])
         if result.exit_code != 0:
-            msg = f"Failed to remove file {path}: {result.stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove file {path}: {result.stderr}")
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory."""
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("rmdir", [path])
         if result.exit_code != 0:
-            msg = f"Failed to remove directory {path}: {result.stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove directory {path}: {result.stderr}")
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -237,8 +232,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("stat", ["-c", "%s", path])
         if result.exit_code != 0:
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"File not found: {path}")
         stdout_str = await result.stdout() or "0"
         return int(stdout_str.strip())
 
@@ -247,8 +241,7 @@ class VercelFS(BaseAsyncFileSystem[VercelPath, VercelInfo]):
         sandbox = await self._get_sandbox()
         result = await sandbox.run_command("stat", ["-c", "%Y", path])
         if result.exit_code != 0:
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"File not found: {path}")
         stdout_str = await result.stdout() or "0"
         return float(stdout_str.strip())
 

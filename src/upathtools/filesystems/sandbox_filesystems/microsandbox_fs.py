@@ -79,17 +79,10 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
     async def _get_sandbox(self) -> BaseSandbox:
         """Get sandbox instance."""
         if self._sandbox is None:
-            msg = "No sandbox provided and cannot create one without sandbox class"
-            raise RuntimeError(msg)
-
+            raise RuntimeError("No sandbox provided and cannot create one without sandbox class")
         if not self._sandbox._is_started:
-            await self._sandbox.start(
-                image=self.image,
-                memory=self.memory,
-                cpus=self.cpus,
-            )
+            await self._sandbox.start(image=self.image, memory=self.memory, cpus=self.cpus)
             logger.info("Started Microsandbox: %s", self._sandbox._name)
-
         return self._sandbox
 
     async def close_session(self) -> None:
@@ -123,10 +116,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         stderr = await result.error()
         if result.exit_code != 0:
             if "No such file or directory" in stderr:
-                msg = f"Path not found: {path}"
-                raise FileNotFoundError(msg)
-            msg = f"Failed to list directory {path}: {stderr}"
-            raise OSError(msg)
+                raise FileNotFoundError(f"Path not found: {path}")
+            raise OSError(f"Failed to list directory {path}: {stderr}")
 
         files = []
         for line in output.strip().split("\n"):
@@ -167,10 +158,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         stderr = await result.error()
         if result.exit_code != 0:
             if "No such file or directory" in stderr:
-                msg = f"File not found: {path}"
-                raise FileNotFoundError(msg)
-            msg = f"Failed to read file {path}: {stderr}"
-            raise OSError(msg)
+                raise FileNotFoundError(f"File not found: {path}")
+            raise OSError(f"Failed to read file {path}: {stderr}")
 
         content = stdout.encode("utf-8")
         if start is not None or end is not None:
@@ -185,13 +174,11 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
             await self._mkdir(parent, create_parents=True)
         # Use echo with redirection to write content
         # Use printf to handle special characters and newlines properly
-        result = await sandbox.command.run(
-            "sh", ["-c", f"printf '%s' '{value.decode('utf-8')}' > '{path}'"]
-        )
+        args = ["-c", f"printf '%s' '{value.decode('utf-8')}' > '{path}'"]
+        result = await sandbox.command.run("sh", args)
         stderr = await result.error()
         if result.exit_code != 0:
-            msg = f"Failed to write file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to write file {path}: {stderr}")
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create directory using mkdir command."""
@@ -204,8 +191,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         result = await sandbox.command.run("mkdir", args)
         stderr = await result.error()
         if result.exit_code != 0:
-            msg = f"Failed to create directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to create directory {path}: {stderr}")
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove file using rm command."""
@@ -213,8 +199,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         result = await sandbox.command.run("rm", ["-f", path])
         stderr = await result.error()
         if result.exit_code != 0:
-            msg = f"Failed to remove file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove file {path}: {stderr}")
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory using rmdir command."""
@@ -222,8 +207,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         result = await sandbox.command.run("rmdir", [path])
         stderr = await result.error()
         if result.exit_code != 0:
-            msg = f"Failed to remove directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove directory {path}: {stderr}")
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists using test command."""
@@ -251,10 +235,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         stderr = await result.error()
         if result.exit_code != 0:
             if "No such file or directory" in stderr:
-                msg = f"File not found: {path}"
-                raise FileNotFoundError(msg)
-            msg = f"Failed to get size for {path}: {stderr}"
-            raise OSError(msg)
+                raise FileNotFoundError(f"File not found: {path}")
+            raise OSError(f"Failed to get size for {path}: {stderr}")
 
         return int(stdout.strip())
 
@@ -266,10 +248,8 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         stderr = await result.error()
         if result.exit_code != 0:
             if "No such file or directory" in stderr:
-                msg = f"File not found: {path}"
-                raise FileNotFoundError(msg)
-            msg = f"Failed to get modification time for {path}: {stderr}"
-            raise OSError(msg)
+                raise FileNotFoundError(f"File not found: {path}")
+            raise OSError(f"Failed to get modification time for {path}: {stderr}")
 
         return float(stdout.strip())
 

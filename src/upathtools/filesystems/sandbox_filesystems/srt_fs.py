@@ -157,8 +157,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         if exit_code != 0:
             if "No such file or directory" in stderr or "No such file" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to list directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to list directory {path}: {stderr}")
 
         entries = ls_cmd.parse_command(stdout, path)
         if not detail:
@@ -182,8 +181,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
                 raise FileNotFoundError(path)
             if "Is a directory" in stderr:
                 raise IsADirectoryError(path)
-            msg = f"Failed to read file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to read file {path}: {stderr}")
 
         content = b64_cmd.parse_command(stdout)
         if start is not None or end is not None:
@@ -199,8 +197,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         command = f'echo "{encoded}" | base64 -d > {shlex.quote(path)}'
         _stdout, stderr, exit_code = await self._run_command(command)
         if exit_code != 0:
-            msg = f"Failed to write file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to write file {path}: {stderr}")
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
@@ -211,8 +208,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         _stdout, stderr, exit_code = await self._run_command(command)
 
         if exit_code != 0 and "File exists" not in stderr:
-            msg = f"Failed to create directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to create directory {path}: {stderr}")
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -223,8 +219,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to remove file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove file {path}: {stderr}")
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
@@ -235,8 +230,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to remove directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove directory {path}: {stderr}")
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if a path exists."""
@@ -272,8 +266,7 @@ class SRTFS(BaseAsyncFileSystem[SRTPath, SRTInfo]):
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to get info for {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to get info for {path}: {stderr}")
 
         file_info = info_cmd.parse_command(stdout, path)
         return SRTInfo(

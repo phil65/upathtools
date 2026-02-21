@@ -174,8 +174,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 raise FileNotFoundError(path) from exc
             if "not a directory" in str(exc).lower():
                 raise NotADirectoryError(path) from exc
-            msg = f"Failed to list directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to list directory {path}: {exc}") from exc
 
         if not detail:
             return items
@@ -216,8 +215,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
-            msg = f"Failed to read file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to read file {path}: {exc}") from exc
 
         # Handle byte ranges if specified
         if start is not None or end is not None:
@@ -242,8 +240,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 await f.close.aio()
 
         except Exception as exc:
-            msg = f"Failed to write file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to write file {path}: {exc}") from exc
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
@@ -252,8 +249,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         try:
             await sandbox.mkdir.aio(path, parents=create_parents)
         except Exception as exc:
-            msg = f"Failed to create directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to create directory {path}: {exc}") from exc
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -266,8 +262,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
-            msg = f"Failed to remove file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove file {path}: {exc}") from exc
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
@@ -280,8 +275,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
                 raise FileNotFoundError(path) from exc
             if "not a directory" in str(exc).lower():
                 raise NotADirectoryError(path) from exc
-            msg = f"Failed to remove directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove directory {path}: {exc}") from exc
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -346,8 +340,7 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get file size for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get file size for {path}: {exc}") from exc
 
     async def _modified(self, path: str, **kwargs: Any) -> float:
         """Get file modification time."""
@@ -442,11 +435,9 @@ class ModalFile:
     async def read(self, size: int = -1) -> bytes:
         """Read data from file."""
         if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
+            raise ValueError("I/O operation on closed file")
         if not self.readable():
-            msg = "not readable"
-            raise io.UnsupportedOperation(msg)
+            raise io.UnsupportedOperation("not readable")
 
         file = await self._ensure_opened()
         if size == -1:
@@ -456,11 +447,9 @@ class ModalFile:
     async def write(self, data: bytes) -> int:
         """Write data to file."""
         if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
+            raise ValueError("I/O operation on closed file")
         if not self.writable():
-            msg = "not writable"
-            raise io.UnsupportedOperation(msg)
+            raise io.UnsupportedOperation("not writable")
 
         file = await self._ensure_opened()
         await file.write.aio(data)
@@ -476,8 +465,7 @@ class ModalFile:
     async def seek(self, offset: int, whence: int = 0) -> int:
         """Seek to position."""
         if self._closed:
-            msg = "I/O operation on closed file"
-            raise ValueError(msg)
+            raise ValueError("I/O operation on closed file")
 
         file = await self._ensure_opened()
         await file.seek.aio(offset, whence)
