@@ -236,8 +236,7 @@ with open({path!r}, 'wb') as f:
                     # Execute the decode script
                     execution = await sandbox.run_code(decode_script)
                     if execution.error:
-                        msg = f"Failed to write binary file: {execution.error.value}"
-                        raise OSError(msg)  # noqa: B904
+                        raise OSError(f"Failed to write binary file: {execution.error.value}")  # noqa: B904
                     return
             else:
                 content = value
@@ -263,8 +262,7 @@ with open({path!r}, 'wb') as f:
                     await self._mkdir(parent, create_parents=True)
                     await sandbox.files.make_dir(path)
             else:
-                msg = f"Failed to create directory {path}: {exc}"
-                raise OSError(msg) from exc
+                raise OSError(f"Failed to create directory {path}: {exc}") from exc
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -316,12 +314,11 @@ with open({path!r}, 'wb') as f:
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            if not await sandbox.files.exists(path):
-                return False
             info = await sandbox.files.get_info(path)
-            return info.type == FileType.FILE  # noqa: TRY300
         except Exception:  # noqa: BLE001
             return False
+        else:
+            return info.type == FileType.FILE
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
@@ -330,12 +327,11 @@ with open({path!r}, 'wb') as f:
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            if not await sandbox.files.exists(path):
-                return False
             info = await sandbox.files.get_info(path)
-            return info.type == FileType.DIR  # noqa: TRY300
         except Exception:  # noqa: BLE001
             return False
+        else:
+            return info.type == FileType.DIR
 
     async def _size(self, path: str, **kwargs: Any) -> int:
         """Get file size."""
@@ -473,3 +469,14 @@ with open({path!r}, 'wb') as f:
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        fs = E2BFS()
+        result = await fs._isdir("somepath")
+        print(result)
+
+    asyncio.run(main())
