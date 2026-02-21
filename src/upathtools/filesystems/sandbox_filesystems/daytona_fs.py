@@ -149,12 +149,10 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to list directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to list directory {path}: {exc}") from exc
 
         if not detail:
             return [info.name for info in file_infos]
-
         return [
             DaytonaInfo(
                 name=f"{path.rstrip('/')}/{info.name}",
@@ -182,8 +180,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
-            msg = f"Failed to read file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to read file {path}: {exc}") from exc
 
         if isinstance(content, str):  # Ensure we have bytes
             content = content.encode()
@@ -194,21 +191,14 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
             content = content[start:end]
         return content
 
-    async def _put_file(
-        self,
-        lpath: str,
-        rpath: str,
-        callback=None,
-        **kwargs: Any,
-    ) -> None:
+    async def _put_file(self, lpath: str, rpath: str, callback=None, **kwargs: Any) -> None:
         """Upload a local file to the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
             await sandbox.fs.upload_file(lpath, rpath)
         except Exception as exc:
-            msg = f"Failed to upload file from {lpath} to {rpath}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to upload file from {lpath} to {rpath}: {exc}") from exc
 
     async def _pipe_file(
         self, path: str, value: bytes, mode: CreationMode = "overwrite", **kwargs: Any
@@ -219,8 +209,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         try:
             await sandbox.fs.upload_file(value, path)
         except Exception as exc:
-            msg = f"Failed to write file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to write file {path}: {exc}") from exc
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
@@ -237,8 +226,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                     await self._mkdir(parent, create_parents=True)
                     await sandbox.fs.create_folder(path, "755")
             else:
-                msg = f"Failed to create directory {path}: {exc}"
-                raise OSError(msg) from exc
+                raise OSError(f"Failed to create directory {path}: {exc}") from exc
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -251,8 +239,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
-            msg = f"Failed to remove file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove file {path}: {exc}") from exc
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
@@ -268,8 +255,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 raise NotADirectoryError(path) from exc
             if "not empty" in str(exc).lower():
                 raise OSError(f"Directory not empty: {path}") from exc
-            msg = f"Failed to remove directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove directory {path}: {exc}") from exc
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -313,8 +299,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get file size for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get file size for {path}: {exc}") from exc
         else:
             return int(info.size)
 
@@ -329,8 +314,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get modification time for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get modification time for {path}: {exc}") from exc
 
     async def _info(self, path: str, **kwargs: Any) -> DaytonaInfo:
         """Get info about a file or directory."""
@@ -343,12 +327,15 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
                 size=int(info.size),
                 type="directory" if info.is_dir else "file",
                 mtime=_parse_daytona_time(info.mod_time),
+                mode=int(info.mode) if info.mode else 0,
+                permissions=info.permissions,
+                owner=info.owner,
+                group=info.group,
             )
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get info for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get info for {path}: {exc}") from exc
 
     async def _mv_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Move/rename a file."""
@@ -359,8 +346,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path1) from exc
-            msg = f"Failed to move {path1} to {path2}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to move {path1} to {path2}: {exc}") from exc
 
     @overload
     async def _find(
@@ -402,21 +388,12 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         try:
             result = await sandbox.fs.search_files(path, "**/*")
         except Exception as exc:
-            msg = f"Failed to find files in {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to find files in {path}: {exc}") from exc
         else:
             files = result.files
             if detail:
                 # Return dict with minimal info (search_files doesn't return metadata)
-                return {
-                    f: DaytonaInfo(
-                        name=f,
-                        type="file",  # search_files only returns files
-                        size=0,
-                        mtime=0.0,
-                    )
-                    for f in files
-                }
+                return {f: DaytonaInfo(name=f, type="file", size=0, mtime=0.0) for f in files}
             return files
 
     @overload
@@ -454,7 +431,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         """
         # Check for glob magic characters
         glob_chars = {"*", "?", "["}
-
         # If no glob pattern, fall back to default
         if not any(c in path for c in glob_chars):
             if await self._exists(path):
@@ -466,7 +442,6 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
 
         await self.set_session()
         sandbox = await self._get_sandbox()
-
         # Split path into root directory and pattern
         # e.g., "/workspace/src/**/*.py" -> root="/workspace/src", pattern="**/*.py"
         path = self._strip_protocol(path)
@@ -484,15 +459,11 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         try:
             result = await sandbox.fs.search_files(root, pattern)
         except Exception as exc:
-            msg = f"Failed to glob {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to glob {path}: {exc}") from exc
 
         files = result.files
-        if not detail:
-            return files
-
         # Return barebone info dicts (search_files doesn't return metadata)
-        return {f: DaytonaInfo(name=f, type="file") for f in files}
+        return {f: DaytonaInfo(name=f, type="file") for f in files} if detail else files
 
     async def _grep(
         self,
@@ -512,17 +483,14 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            matches = await sandbox.fs.find_files(path, pattern)
             result = [
-                GrepMatch(path=m.file, line_number=int(m.line), text=m.content) for m in matches
+                GrepMatch(path=m.file, line_number=int(m.line), text=m.content)
+                for m in await sandbox.fs.find_files(path, pattern)
             ]
         except Exception as exc:
-            msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to grep pattern {pattern!r} in {path}: {exc}") from exc
         else:
-            if max_count is not None:
-                return result[:max_count]
-            return result
+            return result[:max_count] if max_count is not None else result
 
     async def _chmod(self, path: str, mode: int, **kwargs: Any) -> None:
         """Change file permissions."""
@@ -535,8 +503,7 @@ class DaytonaFS(BaseAsyncFileSystem[DaytonaPath, DaytonaInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to change permissions for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to change permissions for {path}: {exc}") from exc
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
