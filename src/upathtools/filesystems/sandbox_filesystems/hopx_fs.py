@@ -261,12 +261,11 @@ class HopXFS(BaseAsyncFileSystem[HopXPath, HopXInfo]):
         sandbox = await self._get_sandbox()
 
         try:
-            items = await sandbox.files.list(path)
+            await sandbox.files.list(path)
             # If listing succeeds for the path itself (not its contents),
             # it means the path is a directory. If it raises, check exists.
             # HopX list returns contents of a directory, not the entry itself.
             # So if list succeeds, it's a directory.
-            return False
         except Exception:  # noqa: BLE001
             # If listing fails, check if it exists as a file
             try:
@@ -275,6 +274,8 @@ class HopXFS(BaseAsyncFileSystem[HopXPath, HopXInfo]):
                 return False
             else:
                 return True
+        else:
+            return False
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""

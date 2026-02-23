@@ -8,6 +8,7 @@ to shell commands via /api/execute for metadata operations.
 from __future__ import annotations
 
 import base64
+import contextlib
 import logging
 import shlex
 from typing import Any, Literal, Required, overload
@@ -120,9 +121,9 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                 headers=self._build_headers(),
             )
 
-        if response.status_code == 404:
+        if response.status_code == 404:  # noqa: PLR2004
             raise FileNotFoundError(f"Cloudflare resource not found: {path}")
-        if response.status_code >= 400:
+        if response.status_code >= 400:  # noqa: PLR2004
             try:
                 payload = response.json()
                 message = payload.get("error") or payload.get("message") or response.text
@@ -173,14 +174,12 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
     async def close_session(self) -> None:
         """Close the sandbox session by killing all processes."""
         if self._session_id and self._session_started:
-            try:
+            with contextlib.suppress(OSError, FileNotFoundError):
                 await self._request(
                     "DELETE",
                     "/api/process/kill-all",
                     params={"session": self._session_id},
                 )
-            except (OSError, FileNotFoundError):
-                pass
             self._session_started = False
 
     @overload
@@ -250,11 +249,11 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
             stdout, stderr, exit_code = await self._exec(f"base64 {shlex.quote(path)}")
             if exit_code != 0:
                 if "No such file or directory" in stderr:
-                    raise FileNotFoundError(path)
+                    raise FileNotFoundError(path)  # noqa: B904
                 if "Is a directory" in stderr:
-                    raise IsADirectoryError(path)
+                    raise IsADirectoryError(path)  # noqa: B904
                 msg = f"Failed to read file {path}: {stderr}"
-                raise OSError(msg)
+                raise OSError(msg)  # noqa: B904
             content = base64.b64decode(stdout.strip())
 
         if start is not None or end is not None:
@@ -306,24 +305,24 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
             dir_path = path.rsplit("/", 1)[0]
             if dir_path and dir_path != path:
                 await self._exec(f"mkdir -p {shlex.quote(dir_path)}")
-            stdout, stderr, exit_code = await self._exec(
+            _stdout, stderr, exit_code = await self._exec(
                 f"echo {shlex.quote(encoded)} | base64 -d > {shlex.quote(path)}"
             )
             if exit_code != 0:
                 msg = f"Failed to write file {path}: {stderr}"
-                raise OSError(msg)
+                raise OSError(msg)  # noqa: B904
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
         flag = "-p " if create_parents else ""
-        stdout, stderr, exit_code = await self._exec(f"mkdir {flag}{shlex.quote(path)}")
+        _stdout, stderr, exit_code = await self._exec(f"mkdir {flag}{shlex.quote(path)}")
         if exit_code != 0 and "File exists" not in stderr:
             msg = f"Failed to create directory {path}: {stderr}"
             raise OSError(msg)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
-        stdout, stderr, exit_code = await self._exec(f"rm -f {shlex.quote(path)}")
+        _stdout, stderr, exit_code = await self._exec(f"rm -f {shlex.quote(path)}")
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
@@ -334,7 +333,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
-        stdout, stderr, exit_code = await self._exec(f"rmdir {shlex.quote(path)}")
+        _stdout, stderr, exit_code = await self._exec(f"rmdir {shlex.quote(path)}")
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(path)
@@ -394,8 +393,8 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         parts = stdout.strip().split(None, 3)
         size = int(parts[0]) if len(parts) > 0 else 0
         mtime = float(parts[1]) if len(parts) > 1 else 0.0
-        permissions = parts[2] if len(parts) > 2 else ""
-        file_type_str = parts[3] if len(parts) > 3 else ""
+        permissions = parts[2] if len(parts) > 2 else ""  # noqa: PLR2004
+        file_type_str = parts[3] if len(parts) > 3 else ""  # noqa: PLR2004
         is_dir = "directory" in file_type_str.lower()
 
         return CloudflareInfo(
@@ -408,7 +407,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
 
     async def _mv_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Move/rename a file."""
-        stdout, stderr, exit_code = await self._exec(
+        _stdout, stderr, exit_code = await self._exec(
             f"mv {shlex.quote(path1)} {shlex.quote(path2)}"
         )
         if exit_code != 0:

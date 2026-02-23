@@ -113,7 +113,7 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
                 headers=headers,
             )
 
-        if response.status_code == 404:
+        if response.status_code == 404:  # noqa: PLR2004
             path = (params or {}).get("path", "")
             raise FileNotFoundError(path)
         if not response.is_success:
@@ -305,7 +305,7 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
         # For a file, /fs/list returns a single entry for the file itself.
         # For a directory, it returns directory contents.
         # The response also includes a "path" field indicating what was listed.
-        response_path = data.get("path", "")
+        data.get("path", "")
 
         # If the response path matches and entries contain items with their own names,
         # we're looking at a directory listing. The directory itself exists.
