@@ -27,9 +27,12 @@ from .file_filesystems.sqlite_fs import SqliteFileSystem, SqlitePath
 from .file_filesystems.treesitter_fs import TreeSitterFileSystem, TreeSitterPath
 
 from .sandbox_filesystems.beam_fs import BeamFS, BeamPath
+from .sandbox_filesystems.cloudflare_fs import CloudflareFS, CloudflarePath
 from .sandbox_filesystems.daytona_fs import DaytonaFS, DaytonaPath
 from .sandbox_filesystems.e2b_fs import E2BFS, E2BPath
+from .sandbox_filesystems.hopx_fs import HopXFS, HopXPath
 from .sandbox_filesystems.modal_fs import ModalFS, ModalPath
+from .sandbox_filesystems.sprites_fs import SpritesFS, SpritesPath
 from .sandbox_filesystems.vercel_fs import VercelFS, VercelPath
 from .sandbox_filesystems.microsandbox_fs import MicrosandboxFS, MicrosandboxPath
 
@@ -55,6 +58,8 @@ __all__ = [
     "BaseModelPath",
     "BeamFS",
     "BeamPath",
+    "CloudflareFS",
+    "CloudflarePath",
     "DaytonaFS",
     "DaytonaPath",
     "DistributionFileSystem",
@@ -67,6 +72,8 @@ __all__ = [
     "GitLabFileSystem",
     "GitLabPath",
     "HTTPFileSystem",
+    "HopXFS",
+    "HopXPath",
     "HttpPath",
     "IsolatedMemoryFileSystem",
     "IssueFileSystem",
@@ -94,6 +101,8 @@ __all__ = [
     "OverlayPath",
     "PackageFileSystem",
     "PackagePath",
+    "SpritesFS",
+    "SpritesPath",
     "SqliteFileSystem",
     "SqlitePath",
     "TreeSitterFileSystem",
