@@ -104,8 +104,7 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         super().__init__(**storage_options)
 
         if fs is None:
-            if target_protocol is None:
-                target_protocol = "file"
+            target_protocol = target_protocol or "file"
             fs = fsspec.filesystem(target_protocol, **(target_options or {}))
         assert fs
         # Wrap non-async filesystems
@@ -144,19 +143,20 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
             current_path = f"{current_path}/{part}" if current_path else part
 
             ext = self._get_expansion_ext(current_path)
-            if ext is not None:
-                # Check if this is actually a file on the underlying fs
-                try:
-                    info = self.fs.info(current_path)
-                    if info.get("type") == "file":
-                        # Get or create expansion filesystem
-                        expansion_fs = self._get_expansion_fs(current_path, ext)
-                        # Remaining path is everything after this part
-                        remaining = "/".join(parts[i + 1 :])
-                        return expansion_fs, remaining or "/"
-                except FileNotFoundError:
-                    # Not a file, continue checking
-                    pass
+            if ext is None:
+                continue
+
+            try:  # Check if this is actually a file on the underlying fs
+                info = self.fs.info(current_path)
+                if info.get("type") == "file":
+                    # Get or create expansion filesystem
+                    expansion_fs = self._get_expansion_fs(current_path, ext)
+                    # Remaining path is everything after this part
+                    remaining = "/".join(parts[i + 1 :])
+                    return expansion_fs, remaining or "/"
+            except FileNotFoundError:
+                # Not a file, continue checking
+                pass
 
         # No expansion needed
         return self.fs, path

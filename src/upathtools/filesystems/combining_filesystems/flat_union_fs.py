@@ -209,12 +209,8 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         logger.debug("Getting info for path: %s", path)
 
         if not path or path == self.root_marker:
-            return FlatUnionInfo(
-                name="",
-                size=0,
-                type="directory",
-                filesystems=len(self.filesystems),
-            )
+            num_fs = len(self.filesystems)
+            return FlatUnionInfo(name="", size=0, type="directory", filesystems=num_fs)
 
         # Try to find the path in any filesystem
         fs, _ = await self._get_matching_fs(path, **kwargs)
@@ -222,20 +218,13 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         if fs is None:
             # Check if it might be a virtual directory
             if await self._isdir(path, **kwargs):
-                return FlatUnionInfo(
-                    name=path.strip("/").split("/")[-1] if path.strip("/") else "",
-                    size=0,
-                    type="directory",
-                )
+                name = path.strip("/").split("/")[-1] if path.strip("/") else ""
+                return FlatUnionInfo(name=name, size=0, type="directory")
 
             raise FileNotFoundError(f"Path not found: {path}")
 
         if fs is self:
-            return FlatUnionInfo(
-                name="",
-                size=0,
-                type="directory",
-            )
+            return FlatUnionInfo(name="", size=0, type="directory")
 
         # Use the same path in the target filesystem
         norm_path = path.lstrip("/")
@@ -326,8 +315,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
 
         if not results and norm_path and not await self._isdir(path, **kwargs):
             # No results and not a directory
-            msg = f"Directory not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Directory not found: {path}")
 
         if detail:
             return results
@@ -383,8 +371,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         """Create a directory and parents in the first filesystem."""
         logger.debug("Making directories: %s", path)
         if not self.filesystems:
-            msg = "No filesystems available to create directories in"
-            raise RuntimeError(msg)
+            raise RuntimeError("No filesystems available to create directories in")
 
         fs = self.filesystems[0]
         norm_path = path.lstrip("/")
@@ -396,12 +383,10 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         fs, _ = await self._get_matching_fs(path, **kwargs)
 
         if fs is None:
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"File not found: {path}")
 
         if fs is self:
-            msg = f"Cannot remove directory: {path}"
-            raise IsADirectoryError(msg)
+            raise IsADirectoryError(f"Cannot remove directory: {path}")
 
         norm_path = path.lstrip("/")
         await fs._rm_file(norm_path, **kwargs)
@@ -409,17 +394,13 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
     async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
         """Remove files or directories from any filesystem that contains them."""
         logger.debug("Removing path: %s (recursive=%s)", path, recursive)
-
         # Try each filesystem
         fs, _ = await self._get_matching_fs(path, **kwargs)
-
         if fs is None:
-            msg = f"Path not found: {path}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Path not found: {path}")
 
         if fs is self and not recursive:
-            msg = "Cannot remove root directory without recursive=True"
-            raise ValueError(msg)
+            raise ValueError("Cannot remove root directory without recursive=True")
 
         if fs is self and recursive:
             # Special case: removing everything
@@ -427,8 +408,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
                 try:
                     await fs._rm("/", recursive=True, **kwargs)
                 except Exception:
-                    msg = "Error removing content from filesystem %d"
-                    logger.exception(msg, fs_idx)
+                    logger.exception("Error removing content from filesystem %d", fs_idx)
             return
 
         # Normal case: remove from specific filesystem
@@ -441,11 +421,9 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         # Find source filesystem
         src_fs, _src_idx = await self._get_matching_fs(path1, **kwargs)
         if src_fs is None:
-            msg = f"Source file not found: {path1}"
-            raise FileNotFoundError(msg)
+            raise FileNotFoundError(f"Source file not found: {path1}")
         if src_fs is self:
-            msg = f"Source is a directory: {path1}"
-            raise IsADirectoryError(msg)
+            raise IsADirectoryError(f"Source is a directory: {path1}")
         # Normalize paths
         src_path = path1.lstrip("/")
         dst_path = path2.lstrip("/")
@@ -454,8 +432,7 @@ class FlatUnionFileSystem(BaseAsyncFileSystem[FlatUnionPath, FlatUnionInfo]):
         # If destination doesn't exist, use first filesystem
         if dst_fs is None:
             if not self.filesystems:
-                msg = "No filesystems available to copy to"
-                raise RuntimeError(msg)
+                raise RuntimeError("No filesystems available to copy to")
             dst_fs = self.filesystems[0]
         # Handle copying between filesystems
         if src_fs is dst_fs:

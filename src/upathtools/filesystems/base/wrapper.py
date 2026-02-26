@@ -111,8 +111,7 @@ class WrapperFileSystem(AsyncFileSystem):
             asynchronous=asynchronous, loop=loop, batch_size=batch_size, **storage_options
         )
 
-        if fs is None:
-            fs = filesystem(protocol=target_protocol, **(target_options or {}))
+        fs = fs or filesystem(protocol=target_protocol, **(target_options or {}))
         # Avoid to_async_fs here to prevent recursion (it creates WrapperFileSystem)
         if isinstance(fs, AsyncFileSystem):
             self.fs = fs
