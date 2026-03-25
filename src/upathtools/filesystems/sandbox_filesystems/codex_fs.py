@@ -48,11 +48,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
     root_marker = "/"
     cachable = False
 
-    def __init__(
-        self,
-        client: CodexClient | None = None,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, client: CodexClient | None = None, **kwargs: Any) -> None:
         """Initialize Codex filesystem.
 
         Args:
@@ -103,8 +99,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to list directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to list directory {path}: {exc}") from exc
 
         if not detail:
             return [f"{path.rstrip('/')}/{e.file_name}" for e in entries]
@@ -143,10 +138,9 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         client = await self._get_client()
         try:
             meta = await client.fs_get_metadata(path)
-            file_type: Literal["file", "directory"] = "directory" if meta.is_directory else "file"
             return CodexInfo(
                 name=path,
-                type=file_type,
+                type="directory" if meta.is_directory else "file",
                 size=0,
                 created=meta.created_at_ms / 1000.0,
                 mtime=meta.modified_at_ms / 1000.0,
@@ -154,8 +148,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get info for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get info for {path}: {exc}") from exc
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
@@ -199,8 +192,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         try:
             await client.fs_create_directory(path, recursive=create_parents)
         except Exception as exc:
-            msg = f"Failed to create directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to create directory {path}: {exc}") from exc
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -210,8 +202,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to remove file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove file {path}: {exc}") from exc
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
@@ -221,8 +212,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to remove directory {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove directory {path}: {exc}") from exc
 
     async def _rm(self, path: str, recursive: bool = False, **kwargs: Any) -> None:
         """Remove a file or directory."""
@@ -232,8 +222,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to remove {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to remove {path}: {exc}") from exc
 
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file."""
@@ -241,8 +230,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         try:
             await client.fs_copy(path1, path2)
         except Exception as exc:
-            msg = f"Failed to copy {path1} to {path2}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to copy {path1} to {path2}: {exc}") from exc
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -283,8 +271,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get modification time for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get modification time for {path}: {exc}") from exc
 
     async def _created(self, path: str, **kwargs: Any) -> float:
         """Get file creation time."""
@@ -295,8 +282,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
-            msg = f"Failed to get creation time for {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to get creation time for {path}: {exc}") from exc
 
     # Sync wrappers
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
@@ -305,7 +291,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
     mkdir = sync_wrapper(_mkdir)
     rm_file = sync_wrapper(_rm_file)
     rmdir = sync_wrapper(_rmdir)
-    rm = sync_wrapper(_rm)
+    rm = sync_wrapper(_rm)  # pyright: ignore[reportAssignmentType]
     cp_file = sync_wrapper(_cp_file)
     exists = sync_wrapper(_exists)  # pyright: ignore[reportAssignmentType]
     isfile = sync_wrapper(_isfile)
