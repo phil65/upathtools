@@ -313,3 +313,18 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
     info = sync_wrapper(_info)
     modified = sync_wrapper(_modified)
     created = sync_wrapper(_created)
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    from codexed.client import CodexClient
+
+    async def main():
+        client = CodexClient()
+        async with client:
+            fs = CodexFS(client=client)
+            files = await fs._ls("/")
+            print(files)
+
+    asyncio.run(main())
