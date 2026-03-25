@@ -27,6 +27,7 @@ from .file_filesystems.sqlite_fs import SqliteFileSystem, SqlitePath
 from .file_filesystems.treesitter_fs import TreeSitterFileSystem, TreeSitterPath
 
 from .sandbox_filesystems.beam_fs import BeamFS, BeamPath
+from .sandbox_filesystems.codex_fs import CodexFS, CodexPath
 from .sandbox_filesystems.cloudflare_fs import CloudflareFS, CloudflarePath
 from .sandbox_filesystems.daytona_fs import DaytonaFS, DaytonaPath
 from .sandbox_filesystems.e2b_fs import E2BFS, E2BPath
@@ -60,6 +61,8 @@ __all__ = [
     "BeamPath",
     "CloudflareFS",
     "CloudflarePath",
+    "CodexFS",
+    "CodexPath",
     "DaytonaFS",
     "DaytonaPath",
     "DistributionFileSystem",

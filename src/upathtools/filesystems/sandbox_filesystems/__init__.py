@@ -1,6 +1,7 @@
 """Sandbox filesystems for remote execution environments."""
 
 from upathtools.filesystems.sandbox_filesystems.beam_fs import BeamFS, BeamInfo, BeamPath
+from upathtools.filesystems.sandbox_filesystems.codex_fs import CodexFS, CodexInfo, CodexPath
 from upathtools.filesystems.sandbox_filesystems.cloudflare_fs import (
     CloudflareFS,
     CloudflareInfo,
@@ -30,6 +31,7 @@ from upathtools.filesystems.sandbox_filesystems.vercel_fs import VercelFS, Verce
 SandboxFilesystem = (
     BeamFS
     | CloudflareFS
+    | CodexFS
     | DaytonaFS
     | E2BFS
     | HopXFS
@@ -49,6 +51,9 @@ __all__ = [
     "CloudflareFS",
     "CloudflareInfo",
     "CloudflarePath",
+    "CodexFS",
+    "CodexInfo",
+    "CodexPath",
     "DaytonaFS",
     "DaytonaInfo",
     "DaytonaPath",

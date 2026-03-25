@@ -68,6 +68,7 @@ union = "upathtools.filesystems:UnionFileSystem"
 httpx = "upathtools.filesystems:HTTPFileSystem"
 memory = "upathtools.filesystems:IsolatedMemoryFileSystem"
 beam = "upathtools.filesystems:BeamFS"
+codex = "upathtools.filesystems:CodexFS"
 daytona = "upathtools.filesystems:DaytonaFS"
 e2b = "upathtools.filesystems:E2BFS"
 modal = "upathtools.filesystems:ModalFS"
@@ -105,6 +106,7 @@ overlay = "upathtools.filesystems:OverlayPath"
 union = "upathtools.filesystems:UnionPath"
 httpx = "upathtools.filesystems:HttpPath"
 beam = "upathtools.filesystems:BeamPath"
+codex = "upathtools.filesystems:CodexPath"
 daytona = "upathtools.filesystems:DaytonaPath"
 e2b = "upathtools.filesystems:E2BPath"
 modal = "upathtools.filesystems:ModalPath"
@@ -124,6 +126,7 @@ beam = [
   "beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"
 ]  # Beam integration
 cloudflare = ["httpx"]  # Cloudflare Sandbox integration
+codex = ["codexed"]  # Codex CLI integration
 daytona = ["daytona; python_version < '3.14'"]  # Daytona integration
 e2b = ["e2b-code-interpreter"]  # E2B integration
 gcsfs = ["gcsfs"]  # GCS integration
