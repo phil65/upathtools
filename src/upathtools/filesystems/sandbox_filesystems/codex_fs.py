@@ -67,7 +67,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
 
             self._client = CodexClient()
             self._owns_client = True
-            await self._client.start()
+            await self._client.__aenter__()
         return self._client
 
     async def set_session(self) -> None:
@@ -77,7 +77,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
     async def close_session(self) -> None:
         """Close the Codex session if we own it."""
         if self._client and self._owns_client:
-            await self._client.stop()
+            await self._client.__aexit__(None, None, None)
             self._client = None
 
     @overload
@@ -95,7 +95,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         client = await self._get_client()
 
         try:
-            entries = await client.fs_read_directory(path)
+            entries = await client.fs.read_directory(path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -110,7 +110,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
             file_type: Literal["file", "directory"] = "directory" if entry.is_directory else "file"
             # Try to get metadata for timestamps
             try:
-                meta = await client.fs_get_metadata(full_path)
+                meta = await client.fs.get_metadata(full_path)
                 results.append(
                     CodexInfo(
                         name=full_path,
@@ -137,7 +137,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Get info about a file or directory."""
         client = await self._get_client()
         try:
-            meta = await client.fs_get_metadata(path)
+            meta = await client.fs.get_metadata(path)
             return CodexInfo(
                 name=path,
                 type="directory" if meta.is_directory else "file",
@@ -157,7 +157,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         client = await self._get_client()
 
         try:
-            response = await client.fs_read_file(path)
+            response = await client.fs.read_file(path)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -181,7 +181,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         data_b64 = base64.b64encode(value).decode("ascii")
 
         try:
-            await client.fs_write_file(path, data_b64)
+            await client.fs.write_file(path, data_b64)
         except Exception as exc:
             msg = f"Failed to write file {path}: {exc}"
             raise OSError(msg) from exc
@@ -190,7 +190,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Create a directory."""
         client = await self._get_client()
         try:
-            await client.fs_create_directory(path, recursive=create_parents)
+            await client.fs.create_directory(path, recursive=create_parents)
         except Exception as exc:
             raise OSError(f"Failed to create directory {path}: {exc}") from exc
 
@@ -198,7 +198,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Remove a file."""
         client = await self._get_client()
         try:
-            await client.fs_remove(path, recursive=False)
+            await client.fs.remove(path, recursive=False)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -208,7 +208,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Remove a directory."""
         client = await self._get_client()
         try:
-            await client.fs_remove(path, recursive=False)
+            await client.fs.remove(path, recursive=False)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -218,7 +218,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Remove a file or directory."""
         client = await self._get_client()
         try:
-            await client.fs_remove(path, recursive=recursive)
+            await client.fs.remove(path, recursive=recursive)
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
                 raise FileNotFoundError(path) from exc
@@ -228,7 +228,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Copy a file."""
         client = await self._get_client()
         try:
-            await client.fs_copy(path1, path2)
+            await client.fs.copy(path1, path2)
         except Exception as exc:
             raise OSError(f"Failed to copy {path1} to {path2}: {exc}") from exc
 
@@ -236,7 +236,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Check if path exists."""
         client = await self._get_client()
         try:
-            await client.fs_get_metadata(path)
+            await client.fs.get_metadata(path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -246,7 +246,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Check if path is a file."""
         client = await self._get_client()
         try:
-            meta = await client.fs_get_metadata(path)
+            meta = await client.fs.get_metadata(path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -256,7 +256,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Check if path is a directory."""
         client = await self._get_client()
         try:
-            meta = await client.fs_get_metadata(path)
+            meta = await client.fs.get_metadata(path)
         except Exception:  # noqa: BLE001
             return False
         else:
@@ -266,7 +266,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Get file modification time."""
         client = await self._get_client()
         try:
-            meta = await client.fs_get_metadata(path)
+            meta = await client.fs.get_metadata(path)
             return meta.modified_at_ms / 1000.0
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
@@ -277,7 +277,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         """Get file creation time."""
         client = await self._get_client()
         try:
-            meta = await client.fs_get_metadata(path)
+            meta = await client.fs.get_metadata(path)
             return meta.created_at_ms / 1000.0
         except Exception as exc:
             if "not found" in str(exc).lower() or "no such" in str(exc).lower():
