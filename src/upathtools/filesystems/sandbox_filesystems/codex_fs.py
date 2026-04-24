@@ -163,8 +163,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
-            msg = f"Failed to read file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to read file {path}: {exc}") from exc
 
         content = base64.b64decode(response.data_base64)
 
@@ -183,8 +182,7 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         try:
             await client.fs.write_file(path, data_b64)
         except Exception as exc:
-            msg = f"Failed to write file {path}: {exc}"
-            raise OSError(msg) from exc
+            raise OSError(f"Failed to write file {path}: {exc}") from exc
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""

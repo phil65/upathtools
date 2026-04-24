@@ -129,8 +129,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                 message = payload.get("error") or payload.get("message") or response.text
             except Exception:  # noqa: BLE001
                 message = response.text
-            msg = f"Cloudflare API error ({response.status_code}): {message}"
-            raise OSError(msg)
+            raise OSError(f"Cloudflare API error ({response.status_code}): {message}")
 
         if response.headers.get("content-type", "").startswith("application/json"):
             return response.json()
@@ -198,8 +197,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         if exit_code != 0:
             if "No such file or directory" in stderr:
                 raise FileNotFoundError(f"Path not found: {path}")
-            msg = f"Failed to list directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to list directory {path}: {stderr}")
 
         files: list[CloudflareInfo] = []
         for line in stdout.strip().split("\n"):
@@ -252,8 +250,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                     raise FileNotFoundError(path)  # noqa: B904
                 if "Is a directory" in stderr:
                     raise IsADirectoryError(path)  # noqa: B904
-                msg = f"Failed to read file {path}: {stderr}"
-                raise OSError(msg)  # noqa: B904
+                raise OSError(f"Failed to read file {path}: {stderr}")  # noqa: B904
             content = base64.b64decode(stdout.strip())
 
         if start is not None or end is not None:
@@ -309,16 +306,14 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                 f"echo {shlex.quote(encoded)} | base64 -d > {shlex.quote(path)}"
             )
             if exit_code != 0:
-                msg = f"Failed to write file {path}: {stderr}"
-                raise OSError(msg)  # noqa: B904
+                raise OSError(f"Failed to write file {path}: {stderr}")  # noqa: B904
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
         flag = "-p " if create_parents else ""
         _stdout, stderr, exit_code = await self._exec(f"mkdir {flag}{shlex.quote(path)}")
         if exit_code != 0 and "File exists" not in stderr:
-            msg = f"Failed to create directory {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to create directory {path}: {stderr}")
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
@@ -328,8 +323,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                 raise FileNotFoundError(path)
             if "Is a directory" in stderr:
                 raise IsADirectoryError(path)
-            msg = f"Failed to remove file {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to remove file {path}: {stderr}")
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
@@ -340,10 +334,8 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
             if "Not a directory" in stderr:
                 raise NotADirectoryError(path)
             if "not empty" in stderr.lower():
-                msg = f"Directory not empty: {path}"
-                raise OSError(msg)
-            msg = f"Failed to remove directory {path}: {stderr}"
-            raise OSError(msg)
+                raise OSError(f"Directory not empty: {path}")
+            raise OSError(f"Failed to remove directory {path}: {stderr}")
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -366,8 +358,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         if exit_code != 0:
             if "No such file" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to get file size for {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to get file size for {path}: {stderr}")
         return int(stdout.strip())
 
     async def _modified(self, path: str, **kwargs: Any) -> float:
@@ -376,8 +367,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         if exit_code != 0:
             if "No such file" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to get modification time for {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to get modification time for {path}: {stderr}")
         return float(stdout.strip())
 
     async def _info(self, path: str, **kwargs: Any) -> CloudflareInfo:
@@ -387,8 +377,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         if exit_code != 0:
             if "No such file" in stderr:
                 raise FileNotFoundError(path)
-            msg = f"Failed to get info for {path}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to get info for {path}: {stderr}")
 
         parts = stdout.strip().split(None, 3)
         size = int(parts[0]) if len(parts) > 0 else 0
@@ -413,8 +402,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
         if exit_code != 0:
             if "No such file" in stderr:
                 raise FileNotFoundError(path1)
-            msg = f"Failed to move {path1} to {path2}: {stderr}"
-            raise OSError(msg)
+            raise OSError(f"Failed to move {path1} to {path2}: {stderr}")
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
