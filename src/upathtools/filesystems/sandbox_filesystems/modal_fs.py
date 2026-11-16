@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-import io
+from contextlib import contextmanager
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Required, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterator
     import os
 
-    from _typeshed import OpenTextMode
     import modal
     from modal import Image
-    from modal.file_io import FileIO
+    import modal.types
 
     from upathtools.filesystems.base import CreationMode
 
@@ -30,6 +29,46 @@ class ModalInfo(FileInfo, total=False):
 
     size: Required[int]
     mtime: Required[float]
+
+
+def _to_info(entry: modal.types.FileInfo) -> ModalInfo:
+    """Convert Modal file metadata to a ModalInfo dict."""
+    file_type: Literal["file", "directory", "link"]
+    if entry.is_dir():
+        file_type = "directory"
+    elif entry.symlink_target is not None:
+        file_type = "link"
+    else:
+        file_type = "file"
+    return ModalInfo(name=entry.path, size=entry.size, type=file_type, mtime=entry.modified_time)
+
+
+@contextmanager
+def _translate_errors(path: str, operation: str) -> Iterator[None]:
+    """Map Modal sandbox filesystem errors to standard Python exceptions."""
+    from modal.exception import (
+        SandboxFilesystemError,
+        SandboxFilesystemIsADirectoryError,
+        SandboxFilesystemNotADirectoryError,
+        SandboxFilesystemNotFoundError,
+        SandboxFilesystemPathAlreadyExistsError,
+        SandboxFilesystemPermissionError,
+    )
+
+    try:
+        yield
+    except SandboxFilesystemNotFoundError as exc:
+        raise FileNotFoundError(path) from exc
+    except SandboxFilesystemIsADirectoryError as exc:
+        raise IsADirectoryError(path) from exc
+    except SandboxFilesystemNotADirectoryError as exc:
+        raise NotADirectoryError(path) from exc
+    except SandboxFilesystemPermissionError as exc:
+        raise PermissionError(path) from exc
+    except SandboxFilesystemPathAlreadyExistsError as exc:
+        raise FileExistsError(path) from exc
+    except SandboxFilesystemError as exc:
+        raise OSError(f"Failed to {operation} {path}: {exc}") from exc
 
 
 class ModalPath(BaseUPath[ModalInfo]):
@@ -163,38 +202,14 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
     async def _ls(
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[ModalInfo] | list[str]:
-        """List directory contents with caching."""
+        """List directory contents."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-
-        try:
-            items = await sandbox.ls.aio(path)
-        except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
-                raise FileNotFoundError(path) from exc
-            if "not a directory" in str(exc).lower():
-                raise NotADirectoryError(path) from exc
-            raise OSError(f"Failed to list directory {path}: {exc}") from exc
-
+        with _translate_errors(path, "list directory"):
+            entries = await sandbox.filesystem.list_files.aio(path)
         if not detail:
-            return items
-
-        # TODO: Enhance with actual file metadata when Modal provides it
-        # For now, return minimal info since Modal's ls() only returns paths
-        result = []
-        for item in items:
-            # Try to determine if it's a directory by attempting to list it
-            is_dir = False
-            try:
-                await sandbox.ls.aio(item)
-                is_dir = True
-            except Exception:  # noqa: BLE001
-                pass  # If ls fails, assume it's a file
-            # TODO: Get actual size/mtime when Modal provides metadata API
-            info = ModalInfo(name=item, size=0, type="directory" if is_dir else "file", mtime=0)
-            result.append(info)
-
-        return result
+            return [entry.path for entry in entries]
+        return [_to_info(entry) for entry in entries]
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
@@ -202,27 +217,10 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         """Read file contents."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-        try:
-            f = await sandbox.open.aio(path, "rb")  # Use Modal's file API to read the file
-            try:
-                content = await f.read.aio()
-            finally:
-                await f.close.aio()
-
-        except Exception as exc:
-            # Map Modal exceptions to standard Python exceptions
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
-                raise FileNotFoundError(path) from exc
-            if "is a directory" in str(exc).lower():
-                raise IsADirectoryError(path) from exc
-            raise OSError(f"Failed to read file {path}: {exc}") from exc
-
-        # Handle byte ranges if specified
+        with _translate_errors(path, "read file"):
+            content = await sandbox.filesystem.read_bytes.aio(path)
         if start is not None or end is not None:
-            start = start or 0
-            end = end or len(content)
-            content = content[start:end]
-
+            content = content[start or 0 : end if end is not None else len(content)]
         return content
 
     async def _pipe_file(
@@ -231,136 +229,70 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
         """Write data to a file in the sandbox."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-        try:
-            f = await sandbox.open.aio(path, "wb")  # Use Modal's file API to write the file
-            try:
-                await f.write.aio(value)
-                await f.flush.aio()
-            finally:
-                await f.close.aio()
-
-        except Exception as exc:
-            raise OSError(f"Failed to write file {path}: {exc}") from exc
+        with _translate_errors(path, "write file"):
+            await sandbox.filesystem.write_bytes.aio(value, path)
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """Create a directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-        try:
-            await sandbox.mkdir.aio(path, parents=create_parents)
-        except Exception as exc:
-            raise OSError(f"Failed to create directory {path}: {exc}") from exc
+        with _translate_errors(path, "create directory"):
+            await sandbox.filesystem.make_directory.aio(path, create_parents=create_parents)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove a file."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-        try:
-            await sandbox.rm.aio(path, recursive=False)
-        except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
-                raise FileNotFoundError(path) from exc
-            if "is a directory" in str(exc).lower():
-                raise IsADirectoryError(path) from exc
-            raise OSError(f"Failed to remove file {path}: {exc}") from exc
+        with _translate_errors(path, "remove file"):
+            await sandbox.filesystem.remove.aio(path, recursive=False)
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove a directory."""
         await self.set_session()
         sandbox = await self._get_sandbox()
-        try:
-            await sandbox.rm.aio(path, recursive=True)
-        except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
-                raise FileNotFoundError(path) from exc
-            if "not a directory" in str(exc).lower():
-                raise NotADirectoryError(path) from exc
-            raise OSError(f"Failed to remove directory {path}: {exc}") from exc
+        with _translate_errors(path, "remove directory"):
+            await sandbox.filesystem.remove.aio(path, recursive=True)
+
+    async def _stat(self, path: str) -> modal.types.FileInfo:
+        """Get Modal's metadata for a path."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+        with _translate_errors(path, "stat"):
+            return await sandbox.filesystem.stat.aio(path)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
-        await self.set_session()
-        sandbox = await self._get_sandbox()
-
         try:
-            # Try to open the file/directory to check existence
-            f = await sandbox.open.aio(path, "r")
-            await f.close.aio()
-        except Exception:  # noqa: BLE001
-            # If open fails, try ls to see if path exists as directory
-            try:
-                await sandbox.ls.aio(path)
-            except Exception:  # noqa: BLE001
-                return False
-            else:
-                return True
-        else:
-            return True
+            await self._stat(path)
+        except FileNotFoundError:
+            return False
+        return True
 
     async def _isfile(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a file."""
-        await self.set_session()
-        sandbox = await self._get_sandbox()
-
         try:
-            f = await sandbox.open.aio(path, "r")  # Try to open as file
-            await f.close.aio()
-        except Exception:  # noqa: BLE001
+            return (await self._stat(path)).is_file()
+        except FileNotFoundError:
             return False
-        else:
-            return True
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         """Check if path is a directory."""
-        await self.set_session()
-        sandbox = await self._get_sandbox()
-
         try:
-            # Try to list the path - if it works, it's a directory
-            await sandbox.ls.aio(path)
-        except Exception:  # noqa: BLE001
+            return (await self._stat(path)).is_dir()
+        except FileNotFoundError:
             return False
-        else:
-            return True
 
     async def _size(self, path: str, **kwargs: Any) -> int:
         """Get file size."""
-        await self.set_session()
-        sandbox = await self._get_sandbox()
-
-        try:
-            # TODO: This is inefficient - reading entire file to get size
-            # Modal should provide a stat() or size() method in the future
-            f = await sandbox.open.aio(path, "rb")
-            try:
-                content = await f.read.aio()
-                return len(content)
-            finally:
-                await f.close.aio()
-        except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
-                raise FileNotFoundError(path) from exc
-            raise OSError(f"Failed to get file size for {path}: {exc}") from exc
+        return (await self._stat(path)).size
 
     async def _modified(self, path: str, **kwargs: Any) -> float:
         """Get file modification time."""
-        # TODO: Modal doesn't provide modification time in current API
-        # Return 0.0 as placeholder until Modal provides metadata API
-        await self.set_session()
-        if not await self._exists(path):
-            raise FileNotFoundError(path)
-        return 0.0  # TODO: Get actual mtime when Modal provides metadata API
+        return (await self._stat(path)).modified_time
 
     async def _info(self, path: str, **kwargs: Any) -> ModalInfo:
         """Get info about a file or directory."""
-        await self.set_session()
-        is_dir = await self._isdir(path)
-        size = 0 if is_dir else await self._size(path)
-        # TODO: Get actual mtime when Modal provides metadata API
-        return ModalInfo(name=path, size=size, type="directory" if is_dir else "file", mtime=0.0)
-
-    # TODO: Add _find and _grep using sandbox.exec() with Linux CLI tools (find, grep)
-    # This would be faster than fsspec's default _walk which does multiple _ls round trips.
+        return _to_info(await self._stat(path))
 
     # Sync wrappers for async methods
     ls = sync_wrapper(_ls)
@@ -375,113 +307,3 @@ class ModalFS(BaseAsyncFileSystem[ModalPath, ModalInfo]):
     size = sync_wrapper(_size)
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
-
-
-class ModalFile:
-    """File-like object wrapping Modal's native FileIO.
-
-    Unlike other sandbox filesystems, Modal provides a native async file API
-    (`sandbox.open.aio`) that may support true partial reads and seeks on the
-    remote end. This class wraps that native API rather than buffering the
-    entire file in memory like `AsyncBufferedFile`.
-    """
-
-    def __init__(
-        self,
-        fs: ModalFS,
-        path: str,
-        mode: OpenTextMode = "rt",
-        **kwargs: Any,
-    ) -> None:
-        """Initialize Modal file object.
-
-        Args:
-            fs: Modal filesystem instance
-            path: File path
-            mode: File open mode
-            **kwargs: Additional options
-        """
-        self.fs = fs
-        self.path = path
-        self.mode: OpenTextMode = mode
-        self._modal_file: FileIO | None = None
-        self._closed = False
-
-    async def _ensure_opened(self) -> FileIO:
-        """Ensure Modal file is opened."""
-        if self._modal_file is None:
-            await self.fs.set_session()
-            sandbox = await self.fs._get_sandbox()
-            self._modal_file = await sandbox.open.aio(self.path, self.mode)
-        return self._modal_file
-
-    def readable(self) -> bool:
-        """Check if file is readable."""
-        return "r" in self.mode
-
-    def writable(self) -> bool:
-        """Check if file is writable."""
-        return "w" in self.mode or "a" in self.mode
-
-    def seekable(self) -> bool:
-        """Check if file is seekable."""
-        return True
-
-    @property
-    def closed(self) -> bool:
-        """Check if file is closed."""
-        return self._closed
-
-    async def read(self, size: int = -1) -> bytes:
-        """Read data from file."""
-        if self._closed:
-            raise ValueError("I/O operation on closed file")
-        if not self.readable():
-            raise io.UnsupportedOperation("not readable")
-
-        file = await self._ensure_opened()
-        if size == -1:
-            return await file.read()
-        return await file.read(size)
-
-    async def write(self, data: bytes) -> int:
-        """Write data to file."""
-        if self._closed:
-            raise ValueError("I/O operation on closed file")
-        if not self.writable():
-            raise io.UnsupportedOperation("not writable")
-
-        file = await self._ensure_opened()
-        await file.write.aio(data)
-        return len(data)
-
-    async def flush(self) -> None:
-        """Flush buffer to remote file."""
-        if self._closed:
-            return
-        if self._modal_file and self.writable():
-            await self._modal_file.flush.aio()
-
-    async def seek(self, offset: int, whence: int = 0) -> int:
-        """Seek to position."""
-        if self._closed:
-            raise ValueError("I/O operation on closed file")
-
-        file = await self._ensure_opened()
-        await file.seek.aio(offset, whence)
-        return offset  # TODO: Modal should return actual position
-
-    async def close(self) -> None:
-        """Close file."""
-        if not self._closed:
-            if self._modal_file:
-                await self._modal_file.close.aio()
-            self._closed = True
-
-    async def __aenter__(self) -> Self:
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        """Async context manager exit."""
-        await self.close()

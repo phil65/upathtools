@@ -70,7 +70,7 @@ class HTTPTestHandler(BaseHTTPRequestHandler):
     }
     dynamic_files: ClassVar[dict[str, Any]] = {}
 
-    files = ChainMap(dynamic_files, static_files)
+    files: ClassVar[ChainMap[str, Any]] = ChainMap(dynamic_files, static_files)
 
     def __init__(self, *args, **kwargs: Any):
         super().__init__(*args, **kwargs)

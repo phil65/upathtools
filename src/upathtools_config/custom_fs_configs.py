@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field
 from upath import UPath  # noqa: TC002
 
 from upathtools_config.base import (
-    FilesystemCategoryType,  # noqa: TC001
+    FilesystemCategoryType,
     FileSystemConfig,
 )
 

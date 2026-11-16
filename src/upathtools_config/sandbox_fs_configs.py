@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 from pydantic import ConfigDict, Field, SecretStr
 
 from upathtools_config.base import (
-    FilesystemCategoryType,  # noqa: TC001
+    FilesystemCategoryType,
     FileSystemConfig,
 )
 
@@ -157,8 +157,8 @@ class MicrosandboxFilesystemConfig(FileSystemConfig):
     memory: int = Field(default=512, gt=0, title="Memory Limit (MB)", examples=[256, 512, 1024])
     """Memory limit in MB"""
 
-    cpus: float = Field(default=1.0, gt=0, title="CPU Limit", examples=[0.5, 1.0, 2.0])
-    """CPU limit"""
+    cpus: int = Field(default=1, gt=0, title="CPU Count", examples=[1, 2, 4])
+    """Number of virtual CPUs"""
 
 
 class ModalFilesystemConfig(FileSystemConfig):

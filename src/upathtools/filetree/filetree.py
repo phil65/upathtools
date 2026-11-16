@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import datetime
+import datetime as dt
 import re
 import stat
 from typing import TYPE_CHECKING, Any, Literal
@@ -40,7 +40,7 @@ class TreeOptions:
 
 
 def format_timestamp(timestamp: float, fmt: str) -> str:
-    return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
+    return dt.datetime.fromtimestamp(timestamp).strftime(fmt)
 
 
 def do_filesizeformat(value: str | float, binary: bool = False) -> str:

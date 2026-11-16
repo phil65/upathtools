@@ -171,7 +171,7 @@ class MCPFileSystem(BaseAsyncFileSystem[MCPPath, McpInfo]):
                     "size": resource.size,
                     "type": "file",
                     "uri": str(resource.uri),
-                    "mime_type": resource.mimeType,
+                    "mime_type": resource.mime_type,
                     "description": resource.description,
                     "title": resource.title,
                 }

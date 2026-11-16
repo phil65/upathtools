@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 from pydantic import ConfigDict, Field, SecretStr
 
 from upathtools_config.base import (
-    FilesystemCategoryType,  # noqa: TC001
+    FilesystemCategoryType,
     FileSystemConfig,
 )
 

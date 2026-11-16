@@ -50,7 +50,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
         api_key: str | None = None,
         image: str | None = None,
         memory: int = 512,
-        cpus: float = 1.0,
+        cpus: int = 1,
         **kwargs: Any,
     ) -> None:
         """Initialize Microsandbox filesystem.
@@ -63,7 +63,7 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
             api_key: API key for authentication
             image: Docker image to use
             memory: Memory limit in MB
-            cpus: CPU limit
+            cpus: Number of virtual CPUs
             **kwargs: Additional filesystem arguments
         """
         super().__init__(**kwargs)
@@ -89,14 +89,14 @@ class MicrosandboxFS(BaseAsyncFileSystem[MicrosandboxPath, MicrosandboxInfo]):
                 cpus=self.cpus,
             )
             self._is_started = True
-            logger.info("Started Microsandbox: %s", self._sandbox.name())
+            logger.info("Started Microsandbox: %s", await self._sandbox.name)
         return self._sandbox
 
     async def close_session(self) -> None:
         """Close sandbox session."""
         if self._sandbox is not None and self._is_started:
             await self._sandbox.stop()
-            logger.info("Stopped Microsandbox: %s", self._sandbox.name())
+            logger.info("Stopped Microsandbox: %s", await self._sandbox.name)
 
     @overload
     async def _ls(

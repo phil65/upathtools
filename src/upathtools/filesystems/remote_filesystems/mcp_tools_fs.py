@@ -276,7 +276,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
                         size=None,
                         tool_name=tool_name,
                         description=tool.description,
-                        parameters=tool.inputSchema,
+                        parameters=tool.input_schema,
                     )
                 )
 
@@ -304,7 +304,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
                 size=None,
                 tool_name=t_name,
                 description=tool.description,
-                parameters=tool.inputSchema,
+                parameters=tool.input_schema,
             )
             return [info] if detail else [path]  # type: ignore[list-item]
 
@@ -371,7 +371,7 @@ class MCPToolsFileSystem(BaseAsyncFileSystem[MCPToolsPath, McpToolInfo]):
                 size=None,
                 tool_name=tool_name,
                 description=tool.description,
-                parameters=tool.inputSchema,
+                parameters=tool.input_schema,
             )
 
         msg = f"Path not found: {path}"
@@ -482,8 +482,8 @@ def _filename_to_tool(filename: str) -> str | None:
 
 def _generate_tool_code(tool: MCPTool, stubs_only: bool) -> str:
     """Generate Python code for a single tool."""
-    properties = tool.inputSchema.get("properties", {})
-    required = set(tool.inputSchema.get("required", []))
+    properties = tool.input_schema.get("properties", {})
+    required = set(tool.input_schema.get("required", []))
 
     # Build signature parts
     sig_parts: list[str] = []
