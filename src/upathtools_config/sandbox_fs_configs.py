@@ -196,7 +196,12 @@ class ModalFilesystemConfig(FileSystemConfig):
 
 
 class VercelFilesystemConfig(FileSystemConfig):
-    """Configuration for Vercel sandbox filesystem."""
+    """Configuration for Vercel sandbox filesystem.
+
+    Authentication uses `token`, `project_id` and `team_id` when all three are set.
+    Otherwise credentials are resolved by the Vercel SDK (OIDC token, or the
+    `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` and `VERCEL_TEAM_ID` environment variables).
+    """
 
     model_config = ConfigDict(json_schema_extra={"title": "Vercel Configuration"})
 
@@ -205,27 +210,45 @@ class VercelFilesystemConfig(FileSystemConfig):
 
     _category: ClassVar[FilesystemCategoryType] = "sandbox"
 
-    template: str = Field(
-        default="code-interpreter-v1",
-        title="Template",
-        examples=["code-interpreter-v1", "node", "python"],
-        min_length=1,
-    )
-    """Vercel template to use for sandboxes"""
-
-    sandbox_id: str | None = Field(
+    sandbox_name: str | None = Field(
         default=None,
-        title="Sandbox ID",
-        examples=["vercel-sb-123"],
+        title="Sandbox Name",
+        examples=["my-sandbox", "data-processor"],
         min_length=1,
     )
-    """Existing sandbox ID to connect to"""
+    """Name of the sandbox to connect to (created if it doesn't exist)"""
 
-    api_key: SecretStr | None = Field(default=None, title="API Key")
-    """Vercel API key for authentication"""
+    image: str | None = Field(
+        default=None,
+        title="Image",
+        examples=["node22", "python3.13"],
+        min_length=1,
+    )
+    """Base image for new sandboxes"""
 
-    timeout: float = Field(default=60, gt=0, title="Timeout", examples=[30, 60, 120])
-    """Default timeout for operations in seconds"""
+    ports: list[int] | None = Field(default=None, title="Ports", examples=[[3000], [8000, 8080]])
+    """Ports to expose on new sandboxes"""
+
+    timeout: float | None = Field(default=None, gt=0, title="Timeout", examples=[300, 600, 1800])
+    """Maximum sandbox lifetime in seconds"""
+
+    vcpus: int | None = Field(default=None, gt=0, title="vCPUs", examples=[1, 2, 4])
+    """Number of virtual CPUs for new sandboxes"""
+
+    memory: int | None = Field(default=None, gt=0, title="Memory (MB)", examples=[1024, 2048])
+    """Memory in MB for new sandboxes"""
+
+    env: dict[str, str] | None = Field(default=None, title="Environment Variables")
+    """Environment variables for new sandboxes"""
+
+    token: SecretStr | None = Field(default=None, title="Vercel Token")
+    """Vercel API token"""
+
+    project_id: str | None = Field(default=None, title="Project ID", min_length=1)
+    """Vercel project ID"""
+
+    team_id: str | None = Field(default=None, title="Team ID", min_length=1)
+    """Vercel team ID"""
 
 
 class SRTFilesystemConfig(FileSystemConfig):

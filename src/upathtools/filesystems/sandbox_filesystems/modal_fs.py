@@ -11,7 +11,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator
+    from collections.abc import Collection, Generator
     import os
 
     import modal
@@ -44,7 +44,7 @@ def _to_info(entry: modal.types.FileInfo) -> ModalInfo:
 
 
 @contextmanager
-def _translate_errors(path: str, operation: str) -> Iterator[None]:
+def _translate_errors(path: str, operation: str) -> Generator[None]:
     """Map Modal sandbox filesystem errors to standard Python exceptions."""
     from modal.exception import (
         SandboxFilesystemError,
