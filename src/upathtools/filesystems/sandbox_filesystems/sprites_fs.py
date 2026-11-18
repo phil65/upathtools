@@ -8,10 +8,14 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
-from typing import Any, Literal, Required, overload
+from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+
+
+if TYPE_CHECKING:
+    import httpx
 
 
 logger = logging.getLogger(__name__)
