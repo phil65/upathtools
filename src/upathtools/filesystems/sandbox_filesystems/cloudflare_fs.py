@@ -13,8 +13,6 @@ import logging
 import shlex
 from typing import Any, Literal, Required, overload
 
-import httpx
-
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
@@ -110,6 +108,8 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
     ) -> Any:
         """Make an HTTP request to the Cloudflare Sandbox API."""
         url = f"{self._base_url}{path}"
+        import httpx
+
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(self._timeout),
         ) as client:
