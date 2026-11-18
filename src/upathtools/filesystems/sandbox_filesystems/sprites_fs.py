@@ -10,8 +10,6 @@ from datetime import datetime
 import logging
 from typing import Any, Literal, Required, overload
 
-import httpx
-
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
@@ -100,9 +98,10 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
         content_type: str = "application/json",
     ) -> httpx.Response:
         """Make an HTTP request to the Sprites filesystem API."""
+        import httpx
+
         url = self._fs_url(endpoint)
         headers = self._headers(content_type=content_type)
-
         async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
             response = await client.request(
                 method,
