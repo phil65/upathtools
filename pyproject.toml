@@ -399,10 +399,12 @@ max-complexity = 15
 preview = true
 
 [tool.ty.analysis]
-# Platform/version-gated extras (beam-client: beam + beta9, microsandbox: not on Windows; daytona:
-# < 3.14) and jq (no wheels everywhere). Still type-checked wherever installed.
+# Platform/version-gated extras (beam-client provides beam and beta9; it and
+# microsandbox are not installed on Windows; daytona: < 3.14) and jq (no wheels
+# everywhere). Still type-checked wherever installed.
 allowed-unresolved-imports = [
   "beam.**",
+  "beta9.**",
   "daytona.**",
   "jq.**",
   "microsandbox.**"
