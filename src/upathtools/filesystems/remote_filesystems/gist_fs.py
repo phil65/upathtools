@@ -426,7 +426,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
             content = content[start:end]
         return content
 
-    cat_file = sync_wrapper(_cat_file)  # type: ignore
+    cat_file = sync_wrapper(_cat_file)
 
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write bytes to a file in a gist.

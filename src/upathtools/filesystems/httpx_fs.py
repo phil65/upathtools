@@ -9,7 +9,7 @@ import io
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 import weakref
 
 from fsspec.asyn import AbstractAsyncStreamedFile
@@ -279,8 +279,8 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                 raise FileNotFoundError(path) from e
 
         if detail:
-            return out  # pyright: ignore[reportReturnType]
-        return sorted(out)  # pyright: ignore[reportArgumentType]
+            return [cast("HttpInfo", info) for info in out if isinstance(info, dict)]
+        return sorted(name for name in out if isinstance(name, str))
 
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
@@ -339,11 +339,11 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
 
         try:
             async for chunk in r.aiter_bytes(chunk_size):
-                outfile.write(chunk)  # type: ignore
+                outfile.write(chunk)
                 callback.relative_update(len(chunk))
         finally:
             if not isfilelike(lpath):
-                outfile.close()  # type: ignore
+                outfile.close()
 
     async def _put_file(
         self,
@@ -593,7 +593,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                 depth_double_stars = path[idx_double_stars:].count("/") + 1
                 depth = depth - depth_double_stars + maxdepth
             else:
-                depth = None  # type: ignore
+                depth = None
 
         allpaths = await self._find(root, maxdepth=depth, withdirs=True, detail=True, **kwargs)
 
@@ -606,7 +606,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
                 if not append_slash_to_dirname and info["type"] == "directory" and p.endswith("/")
                 else p
             ): info
-            for p, info in sorted(allpaths.items())  # type: ignore
+            for p, info in sorted(allpaths.items())
             if pattern.match(p.rstrip("/"))
         }
 
@@ -661,7 +661,7 @@ class HTTPFile(AbstractBufferedFile):
 
     def read(self, length: int = -1) -> bytes:
         """Read bytes from file."""
-        file_size = self.size  # type: ignore
+        file_size = self.size
         assert isinstance(self.blocksize, int)
         if (length < 0 and self.loc == 0) and not (
             file_size is not None and file_size <= self.blocksize
@@ -777,20 +777,22 @@ class HTTPStreamFile(AbstractBufferedFile):
         self.details = {"name": url, "size": None}
         super().__init__(fs=fs, path=url, mode=mode, cache_type="none", **kwargs)
 
-        async def _init() -> Response:
-            assert self.session
-            r = await self.session.get(str(self.fs.encode_url(url)), **kwargs)
-            self.fs._raise_not_found_for_status(r, url)
-            return r
+        self._request_kwargs = kwargs
+        self.r = sync(self.loop, self._init)
 
-        self.r = sync(self.loop, _init)
+    async def _init(self) -> Response:
+        """Start the streaming GET request for this file."""
+        assert self.session
+        r = await self.session.get(str(self.fs.encode_url(self.url)), **self._request_kwargs)
+        self.fs._raise_not_found_for_status(r, self.url)
+        return r
 
     def seek(self, loc: int, whence: int = 0) -> int:
         """Seek to position in file."""
         if not self.seekable():
             msg = "Stream is not seekable"
             raise ValueError(msg)
-        current_loc = self.loc  # type: ignore
+        current_loc = self.loc
         if whence == 1:  # SEEK_CUR
             loc = current_loc + loc
         elif whence == 2:  # SEEK_END  # noqa: PLR2004
@@ -808,7 +810,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         if loc < current_loc:
             if loc == 0:
                 # Only support seeking back to start
-                self.r = sync(self.loop, self._init)  # pyright: ignore
+                self.r = sync(self.loop, self._init)
                 self._content_buffer = b""
                 self._stream = None
                 self.loc = 0

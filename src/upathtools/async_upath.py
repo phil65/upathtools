@@ -7,6 +7,8 @@ from typing import IO, TYPE_CHECKING, Any, Self
 
 from upath.extensions import ProxyUPath
 
+from upathtools.filesystems.base.protocols import SupportsRmdir
+
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -111,8 +113,8 @@ class AsyncUPath(ProxyUPath):
         """Asynchronously remove directory."""
         try:
             fs = await self.afs()
-            if hasattr(fs, "_rmdir"):
-                await fs._rmdir(self.path)  # pyright: ignore[reportAttributeAccessIssue]
+            if isinstance(fs, SupportsRmdir):
+                await fs._rmdir(self.path)
             else:
                 await asyncio.to_thread(self.rmdir)
         except Exception:  # noqa: BLE001

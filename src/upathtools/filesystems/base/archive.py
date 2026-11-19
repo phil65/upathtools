@@ -17,6 +17,9 @@ class AbstractArchiveFileSystem(AbstractFileSystem):
     :class:`~fsspec.implementations.tar.TarFileSystem`.
     """
 
+    fo: Any
+    """The archive's underlying file object (set by implementations)."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dir_cache: dict[str, Any] | None = None

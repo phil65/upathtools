@@ -281,8 +281,15 @@ class GitLabFileSystem(BaseAsyncFileSystem[GitLabPath, GitLabInfo]):
                 raise FileNotFoundError(path) from exc
             raise
 
-        if isinstance(content, str):
-            content = content.encode()
+        match content:
+            case bytes():
+                pass
+            case str():
+                content = content.encode()
+            case None:  # python-gitlab returns None when streaming to an action
+                content = b""
+            case _:  # iterator of chunks (iterator=True)
+                content = b"".join(content)
 
         if start is not None or end is not None:
             content = content[start:end]

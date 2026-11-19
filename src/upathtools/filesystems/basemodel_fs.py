@@ -4,13 +4,36 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Literal, get_args, get_origin, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeIs, get_args, get_origin, overload
 
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
+
+def _is_model_class(tp: object) -> TypeIs[type[BaseModel]]:
+    from pydantic import BaseModel
+
+    return isinstance(tp, type) and issubclass(tp, BaseModel)
+
+
+def _nested_model(annotation: object) -> type[BaseModel] | None:
+    """The model a field annotation nests, if any.
+
+    Collections (`list[M]`, `tuple[M, ...]`, `set[M]`) nest their item type;
+    other generics and unions (`M | None`, `dict[str, M]`) nest their first model
+    argument.
+    """
+    origin = get_origin(annotation)
+    if origin is not None:
+        args = get_args(annotation)
+        if origin in (list, tuple, set) and args:
+            annotation = args[0]
+        else:
+            return next((arg for arg in args if _is_model_class(arg)), None)
+    return annotation if _is_model_class(annotation) else None
 
 
 class BaseModelInfo(FileInfo, total=False):
@@ -114,28 +137,12 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
                 msg = f"Field {part} not found in {current_model.__name__}"
                 raise FileNotFoundError(msg)
 
-            field_info = current_model.model_fields[part]
-            field_type = field_info.annotation
-
-            # Handle Optional, List, etc.
-            origin = get_origin(field_type)
-            if origin is not None:
-                args = get_args(field_type)
-                if origin in (list, tuple, set) and args:
-                    field_type = args[0]
-                elif hasattr(field_type, "__args__") and len(field_type.__args__) >= 1:  # type: ignore
-                    # Handle Union/Optional types
-                    field_type = next(
-                        arg
-                        for arg in field_type.__args__  # type: ignore
-                        if arg is not type(None) and hasattr(arg, "model_fields")
-                    )
-
-            if not hasattr(field_type, "model_fields"):
+            nested = _nested_model(current_model.model_fields[part].annotation)
+            if nested is None:
                 msg = f"Field {part} is not a nested BaseModel"
                 raise FileNotFoundError(msg)
 
-            current_model = field_type
+            current_model = nested
 
         return current_model, parts[-1] if parts else ""
 
@@ -160,27 +167,10 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
 
         if field_name and field_name in current_model.model_fields:
             field_info = current_model.model_fields[field_name]
-            field_type = field_info.annotation
-
-            # Unwrap Optional, List, etc.
-            origin = get_origin(field_type)
-            if origin is not None:
-                args = get_args(field_type)
-                if origin in (list, tuple, set) and args:
-                    field_type = args[0]
-                elif hasattr(field_type, "__args__"):
-                    field_type = next(
-                        (
-                            arg
-                            for arg in field_type.__args__  # type: ignore
-                            if arg is not type(None) and hasattr(arg, "model_fields")
-                        ),
-                        field_type,
-                    )
 
             # If it's a nested model, list its fields
-            if hasattr(field_type, "model_fields"):
-                current_model = field_type  # type: ignore[assignment]
+            if (nested := _nested_model(field_info.annotation)) is not None:
+                current_model = nested
                 field_name = ""  # Now treat it as listing the nested model
             else:
                 # It's a regular field - show special paths
@@ -211,21 +201,7 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
                 # It's a field
                 field_info = current_model.model_fields[item]
                 field_type = field_info.annotation
-                # Determine if field is a nested model
-                is_nested = False
-                origin = get_origin(field_type)
-                if origin is not None:
-                    args = get_args(field_type)
-                    if origin in (list, tuple, set) and args:
-                        field_type = args[0]
-                    elif hasattr(field_type, "__args__"):
-                        # Check if any type in Union is a BaseModel
-                        for arg in field_type.__args__:  # type: ignore
-                            if arg != type(None) and hasattr(arg, "model_fields"):  # noqa: E721
-                                is_nested = True
-                                break
-                else:
-                    is_nested = hasattr(field_type, "model_fields")
+                is_nested = _nested_model(field_type) is not None
 
                 result.append(
                     BaseModelInfo(
@@ -394,17 +370,7 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
             # Check if the field is a nested model
             if field_name in current_model.model_fields:
                 field_info = current_model.model_fields[field_name]
-                field_type = field_info.annotation
-                origin = get_origin(field_type)
-                if origin is not None:
-                    args = get_args(field_type)
-                    if origin in (list, tuple, set) and args:
-                        field_type = args[0]
-                    elif hasattr(field_type, "__args__"):
-                        for arg in field_type.__args__:  # type: ignore
-                            if arg is not type(None) and hasattr(arg, "model_fields"):
-                                return True
-                return hasattr(field_type, "model_fields")
+                return _nested_model(field_info.annotation) is not None
         except FileNotFoundError:
             return False
         else:
@@ -454,19 +420,7 @@ class BaseModelFileSystem(BaseAsyncFileSystem[BaseModelPath, BaseModelInfo]):
 
         # Determine if field is a nested model (directory)
         field_type = field_info.annotation
-        is_nested = False
-        origin = get_origin(field_type)
-        if origin is not None:
-            args = get_args(field_type)
-            if origin in (list, tuple, set) and args:
-                field_type = args[0]
-            elif hasattr(field_type, "__args__"):
-                for arg in field_type.__args__:  # type: ignore
-                    if arg is not type(None) and hasattr(arg, "model_fields"):
-                        is_nested = True
-                        break
-        if not is_nested:
-            is_nested = hasattr(field_type, "model_fields")
+        is_nested = _nested_model(field_type) is not None
 
         return BaseModelInfo(
             name=field_name,
@@ -490,7 +444,7 @@ def _import_model(import_path: str) -> type[BaseModel]:
         model_class = getattr(module, class_name)
 
         # Basic check if it's a BaseModel subclass
-        if not hasattr(model_class, "model_fields"):
+        if not _is_model_class(model_class):
             msg = f"{import_path} is not a Pydantic BaseModel"
             raise ValueError(msg)  # noqa: TRY301
 

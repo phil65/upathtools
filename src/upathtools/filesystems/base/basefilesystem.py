@@ -6,10 +6,12 @@ import asyncio
 from dataclasses import dataclass, field
 from functools import partial
 from glob import has_magic
+import inspect
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Literal, cast, get_args, get_origin, overload
+import types
+from typing import TYPE_CHECKING, Any, Literal, cast, get_args, get_origin, is_typeddict, overload
 
 import fsspec
 from fsspec.asyn import AsyncFileSystem, _run_coros_in_chunks
@@ -21,7 +23,7 @@ from upathtools.filesystems.base.file_objects import AsyncBufferedFile
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Mapping
     from re import Pattern
 
     from upathtools.async_upath import AsyncUPath
@@ -64,7 +66,20 @@ class GrepMatch:
         return f"{self.path}:{self.line_number}:{self.text}"
 
 
-class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSystem):
+def _info_dict_fields(cls: type) -> list[str]:
+    """Field names of the TypedDict given as a filesystem's `TInfoDict` type argument."""
+    for base in types.get_original_bases(cls):
+        args = get_args(base) if get_origin(base) is not None else ()
+        if len(args) >= 2:  # noqa: PLR2004
+            info_dict_type = args[1]
+            if isinstance(info_dict_type, type) and is_typeddict(info_dict_type):
+                return list(inspect.get_annotations(info_dict_type))
+    return []
+
+
+class BaseAsyncFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str, Any]](
+    AsyncFileSystem
+):
     """Async filesystem base with parallelized directory traversal.
 
     This class extends fsspec's AsyncFileSystem with optimized implementations
@@ -85,17 +100,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         Returns:
             List of field names defined in the InfoDict type, or empty list if not a TypedDict
         """
-        # Get the generic arguments from the class
-        if hasattr(cls, "__orig_bases__"):
-            for base in cls.__orig_bases__:  # pyright: ignore[reportAttributeAccessIssue]
-                if get_origin(base) is not None:
-                    args = get_args(base)
-                    if len(args) >= 2:  # noqa: PLR2004
-                        info_dict_type = args[1]
-                        # Check if it's a TypedDict by looking for __annotations__
-                        if hasattr(info_dict_type, "__annotations__"):
-                            return list(info_dict_type.__annotations__.keys())
-        return []
+        return _info_dict_fields(cls)
 
     @overload
     @classmethod
@@ -203,7 +208,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         for p, info in sorted(allpaths.items()):
             # TInfoDict is typically dict[str, Any] or a TypedDict with "type" key
             # All fsspec info dicts have a "type" field
-            is_dir = info.get("type") == "directory"  # type: ignore[attr-defined]
+            is_dir = info.get("type") == "directory"
             match_path = p + "/" if append_slash_to_dirname and is_dir else p
             if compiled_pattern.match(match_path):
                 out[p] = info
@@ -784,7 +789,9 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AsyncFileSys
         registry.register_implementation(cls.protocol, cls.upath_cls, clobber=clobber)
 
 
-class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSystem):
+class BaseFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str, Any]](
+    AbstractFileSystem
+):
     """Filesystem for browsing Pydantic BaseModel schemas and field definitions."""
 
     upath_cls: type[TPath]
@@ -796,17 +803,7 @@ class BaseFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](AbstractFileSyste
         Returns:
             List of field names defined in the InfoDict type, or empty list if not a TypedDict
         """
-        # Get the generic arguments from the class
-        if hasattr(cls, "__orig_bases__"):
-            for base in cls.__orig_bases__:  # pyright: ignore[reportAttributeAccessIssue]
-                if get_origin(base) is not None:
-                    args = get_args(base)
-                    if len(args) >= 2:  # noqa: PLR2004
-                        info_dict_type = args[1]
-                        # Check if it's a TypedDict by looking for __annotations__
-                        if hasattr(info_dict_type, "__annotations__"):
-                            return list(info_dict_type.__annotations__.keys())
-        return []
+        return _info_dict_fields(cls)
 
     @overload
     def glob(

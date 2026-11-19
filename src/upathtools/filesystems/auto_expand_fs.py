@@ -43,7 +43,7 @@ class AutoExpandInfo(FileInfo, total=False):
 
     size: int
     expanded: bool
-    original_type: str
+    original_type: str | None
 
 
 class AutoExpandPath(BaseUPath[AutoExpandInfo]):
@@ -251,7 +251,8 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
                     pass
 
             # Regular directory listing
-            items = self.fs.ls(inner_path, detail=True)
+            # detail=True: every entry is an info dict
+            items = [i for i in self.fs.ls(inner_path, detail=True) if isinstance(i, dict)]
             results: list[AutoExpandInfo] = []
 
             for item in items:
@@ -265,7 +266,7 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
                         size=item.get("size", 0),
                         type="directory" if is_expandable else item.get("type", "file"),
                         expanded=bool(is_expandable),
-                        original_type=item.get("type", "file") if is_expandable else None,  # type: ignore[typeddict-item]
+                        original_type=item.get("type", "file") if is_expandable else None,
                     )
                 )
 

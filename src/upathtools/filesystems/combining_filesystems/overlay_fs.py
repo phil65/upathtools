@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 from upathtools.async_ops import to_async_fs
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
 from upathtools.filesystems.base.file_objects import FileInfo
+from upathtools.filesystems.base.protocols import SupportsCreated, SupportsModified, SupportsRmdir
 
 
 if TYPE_CHECKING:
@@ -291,7 +292,10 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         """Remove directory from the upper layer."""
-        await self.upper_fs._rmdir(path, **kwargs)  # type: ignore[attr-defined]
+        if not isinstance(self.upper_fs, SupportsRmdir):
+            msg = f"{type(self.upper_fs).__name__} does not support rmdir"
+            raise NotImplementedError(msg)
+        await self.upper_fs._rmdir(path, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         """Remove file from the upper layer."""
@@ -326,18 +330,22 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
     async def _created(self, path: str) -> float:
         """Get creation time from the first layer that has the path."""
         for fs in self.layers:
+            if not isinstance(fs, SupportsCreated):
+                continue
             try:
-                return await fs._created(path)  # type: ignore[attr-defined]
-            except (FileNotFoundError, NotImplementedError, AttributeError):
+                return await fs._created(path)
+            except (FileNotFoundError, NotImplementedError):
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
     async def _modified(self, path: str) -> float:
         """Get modification time from the first layer that has the path."""
         for fs in self.layers:
+            if not isinstance(fs, SupportsModified):
+                continue
             try:
-                return await fs._modified(path)  # type: ignore[attr-defined]
-            except (FileNotFoundError, NotImplementedError, AttributeError):
+                return await fs._modified(path)
+            except (FileNotFoundError, NotImplementedError):
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 

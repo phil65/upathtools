@@ -206,7 +206,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
                 msg = f"No source file for {path}"
                 raise FileNotFoundError(msg)
             with fsspec.open(module.__file__, "rb") as f:
-                return f.read()  # type: ignore
+                return f.read()
         except ImportError as exc:
             msg = f"Cannot read source of {path}"
             raise FileNotFoundError(msg) from exc

@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     import fsspec
     from upath.types import JoinablePathLike
 
-    from upathtools.filesystems.base import WrapperFileSystem
-
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SIZE = 64_000
@@ -59,9 +57,15 @@ async def get_async_fs(
     return _get_cached_fs(path_obj.protocol)
 
 
-def to_async_fs[T: AsyncFileSystem](
-    fs: T | fsspec.AbstractFileSystem, asynchronous: bool = True
-) -> T | WrapperFileSystem:
+@overload
+def to_async_fs[T: AsyncFileSystem](fs: T, asynchronous: bool = True) -> T: ...
+
+
+@overload
+def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem: ...
+
+
+def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> AsyncFileSystem:
     """Convert a sync filesystem to async if needed.
 
     If the filesystem is already async, it is returned unchanged.

@@ -338,7 +338,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
 
         return content
 
-    cat_file = sync_wrapper(_cat_file)  # type: ignore
+    cat_file = sync_wrapper(_cat_file)
 
     async def _pipe_file(
         self,
@@ -450,7 +450,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         issue = await self._fetch_issue(issue_number)
         return _issue_to_info(issue)
 
-    info = sync_wrapper(_info)  # type: ignore
+    info = sync_wrapper(_info)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -461,7 +461,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         else:
             return True
 
-    exists = sync_wrapper(_exists)  # type: ignore
+    exists = sync_wrapper(_exists)
 
     async def _isdir(self, path: str) -> bool:
         """Check if path is a directory."""

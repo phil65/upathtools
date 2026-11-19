@@ -137,6 +137,16 @@ class DuEntry:
     size_human: str | None = None
 
 
+def _list_children(path: UPath) -> list[UPath]:
+    """List a directory (blocking; run via `asyncio.to_thread`)."""
+    return list(path.iterdir())
+
+
+def _list_glob(path: UPath, pattern: str) -> list[UPath]:
+    """Glob below a path (blocking; run via `asyncio.to_thread`)."""
+    return list(path.glob(pattern))
+
+
 def _resolve_path(path: str, base: UPath) -> UPath:
     """Resolve a string path relative to base."""
     if not path or path == ".":
@@ -215,7 +225,7 @@ async def _aget_files_to_search(
         return
 
     glob_pattern = "**/*" if recursive else "*"
-    items = await asyncio.to_thread(list, path.glob(glob_pattern))
+    items = await asyncio.to_thread(_list_glob, path, glob_pattern)
     for item in items:
         try:
             item_stat = await asyncio.to_thread(item.stat)
@@ -421,7 +431,7 @@ async def _awalk_with_depth(
 
     if stat.S_ISDIR(stat_result.st_mode):
         try:
-            children = await asyncio.to_thread(list, path.iterdir())
+            children = await asyncio.to_thread(_list_children, path)
             for child in children:
                 async for item in _awalk_with_depth(child, maxdepth, current_depth + 1):
                     yield item
@@ -621,7 +631,7 @@ async def _als_collect(
         return items
 
     try:
-        children = await asyncio.to_thread(list, path.iterdir())
+        children = await asyncio.to_thread(_list_children, path)
         for child in children:
             name = child.name
             if not all_ and name.startswith("."):
@@ -769,7 +779,7 @@ async def arm(
         if not recursive:
             msg = f"Cannot remove directory without recursive=True: {resolved}"
             raise IsADirectoryError(msg)
-        children = await asyncio.to_thread(list, resolved.iterdir())
+        children = await asyncio.to_thread(_list_children, resolved)
         for child in children:
             typ = type(resolved)("/", protocol=resolved.protocol, **resolved.storage_options)
             await arm(str(child), base=typ, recursive=True, force=force)
@@ -811,7 +821,7 @@ async def acp(
             raise IsADirectoryError(msg)
 
         await asyncio.to_thread(dst_resolved.mkdir, parents=True, exist_ok=True)
-        children = await asyncio.to_thread(list, src_resolved.iterdir())
+        children = await asyncio.to_thread(_list_children, src_resolved)
         for child in children:
             await acp(
                 str(child),
@@ -884,7 +894,7 @@ async def adu(
             total = stat_result.st_size
         elif stat.S_ISDIR(mode):
             try:
-                children = await asyncio.to_thread(list, p.iterdir())
+                children = await asyncio.to_thread(_list_children, p)
                 for child in children:
                     total += await _calc_size(child, depth + 1)
             except PermissionError:

@@ -6,7 +6,7 @@ import asyncio.events
 import functools
 from functools import partial, wraps
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Concatenate, Protocol, cast, overload
 
 from fsspec.exceptions import FSTimeoutError
 
@@ -84,19 +84,41 @@ def sync[T](
     return return_result  # type: ignore[return-value]
 
 
-def sync_wrapper[**P, T](func: Callable[P, Awaitable[T]], obj: Any = None) -> Callable[P, T]:
-    """Given a function, make so can be called in blocking contexts.
+class _HasLoop(Protocol):
+    """An object owning the event loop its coroutines run on (e.g. an async filesystem)."""
 
-    Leave obj=None if defining within a class. Pass the instance if attaching
-    as an attribute of the instance.
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop: ...
+
+
+class SyncMethod[S, **P, T](Protocol):
+    """Type of a method created by `sync_wrapper`: binds `self` like a regular method."""
+
+    @overload
+    def __get__(
+        self, instance: None, owner: type | None = None, /
+    ) -> Callable[Concatenate[S, P], T]: ...
+    @overload
+    def __get__(self, instance: S, owner: type | None = None, /) -> Callable[P, T]: ...
+    def __call__(self, instance: S, /, *args: P.args, **kwargs: P.kwargs) -> T: ...
+
+
+def sync_wrapper[S: _HasLoop, **P, T](
+    func: Callable[Concatenate[S, P], Coroutine[Any, Any, T]],
+) -> SyncMethod[S, P, T]:
+    """Make an async method callable in blocking contexts.
+
+    Use in a class body (`ls = sync_wrapper(_ls)`); the coroutine runs on the
+    instance's `loop`.
     """
 
     @functools.wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        self = obj or args[0]
-        return sync(self.loop, func, *args, **kwargs)  # type: ignore[arg-type, union-attr]
+    def wrapper(self: S, /, *args: P.args, **kwargs: P.kwargs) -> T:
+        # partial: keeps a wrapped method's own `timeout` kwarg away from `sync()`.
+        return sync(self.loop, partial(func, self, *args, **kwargs))
 
-    return wrapper  # type: ignore[return-value]
+    # A plain function is a descriptor, so it binds exactly as `SyncMethod` says.
+    return cast("SyncMethod[S, P, T]", wrapper)
 
 
 def wrap[**P, R](func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
@@ -107,3 +129,24 @@ def wrap[**P, R](func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
         return await loop.run_in_executor(None, pfunc)
 
     return run
+
+
+class AsyncMethod[S, **P, R](Protocol):
+    """Type of a method created by `wrap_method`: binds `self` like a regular method."""
+
+    @overload
+    def __get__(
+        self, instance: None, owner: type | None = None, /
+    ) -> Callable[Concatenate[S, P], Awaitable[R]]: ...
+    @overload
+    def __get__(self, instance: S, owner: type | None = None, /) -> Callable[P, Awaitable[R]]: ...
+    def __call__(self, instance: S, /, *args: P.args, **kwargs: P.kwargs) -> Awaitable[R]: ...
+
+
+def wrap_method[S, **P, R](func: Callable[Concatenate[S, P], R]) -> AsyncMethod[S, P, R]:
+    """Wrap a sync method for use as an async method in a class body.
+
+    Example: `_ls = wrap_method(Base.ls)`.
+    """
+    # `wrap` returns a plain (async) function, which binds as `AsyncMethod` says.
+    return cast("AsyncMethod[S, P, R]", wrap(func))

@@ -194,7 +194,7 @@ class DistributionFileSystem(BaseAsyncFileSystem[DistributionPath, DistributionI
                 raise FileNotFoundError(f"No source file for {path}")
 
             with fsspec.open(module.__file__, "rb") as f:
-                return f.read()  # type: ignore
+                return f.read()
         except ImportError as exc:
             raise FileNotFoundError(f"Cannot read source of {path}") from exc
 

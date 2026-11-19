@@ -199,11 +199,27 @@ def multi_glob(
     return [file.relative_to(to_upath(directory_path)) for file in matching_files]
 
 
+@overload
+def upath_to_fs(
+    path: JoinablePathLike,
+    asynchronous: Literal[True] = True,
+    **storage_options: Any,
+) -> AsyncFileSystem: ...
+
+
+@overload
+def upath_to_fs(
+    path: JoinablePathLike,
+    asynchronous: bool,
+    **storage_options: Any,
+) -> fsspec.AbstractFileSystem: ...
+
+
 def upath_to_fs(
     path: JoinablePathLike,
     asynchronous: bool = True,
     **storage_options: Any,
-) -> AsyncFileSystem:
+) -> fsspec.AbstractFileSystem:
     """Convert a UPath to its underlying filesystem, using the path as root.
 
     Uses DirFileSystem to wrap the filesystem with the path's directory as the root,
@@ -241,7 +257,7 @@ def upath_to_fs(
         fs = DirFileSystem(path=parsed_path, fs=fs, asynchronous=asynchronous)
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
-    return fs  # pyright: ignore[reportReturnType]
+    return fs
 
 
 if __name__ == "__main__":

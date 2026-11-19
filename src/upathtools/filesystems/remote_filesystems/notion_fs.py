@@ -100,7 +100,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _makedirs(self, path: str, exist_ok: bool = False) -> None:
         """Create a directory and any parent directories."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
 
         if await self._get_page_id_from_path(path):
             if not exist_ok:
@@ -135,7 +135,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _rm(self, path: str, **kwargs: Any) -> None:
         """Remove (archive) a page and its children."""
-        page_id = await self._get_page_id_from_path(self._strip_protocol(path))  # type: ignore
+        page_id = await self._get_page_id_from_path(self._strip_protocol(path))
         if not page_id:
             msg = f"Path not found: {path}"
             raise FileNotFoundError(msg)
@@ -201,7 +201,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         self, path: str, detail: bool = False, **kwargs: Any
     ) -> list[str] | list[NotionInfo]:
         """List contents of a path."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
 
         if not path or path == "/":
             children = await self.notion.blocks.children.list(block_id=self.parent_page_id)
@@ -289,7 +289,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _cat_file(self, path: str, **kwargs: Any) -> bytes:
         """Read file content."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
         page_id = await self._get_page_id_from_path(path)
         if not page_id:
             msg = f"Page not found: {path}"
@@ -305,7 +305,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         **kwargs: Any,
     ) -> None:
         """Write content to a file."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
         await self._write_page_content(path, value)
 
     async def _read_page_content(self, page_id: str) -> str:
@@ -372,7 +372,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _isdir(self, path: str) -> bool:
         """Check if path is a directory (has child pages)."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
 
         if not path or path == "/":
             return True
@@ -388,7 +388,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
 
     async def _info(self, path: str, **kwargs: Any) -> NotionInfo:
         """Get info about a page."""
-        path = self._strip_protocol(path)  # type: ignore
+        path = self._strip_protocol(path)
 
         if not path or path == "/":
             return NotionInfo(name="/", size=0, type="directory")
@@ -504,12 +504,11 @@ class NotionFile:
             msg = "File not open for writing"
             raise OSError(msg)
 
-        if self.binary and isinstance(data, str):
-            data = data.encode("utf-8")
-        elif not self.binary and isinstance(data, bytes):
-            data = data.decode("utf-8")
-
-        return self._buffer.write(data)  # type: ignore[arg-type]
+        match self._buffer:
+            case io.BytesIO():
+                return self._buffer.write(data.encode("utf-8") if isinstance(data, str) else data)
+            case io.StringIO():
+                return self._buffer.write(data.decode("utf-8") if isinstance(data, bytes) else data)
 
     async def flush(self) -> None:
         if self._closed:
@@ -517,14 +516,14 @@ class NotionFile:
             raise ValueError(msg)
         if self.writable():
             value = self._buffer.getvalue()
-            await self.fs._write_page_content(self.path, value)  # type: ignore
+            await self.fs._write_page_content(self.path, value)
         self._buffer.flush()
 
     async def close(self) -> None:
         if not self._closed:
             if self.writable():
                 value = self._buffer.getvalue()
-                await self.fs._write_page_content(self.path, value)  # type: ignore
+                await self.fs._write_page_content(self.path, value)
             self._buffer.close()
             self._closed = True
 

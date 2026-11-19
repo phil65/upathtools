@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from typing import Any, ClassVar, Literal
 
 from pydantic import ConfigDict, Field
@@ -306,7 +307,8 @@ class MountsFilesystemConfig(FileSystemConfig):
         return UnionFileSystem(filesystems)
 
     @staticmethod
-    def _get_config_class(fs_type: str) -> type[FileSystemConfig]:  # type: ignore[valid-type]
+    # builtins.type: inside this model, `type` names the discriminator field
+    def _get_config_class(fs_type: str) -> builtins.type[FileSystemConfig]:
         """Get the config class for a filesystem type."""
         # Import here to avoid circular imports
         # Get all config types from the union
@@ -319,10 +321,13 @@ class MountsFilesystemConfig(FileSystemConfig):
         if args:
             union_args = typing.get_args(args[0]) if typing.get_args(args[0]) else [args[0]]
             for config_cls in union_args:
-                if hasattr(config_cls, "model_fields") and "type" in config_cls.model_fields:
-                    field = config_cls.model_fields["type"]
-                    if field.default == fs_type:
-                        return config_cls
+                if (
+                    isinstance(config_cls, builtins.type)
+                    and issubclass(config_cls, FileSystemConfig)
+                    and (field := config_cls.model_fields.get("type")) is not None
+                    and field.default == fs_type
+                ):
+                    return config_cls
 
         msg = f"Unknown filesystem type: {fs_type}"
         raise ValueError(msg)

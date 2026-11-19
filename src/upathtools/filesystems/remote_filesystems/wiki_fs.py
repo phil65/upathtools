@@ -9,6 +9,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 from typing import Any, Literal, overload
 
@@ -16,6 +17,14 @@ from fsspec.utils import infer_storage_options
 
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, BufferedWriter, FileInfo
+
+
+def _creation_time(stat: os.stat_result) -> int:
+    """File creation time where the platform records it, else the inode change time."""
+    if sys.platform in ("darwin", "win32"):
+        return int(stat.st_birthtime)
+    # Deprecated on Windows only (handled above); on Unix it is the inode change time.
+    return int(stat.st_ctime)  # ty: ignore[deprecated]
 
 
 class WikiInfo(FileInfo, total=False):
@@ -266,7 +275,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
                     created_at = int(stdout.strip().split("\n")[0]) if stdout.strip() else 0
                 except (subprocess.CalledProcessError, ValueError, IndexError):
                     last_modified = int(stat.st_mtime)
-                    created_at = int(stat.st_ctime)
+                    created_at = _creation_time(stat)
                 file = pathlib.Path(filename)  # Convert filename to wiki title
                 title = file.stem.replace("-", " ")
                 result.append({
@@ -441,7 +450,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
             created_at = int(first.stdout.strip().split("\n")[0]) if first.stdout.strip() else 0
         except (subprocess.CalledProcessError, ValueError, IndexError):
             last_modified = int(stat.st_mtime)
-            created_at = int(stat.st_ctime)
+            created_at = _creation_time(stat)
 
         title = file.stem.replace("-", " ")  # Convert filename to wiki title
         return WikiInfo(
@@ -572,7 +581,7 @@ if __name__ == "__main__":
         print(f"\nTrying wiki for {owner}/{repo}...")
         try:
             fs = WikiFileSystem(owner=owner, repo=repo, token=token)
-            pages = fs.ls("/", detail=True)
+            pages = [p for p in fs.ls("/", detail=True) if isinstance(p, dict)]
             print(f"Success! Found {len(pages)} wiki pages")
 
             if pages:

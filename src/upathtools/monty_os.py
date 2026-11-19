@@ -75,8 +75,8 @@ class FsspecOS:
     def __call__(  # noqa: PLR0911
         self,
         function_name: str,
-        args: tuple[object, ...],
-        kwargs: dict[str, object] | None = None,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any] | None = None,
     ) -> object:
         """Dispatch a filesystem operation to the appropriate method.
 
@@ -85,46 +85,46 @@ class FsspecOS:
         kwargs = kwargs or {}
         match function_name:
             case "Path.exists":
-                return self.path_exists(*args)  # type: ignore[arg-type]
+                return self.path_exists(*args)
             case "Path.is_file":
-                return self.path_is_file(*args)  # type: ignore[arg-type]
+                return self.path_is_file(*args)
             case "Path.is_dir":
-                return self.path_is_dir(*args)  # type: ignore[arg-type]
+                return self.path_is_dir(*args)
             case "Path.is_symlink":
-                return self.path_is_symlink(*args)  # type: ignore[arg-type]
+                return self.path_is_symlink(*args)
             case "Path.read_text":
-                return self.path_read_text(*args)  # type: ignore[arg-type]
+                return self.path_read_text(*args)
             case "Path.read_bytes":
-                return self.path_read_bytes(*args)  # type: ignore[arg-type]
+                return self.path_read_bytes(*args)
             case "Path.write_text":
-                return self.path_write_text(*args)  # type: ignore[arg-type]
+                return self.path_write_text(*args)
             case "Path.write_bytes":
-                return self.path_write_bytes(*args)  # type: ignore[arg-type]
+                return self.path_write_bytes(*args)
             case "Path.mkdir":
                 parents = bool(kwargs.get("parents", False))
                 exist_ok = bool(kwargs.get("exist_ok", False))
-                path: PurePosixPath = args[0]  # type: ignore[assignment]
+                path: PurePosixPath = args[0]
                 self.path_mkdir(path, parents=parents, exist_ok=exist_ok)
                 return None
             case "Path.unlink":
-                self.path_unlink(*args)  # type: ignore[arg-type]
+                self.path_unlink(*args)
                 return None
             case "Path.rmdir":
-                self.path_rmdir(*args)  # type: ignore[arg-type]
+                self.path_rmdir(*args)
                 return None
             case "Path.iterdir":
-                return self.path_iterdir(*args)  # type: ignore[arg-type]
+                return self.path_iterdir(*args)
             case "Path.stat":
-                return self.path_stat(*args)  # type: ignore[arg-type]
+                return self.path_stat(*args)
             case "Path.rename":
-                self.path_rename(*args)  # type: ignore[arg-type]
+                self.path_rename(*args)
                 return None
             case "Path.resolve":
-                return self.path_resolve(*args)  # type: ignore[arg-type]
+                return self.path_resolve(*args)
             case "Path.absolute":
-                return self.path_absolute(*args)  # type: ignore[arg-type]
+                return self.path_absolute(*args)
             case "os.getenv":
-                return self.getenv(*args)  # type: ignore[arg-type]
+                return self.getenv(*args)
             case "os.environ":
                 return self.get_environ()
             case _:
@@ -175,7 +175,8 @@ class FsspecOS:
         self._sync(self._fs._rm_file, self._to_str(path))
 
     def path_rmdir(self, path: PurePosixPath) -> None:
-        self._sync(self._fs._rmdir, self._to_str(path))
+        # Public sync API: mirrors `_rmdir` where implemented (not all async fs have it).
+        self._fs.rmdir(self._to_str(path))
 
     def path_iterdir(self, path: PurePosixPath) -> list[PurePosixPath]:
         entries: list[str] = self._sync(self._fs._ls, self._to_str(path), False)
@@ -198,7 +199,8 @@ class FsspecOS:
         return StatResult.file_stat(size=size, mode=mode or 0o644, mtime=mtime or None)
 
     def path_rename(self, path: PurePosixPath, target: PurePosixPath) -> None:
-        self._sync(self._fs._mv, self._to_str(path), self._to_str(target))
+        # Public sync API: mirrors `_mv` where implemented, else copy + remove.
+        self._fs.mv(self._to_str(path), self._to_str(target))
 
     def path_resolve(self, path: PurePosixPath) -> str:
         return self.path_absolute(path)

@@ -78,7 +78,7 @@ class TarFileSystem(AbstractArchiveFileSystem):
         if compression is not None:
             # TODO: tarfile already implements compression with modes like "'r:gz'",
             #  but then would seek to offset in the file work?
-            fo = compr[compression](fo)
+            fo = compr[compression](fo, mode="rb")
 
         self._fo_ref = fo
         self.fo = fo  # the whole instance is a context

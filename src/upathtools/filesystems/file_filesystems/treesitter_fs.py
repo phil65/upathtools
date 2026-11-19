@@ -277,7 +277,7 @@ class TreeSitterFileSystem(BaseAsyncFileFileSystem[TreeSitterPath, TreeSitterInf
             protocol=self.target_protocol,
             **self.target_options,
         ) as f:
-            self._source = f.read()  # type: ignore
+            self._source = f.read()
 
         self._parse_source()
 
@@ -291,15 +291,16 @@ class TreeSitterFileSystem(BaseAsyncFileFileSystem[TreeSitterPath, TreeSitterInf
 
         # Import the specific language
         language_module = _import_language_module(self.language)
-        language = Language(language_module.language())
+        capsule: object = language_module.language()  # a PyCapsule
+        language = Language(capsule)
         # Create parser
-        self._parser = Parser(language)  # type: ignore
-        self._tree = self._parser.parse(self._source.encode())  # type: ignore
+        self._parser = Parser(language)
+        self._tree = self._parser.parse(self._source.encode())
         # Build node hierarchy
         source_bytes = self._source.encode()
         total_lines = len(self._source.splitlines())
         self._root = CodeNode("root", "module", 0, len(source_bytes), 1, total_lines)
-        self._extract_nodes(self._tree.root_node, self._root)  # type: ignore
+        self._extract_nodes(self._tree.root_node, self._root)
 
     def _extract_nodes(self, ts_node, parent_node: CodeNode) -> None:
         """Extract named entities from tree-sitter node."""

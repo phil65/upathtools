@@ -396,7 +396,7 @@ class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
                     result = []
                     for path_key in items:
                         path_obj = self._spec.paths[path_key]
-                        operations = [
+                        operations: list[str] = [
                             method.upper()
                             for method in [
                                 "get",
@@ -497,7 +497,7 @@ class OpenAPIFileSystem(BaseAsyncFileFileSystem[OpenAPIPath, OpenApiInfo]):
                 path_key = resolved_path
 
                 path_obj = self._spec.paths[path_key]
-                items = []
+                items: list[str] = []
 
                 for method in [
                     "get",

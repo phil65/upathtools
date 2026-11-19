@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Self, overload
 from upath import UPath
 from upath._stat import UPathStatResult
 
+from upathtools.filesystems.base.protocols import SupportsRmdir
+
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
@@ -170,8 +172,8 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
     async def armdir(self) -> None:
         """Asynchronously remove directory."""
         fs = await self.afs()
-        if hasattr(fs, "_rmdir"):
-            await fs._rmdir(self.path)  # pyright: ignore[reportAttributeAccessIssue]
+        if isinstance(fs, SupportsRmdir):
+            await fs._rmdir(self.path)
         else:
             await asyncio.to_thread(self.rmdir)
 
@@ -255,12 +257,12 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
                 **kwargs,
             )
 
-    async def acopy(self, target: JoinablePathLike, **kwargs: Any) -> BaseUPath:
+    async def acopy(self, target: JoinablePathLike, **kwargs: Any) -> BaseUPath[Any]:
         """Asynchronously copy file to target location."""
         path = type(self)(target) if not isinstance(target, BaseUPath) else target
         content = await self.aread_bytes()  # Read source and write to target
         await path.awrite_bytes(content)
-        return path  # pyright: ignore[reportReturnType]
+        return path
 
     async def amove(self, target: JoinablePathLike) -> BaseUPath:
         """Asynchronously move file to target location."""

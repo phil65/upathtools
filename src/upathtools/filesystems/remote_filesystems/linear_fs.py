@@ -195,6 +195,10 @@ class LinearProjectInfo(FileInfo, total=False):
     updated_at: str | None
 
 
+type LinearInfo = LinearIssueInfo | LinearCommentInfo | LinearProjectInfo
+"""Any info dict this filesystem lists."""
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -532,7 +536,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
     @overload
     async def _ls(
         self, path: str, detail: Literal[True] = ..., **kwargs: Any
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo]: ...
+    ) -> list[LinearInfo]: ...
 
     @overload
     async def _ls(self, path: str, detail: bool, **kwargs: Any) -> list[str]: ...
@@ -542,7 +546,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         path: str,
         detail: bool = True,
         **kwargs: Any,
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+    ) -> list[LinearInfo] | list[str]:
         """List contents of path."""
         path = self._strip_protocol(path or "")
         logger.debug(
@@ -559,9 +563,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             return await self._ls_project_mode(parts, detail)
         return await self._ls_flat_mode(parts, detail)
 
-    async def _ls_root(
-        self, detail: bool
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+    async def _ls_root(self, detail: bool) -> list[LinearInfo] | list[str]:
         """List root directory."""
         if self.group_by == "project":
             # List projects as directories
@@ -603,19 +605,19 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             ])
 
             if detail:
-                return results  # type: ignore[return-value]
+                return list[LinearInfo](results)
             return [r["name"] for r in results]
 
         # Flat mode - list all issues
         issues = await self._get_all_issues_cached()
         results_flat = [_issue_to_info(issue, extended=self.extended) for issue in issues]
         if detail:
-            return results_flat  # type: ignore[return-value]
+            return list[LinearInfo](results_flat)
         return [r["name"] for r in results_flat]
 
     async def _ls_project_mode(
         self, parts: list[str], detail: bool
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+    ) -> list[LinearInfo] | list[str]:
         """List in project grouping mode."""
         project_name = parts[0]
         actual_project_name: str | None = None if project_name == "_unassigned" else project_name
@@ -635,7 +637,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 for issue in project_issues
             ]
             if detail:
-                return results  # type: ignore[return-value]
+                return list[LinearInfo](results)
             return [r["name"] for r in results]
 
         # Deeper path - delegate to issue handling
@@ -643,15 +645,13 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         remaining_parts = parts[1:]
         return await self._ls_issue_path(remaining_parts, detail, prefix=project_name)
 
-    async def _ls_flat_mode(
-        self, parts: list[str], detail: bool
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+    async def _ls_flat_mode(self, parts: list[str], detail: bool) -> list[LinearInfo] | list[str]:
         """List in flat mode."""
         return await self._ls_issue_path(parts, detail)
 
     async def _ls_issue_path(
         self, parts: list[str], detail: bool, prefix: str | None = None
-    ) -> list[LinearIssueInfo | LinearCommentInfo | LinearProjectInfo] | list[str]:
+    ) -> list[LinearInfo] | list[str]:
         """List issue-related paths."""
         identifier = parts[0].removesuffix(".md")
 
@@ -660,7 +660,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             issue = await self._fetch_issue_by_identifier(identifier)
             results = [_issue_to_info(issue, extended=False, prefix=prefix)]
             if detail:
-                return results  # type: ignore[return-value]
+                return list[LinearInfo](results)
             return [r["name"] for r in results]
 
         # Extended mode
@@ -681,7 +681,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 ),
             ]
             if detail:
-                return issue_contents  # type: ignore[return-value]
+                return list[LinearInfo](issue_contents)
             return [r["name"] for r in issue_contents]
 
         if len(parts) == MIN_ISSUE_COMMENT_PATH_PARTS and parts[1] == "comments":
@@ -693,7 +693,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
                 _comment_to_info(comment, base, idx) for idx, comment in enumerate(comments, 1)
             ]
             if detail:
-                return comment_results  # type: ignore[return-value]
+                return list[LinearInfo](comment_results)
             return [r["name"] for r in comment_results]
 
         msg = f"Invalid path: {'/'.join(parts)}"
@@ -754,7 +754,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
         return content_bytes
 
-    cat_file = sync_wrapper(_cat_file)  # type: ignore
+    cat_file = sync_wrapper(_cat_file)
 
     async def _pipe_file(
         self,
@@ -1072,7 +1072,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         msg = f"Invalid path: {'/'.join(parts)}"
         raise FileNotFoundError(msg)
 
-    info = sync_wrapper(_info)  # type: ignore
+    info = sync_wrapper(_info)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         """Check if path exists."""
@@ -1083,7 +1083,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         else:
             return True
 
-    exists = sync_wrapper(_exists)  # type: ignore
+    exists = sync_wrapper(_exists)
 
     async def _isdir(self, path: str) -> bool:
         """Check if path is a directory."""

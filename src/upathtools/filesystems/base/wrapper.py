@@ -16,6 +16,12 @@ from upath.registry import get_upath_class
 from upathtools.async_helpers import sync_wrapper
 from upathtools.async_ops import to_async_fs
 from upathtools.async_upath import AsyncUPath
+from upathtools.filesystems.base.protocols import (
+    SupportsChecksum,
+    SupportsModified,
+    SupportsMv,
+    SupportsRmdir,
+)
 
 
 if TYPE_CHECKING:
@@ -367,7 +373,8 @@ class WrapperFileSystem(AsyncFileSystem):
             path: The path to the file or directory. If None, the root path is returned.
             as_async: If True, return an AsyncUPath wrapper
         """
-        upath_cls = get_upath_class(self.protocol)
+        protocol = self.protocol if isinstance(self.protocol, str) else self.protocol[0]
+        upath_cls = get_upath_class(protocol)
         assert upath_cls
         path_obj = upath_cls(path if path is not None else self.root_marker)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
@@ -422,37 +429,31 @@ class WrapperFileSystem(AsyncFileSystem):
 
         if mount_type == "fs":
             assert isinstance(mount, FilesystemMount)
-            result = await mount.fs._ls(relative, detail=detail, **kwargs)
-            # Rewrite paths to use our mount namespace
-            if detail:
-                for item in result:  # type: ignore[union-attr]
-                    rel_name = item["name"].lstrip("/")
-                    item["name"] = f"{mount.path}/{rel_name}".rstrip("/")
-            else:
-                result = [
-                    f"{mount.path}/{name.lstrip('/')}".rstrip("/")
-                    for name in result  # type: ignore[union-attr]
-                ]
+            raw = await mount.fs._ls(relative, detail=detail, **kwargs)
+            prefix: str | None = mount.path
         else:
-            result = await self.fs._ls(path, detail=detail, **kwargs)
+            raw = await self.fs._ls(path, detail=detail, **kwargs)
+            prefix = None
 
-        # Merge in virtual entries from mounts
+        # Merge in virtual entries from mounts (paths already in the listing win)
         virtual = self._get_virtual_entries_for_path(path, detail=detail)
-        if virtual:
-            if detail:
-                existing = {item["name"] for item in result}  # type: ignore[union-attr]
-                for v in virtual:  # type: ignore[union-attr]
-                    if v["name"] not in existing:  # type: ignore[index]
-                        result.append(v)  # type: ignore[union-attr]
-            else:
-                existing = set(result)  # type: ignore[arg-type]
-                for v in virtual:  # type: ignore[union-attr]
-                    if v not in existing:
-                        result.append(v)  # type: ignore[union-attr]
+        if detail:
+            infos: list[dict[str, Any]] = list(raw)
+            if prefix is not None:  # rewrite paths to use our mount namespace
+                for item in infos:
+                    item["name"] = f"{prefix}/{item['name'].lstrip('/')}".rstrip("/")
+            existing = {item["name"] for item in infos}
+            infos.extend(v for v in virtual if isinstance(v, dict) and v["name"] not in existing)
+            if self._ls_info_callback is not None or self._info_callback is not None:
+                return await self._apply_ls_info_callback(infos)
+            return infos
 
-        if detail and (self._ls_info_callback is not None or self._info_callback is not None):
-            return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
-        return result
+        names: list[str] = list(raw)
+        if prefix is not None:
+            names = [f"{prefix}/{name.lstrip('/')}".rstrip("/") for name in names]
+        existing_names = set(names)
+        names.extend(v for v in virtual if isinstance(v, str) and v not in existing_names)
+        return names
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
@@ -553,11 +554,19 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         self._ensure_initialized()
+        if not isinstance(self.fs, SupportsRmdir):
+            msg = f"{type(self.fs).__name__} does not support rmdir"
+            raise NotImplementedError(msg)
         await self.fs._rmdir(path, **kwargs)
 
     async def _mv(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._mv(path1, path2, recursive=recursive, **kwargs)
+        if isinstance(self.fs, SupportsMv):
+            await self.fs._mv(path1, path2, recursive=recursive, **kwargs)
+            return
+        # fsspec's generic move: copy, then remove the source
+        await self.fs._copy(path1, path2, recursive=recursive, **kwargs)
+        await self.fs._rm(path1, recursive=recursive)
 
     async def _copy(
         self,
@@ -657,10 +666,16 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _checksum(self, path: str, **kwargs: Any) -> str:
         self._ensure_initialized()
+        if not isinstance(self.fs, SupportsChecksum):
+            msg = f"{type(self.fs).__name__} does not support checksum"
+            raise NotImplementedError(msg)
         return await self.fs._checksum(path, **kwargs)
 
     async def _modified(self, path: str, **kwargs: Any) -> Any:
         self._ensure_initialized()
+        if not isinstance(self.fs, SupportsModified):
+            msg = f"{type(self.fs).__name__} does not support modified"
+            raise NotImplementedError(msg)
         return await self.fs._modified(path, **kwargs)
 
     # Explicit sync wrappers for commonly used methods

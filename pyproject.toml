@@ -121,7 +121,7 @@ adlfs = ["adlfs"]  # ADLS integration
 # agentfs = [
 #   "agentfs-sdk>=0.4.0rc17",
 # ]
-appwrite = ["appwrite"]  # Appwrite integration
+appwrite = ["appwrite>=16"]  # Appwrite integration (typed models since 16)
 beam = [
   "beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"
 ]  # Beam integration
@@ -185,9 +185,9 @@ docs = [
   "zensical>=0.0.11",
 ]
 lint = [
-  "mypy; python_version >= '3.14'",
-  "mypy[faster-cache]; python_version < '3.14'",
+  "jinja2",  # type-only import (filetree jinja filters) for ty
   "ruff",
+  "ty",
   "types-Authlib",
   "types-PyYAML",
   "types-Pygments",
@@ -221,14 +221,6 @@ allowed-commit-types = [
   "chore",
 ]
 docstring-style = "google"
-
-[tool.mypy]
-python_version = "3.13"
-disable_error_code = ["import"]
-pretty = true
-check_untyped_defs = true
-exclude = ["venv/", ".venv/", "tests/"]
-plugins = []
 
 [tool.pyright]
 venvPath = "."
@@ -406,13 +398,31 @@ max-complexity = 15
 [tool.ruff.format]
 preview = true
 
+[tool.ty.analysis]
+# Platform/version-gated extras (beam, microsandbox: not on Windows; daytona:
+# < 3.14) and jq (no wheels everywhere). Still type-checked wherever installed.
+allowed-unresolved-imports = [
+  "beam.**",
+  "daytona.**",
+  "jq.**",
+  "microsandbox.**"
+]
+
 [tool.ty.rules]
-unresolved-import = "ignore"
-unused-type-ignore-comment = "ignore"
-invalid-type-form = "ignore"
-not-subscriptable = "ignore"
+# Narrowing an overridden class attribute (e.g. pydantic discriminators,
+# `Config` attributes, fsspec `protocol`) is an intentional pattern.
+incompatible-mutable-override = "ignore"
+# fsspec's (untyped) base signatures are inconsistent across its own
+# implementations; the filesystems here follow the concrete backends.
+# (attribute-override: the same for methods assigned via sync_wrapper/wrap_method)
+incompatible-attribute-override = "ignore"
+incompatible-method-override = "ignore"
 possibly-missing-import = "warn"
 division-by-zero = "warn"
+
+[tool.ty.src]
+# `ty check` (hooks, CI, editors) type-checks the package code only.
+include = ["src"]
 
 [tool.ty.environment]
 python-version = "3.13"

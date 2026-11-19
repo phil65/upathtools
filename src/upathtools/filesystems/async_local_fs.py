@@ -8,14 +8,17 @@ from inspect import iscoroutinefunction
 import json
 import os
 from pathlib import Path
-import shutil
 from typing import Any, Literal, Required, overload
 
 from fsspec.implementations.local import LocalFileSystem
 
-from upathtools.async_helpers import wrap
+from upathtools.async_helpers import wrap, wrap_method
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, GrepMatch
 from upathtools.filesystems.base.file_objects import FileInfo
+
+
+# Chunk size for async copies (shutil's default, which typeshed does not expose).
+_COPY_BUFSIZE = 1024 * 1024 if os.name == "nt" else 256 * 1024
 
 
 class LocalFileInfo(FileInfo, total=False):
@@ -71,33 +74,33 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
     mirror_sync_methods = False
     upath_cls = LocalPath
 
-    _cat_file = wrap(LocalFileSystem.cat_file)  # type: ignore[assignment]
-    _chmod = wrap(LocalFileSystem.chmod)
-    _cp_file = wrap(LocalFileSystem.cp_file)  # type: ignore[assignment]
-    _created = wrap(LocalFileSystem.created)
-    _find_async = wrap(LocalFileSystem.find)
-    _get_file_async = wrap(LocalFileSystem.get_file)
-    _islink = wrap(LocalFileSystem.islink)
-    _lexists = wrap(LocalFileSystem.lexists)
-    _link = wrap(LocalFileSystem.link)
-    _makedirs = wrap(LocalFileSystem.makedirs)  # type: ignore[assignment]
-    _mkdir = wrap(LocalFileSystem.mkdir)  # type: ignore[assignment]
-    _modified = wrap(LocalFileSystem.modified)
+    _cat_file = wrap_method(LocalFileSystem.cat_file)
+    _chmod = wrap_method(LocalFileSystem.chmod)
+    _cp_file = wrap_method(LocalFileSystem.cp_file)
+    _created = wrap_method(LocalFileSystem.created)
+    _find_async = wrap_method(LocalFileSystem.find)
+    _get_file_async = wrap_method(LocalFileSystem.get_file)
+    _islink = wrap_method(LocalFileSystem.islink)
+    _lexists = wrap_method(LocalFileSystem.lexists)
+    _link = wrap_method(LocalFileSystem.link)
+    _makedirs = wrap_method(LocalFileSystem.makedirs)
+    _mkdir = wrap_method(LocalFileSystem.mkdir)
+    _modified = wrap_method(LocalFileSystem.modified)
     # `mv_file` was renamed to `mv` in fsspec==2024.5.0
     # https://github.com/fsspec/filesystem_spec/pull/1585
-    _mv = wrap(getattr(LocalFileSystem, "mv", None) or LocalFileSystem.mv_file)  # type: ignore[arg-type,assignment]
+    _mv = wrap_method(LocalFileSystem.mv)
     _mv_file = _mv  # type: ignore[assignment]
-    _pipe_file = wrap(LocalFileSystem.pipe_file)  # type: ignore[assignment]
-    _put_file = wrap(LocalFileSystem.put_file)  # type: ignore[assignment]
-    _read_bytes = wrap(LocalFileSystem.read_bytes)
-    _read_text = wrap(LocalFileSystem.read_text)
-    _rm = wrap(LocalFileSystem.rm)  # type: ignore[assignment]
-    _rm_file = wrap(LocalFileSystem.rm_file)  # type: ignore[assignment]
-    _rmdir = wrap(LocalFileSystem.rmdir)
-    _touch = wrap(LocalFileSystem.touch)
-    _symlink = wrap(LocalFileSystem.symlink)
-    _write_bytes = wrap(LocalFileSystem.write_bytes)
-    _write_text = wrap(LocalFileSystem.write_text)
+    _pipe_file = wrap_method(LocalFileSystem.pipe_file)
+    _put_file = wrap_method(LocalFileSystem.put_file)
+    _read_bytes = wrap_method(LocalFileSystem.read_bytes)
+    _read_text = wrap_method(LocalFileSystem.read_text)
+    _rm = wrap_method(LocalFileSystem.rm)
+    _rm_file = wrap_method(LocalFileSystem.rm_file)
+    _rmdir = wrap_method(LocalFileSystem.rmdir)
+    _touch = wrap_method(LocalFileSystem.touch)
+    _symlink = wrap_method(LocalFileSystem.symlink)
+    _write_bytes = wrap_method(LocalFileSystem.write_bytes)
+    _write_text = wrap_method(LocalFileSystem.write_text)
 
     async def _info(self, path: str, **kwargs: Any) -> LocalFileInfo:
         """Get info for a single path."""
@@ -139,7 +142,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
 
         async with await self.open_async(src, "rb") as fsrc:
             while True:
-                buf = await fsrc.read(length=shutil.COPY_BUFSIZE)  # type: ignore[attr-defined]
+                buf = await fsrc.read(length=_COPY_BUFSIZE)
                 if not buf:
                     break
                 await dst.write(buf)

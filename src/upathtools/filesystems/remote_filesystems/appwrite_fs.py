@@ -194,20 +194,20 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         if not path or path == "/":
             try:
                 response = self.storage.list_buckets()
-                buckets = response.get("buckets", [])
+                buckets = response.buckets
 
                 if detail:
                     return [
                         AppwriteInfo(
-                            name=bucket["$id"],
+                            name=bucket.id,
                             type="directory",
                             size=0,
-                            bucket_name=bucket["name"],
-                            enabled=bucket.get("enabled", True),
+                            bucket_name=bucket.name,
+                            enabled=bucket.enabled,
                         )
                         for bucket in buckets
                     ]
-                return [bucket["$id"] for bucket in buckets]
+                return [bucket.id for bucket in buckets]
 
             except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to list buckets: %s", str(e))
@@ -239,16 +239,16 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
             prefix = file_path if file_path.endswith("/") else file_path + "/" if file_path else ""
             # List all files in bucket
             response = self.storage.list_files(bucket_id=bucket_id)
-            files = response.get("files", [])
+            files = response.files
             # Apply prefix filtering to simulate directories
             if prefix:
-                files = [f for f in files if f["name"].startswith(prefix) or f["name"] == file_path]
+                files = [f for f in files if f.name.startswith(prefix) or f.name == file_path]
 
             # Extract virtual directories from paths
             result: list[Any] = []
             virtual_dirs = set()
             for file in files:
-                name = file["name"]
+                name = file.name
                 if prefix and name.startswith(prefix):
                     # Get relative path
                     rel_name = name[len(prefix) :]
@@ -264,11 +264,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
                             AppwriteInfo(
                                 name=name,
                                 type="file",
-                                size=file.get("sizeOriginal", 0),
-                                file_id=file["$id"],
-                                created=file.get("$createdAt"),
-                                updated=file.get("$updatedAt"),
-                                mime_type=file.get("mimeType"),
+                                size=int(file.sizeoriginal),
+                                file_id=file.id,
+                                created=file.createdat,
+                                updated=file.updatedat,
+                                mime_type=file.mimetype,
                             )
                         )
                     else:
@@ -285,11 +285,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
                             AppwriteInfo(
                                 name=name,
                                 type="file",
-                                size=file.get("sizeOriginal", 0),
-                                file_id=file["$id"],
-                                created=file.get("$createdAt"),
-                                updated=file.get("$updatedAt"),
-                                mime_type=file.get("mimeType"),
+                                size=int(file.sizeoriginal),
+                                file_id=file.id,
+                                created=file.createdat,
+                                updated=file.updatedat,
+                                mime_type=file.mimetype,
                             )
                         )
                     else:
@@ -301,11 +301,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
                             AppwriteInfo(
                                 name=name,
                                 type="file",
-                                size=file.get("sizeOriginal", 0),
-                                file_id=file["$id"],
-                                created=file.get("$createdAt"),
-                                updated=file.get("$updatedAt"),
-                                mime_type=file.get("mimeType"),
+                                size=int(file.sizeoriginal),
+                                file_id=file.id,
+                                created=file.createdat,
+                                updated=file.updatedat,
+                                mime_type=file.mimetype,
                             )
                         )
                     else:
@@ -334,16 +334,16 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
                         if detail:
                             return [
                                 AppwriteInfo(
-                                    name=file_info["name"],
+                                    name=file_info.name,
                                     type="file",
-                                    size=file_info.get("sizeOriginal", 0),
-                                    file_id=file_info["$id"],
-                                    created=file_info.get("$createdAt"),
-                                    updated=file_info.get("$updatedAt"),
-                                    mime_type=file_info.get("mimeType"),
+                                    size=int(file_info.sizeoriginal),
+                                    file_id=file_info.id,
+                                    created=file_info.createdat,
+                                    updated=file_info.updatedat,
+                                    mime_type=file_info.mimetype,
                                 )
                             ]
-                        return [file_info["name"]]
+                        return [file_info.name]
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -365,11 +365,11 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         """
         try:
             response = self.storage.list_files(bucket_id=bucket_id)
-            files = response.get("files", [])
+            files = response.files
 
             for file in files:
-                if file["name"] == file_name:
-                    return file["$id"]
+                if file.name == file_name:
+                    return file.id
         except Exception as e:  # noqa: BLE001
             logger.warning("Failed to get file ID: %s", str(e))
             return None
@@ -397,8 +397,8 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
                     name=bucket_id,
                     type="directory",
                     size=0,
-                    bucket_name=bucket["name"],
-                    enabled=bucket.get("enabled", True),
+                    bucket_name=bucket.name,
+                    enabled=bucket.enabled,
                 )
             except Exception as e:
                 msg = f"Bucket not found: {bucket_id}"
@@ -444,13 +444,13 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
         try:
             file_info = self.storage.get_file(bucket_id, file_id)
             return AppwriteInfo(
-                name=file_info["name"],
+                name=file_info.name,
                 type="file",
-                size=file_info.get("sizeOriginal", 0),
-                file_id=file_info["$id"],
-                created=file_info.get("$createdAt"),
-                updated=file_info.get("$updatedAt"),
-                mime_type=file_info.get("mimeType"),
+                size=int(file_info.sizeoriginal),
+                file_id=file_info.id,
+                created=file_info.createdat,
+                updated=file_info.updatedat,
+                mime_type=file_info.mimetype,
             )
         except Exception as e:
             msg = f"File not found: {path}"
@@ -727,18 +727,18 @@ class AppwriteFileSystem(BaseAsyncFileSystem[AppwritePath, AppwriteInfo]):
 
         try:
             response = self.storage.list_files(bucket_id=bucket_id)
-            files = response.get("files", [])
+            files = response.files
 
             # Check if any file starts with the prefix
             for file in files:
-                if file["name"].startswith(prefix):
+                if file.name.startswith(prefix):
                     return True
 
             # Special case: empty directories
             if file_path.endswith("/"):
                 # Check if an exact match exists
                 for file in files:
-                    if file["name"] == file_path.rstrip("/"):
+                    if file.name == file_path.rstrip("/"):
                         return True
         except Exception:  # noqa: BLE001
             return False

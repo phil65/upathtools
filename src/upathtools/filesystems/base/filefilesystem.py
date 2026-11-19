@@ -12,6 +12,8 @@ from upathtools.filesystems.base.basefilesystem import BaseAsyncFileSystem
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from fsspec.asyn import AsyncFileSystem
     from fsspec.spec import AbstractFileSystem
 
@@ -24,7 +26,7 @@ class ProbeResult(Enum):
     MAYBE = "maybe"  # Extension matches but can't verify without full parse
 
 
-class BaseAsyncFileFileSystem[TPath: UPath, TInfoDict = dict[str, Any]](
+class BaseAsyncFileFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str, Any]](
     BaseAsyncFileSystem[TPath, TInfoDict]
 ):
     """Base class for file-based filesystems.
