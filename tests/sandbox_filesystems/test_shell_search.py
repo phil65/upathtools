@@ -18,7 +18,10 @@ from upathtools.filesystems.sandbox_filesystems._shell_search import (
 )
 
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="needs a POSIX shell")
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="the helpers target Linux sandboxes (GNU grep/find); tests use host tools",
+)
 
 
 def run(script: str, *, without_rg: bool = False, tool_dir: Path | None = None) -> str:
