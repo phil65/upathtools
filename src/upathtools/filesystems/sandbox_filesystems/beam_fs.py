@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import logging
 import os
 import tempfile
@@ -11,9 +12,16 @@ from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from upathtools.async_helpers import sync_wrapper
 from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo, GrepMatch
+from upathtools.filesystems.sandbox_filesystems._shell_search import (
+    build_find_script,
+    build_grep_script,
+    parse_find_output,
+    parse_grep_output,
+)
 
 
 if TYPE_CHECKING:
+    from beta9.abstractions.sandbox import SandboxInstance
     from beta9.type import GpuTypeAlias
 
     from upathtools.filesystems.base import CreationMode
@@ -85,7 +93,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         self._keep_warm_seconds = keep_warm_seconds
         self._timeout = timeout
         self.env_variables = env_variables
-        self._sandbox_instance = None
+        self._sandbox_instance: SandboxInstance | None = None
         self._session_started = False
 
     @staticmethod
@@ -93,18 +101,21 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         path = path.removeprefix("beam://")
         return {"sandbox_id": path}
 
-    async def _get_sandbox(self):
+    async def _get_sandbox(self) -> SandboxInstance:
         """Get or create Beam sandbox instance."""
-        from beta9 import GpuType, Image, PythonVersion, Sandbox
+        # Import via `beam`: it carries the Beam cloud settings (~/.beam); importing
+        # `beta9` directly uses the open-source local gateway defaults (0.0.0.0:1993).
+        from beam import GpuType, Image, PythonVersion, Sandbox
 
         if self._sandbox_instance is not None:
             return self._sandbox_instance
 
         if self._image is None:  # Set default image if none provided
             self._image = Image(python_version=PythonVersion.Python311)
+        # The Beam SDK is synchronous: keep its network calls off the event loop.
         if self._sandbox_id:  # Connect to existing sandbox
             sandbox = Sandbox()
-            self._sandbox_instance = sandbox.connect(self._sandbox_id)
+            self._sandbox_instance = await asyncio.to_thread(sandbox.connect, self._sandbox_id)
         else:  # Create new sandbox
             sandbox = Sandbox(
                 cpu=self._cpu,
@@ -115,7 +126,7 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
                 keep_warm_seconds=self._keep_warm_seconds,
                 env=self.env_variables,
             )
-            self._sandbox_instance = sandbox.create()
+            self._sandbox_instance = await asyncio.to_thread(sandbox.create)
             assert self._sandbox_instance
             self._sandbox_id = self._sandbox_instance.sandbox_id()
 
@@ -273,6 +284,9 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         await self.set_session()
         sandbox = await self._get_sandbox()
 
+        # Beam's delete succeeds silently for missing paths; fsspec expects an error.
+        if not await self._exists(path):
+            raise FileNotFoundError(path)
         try:
             await asyncio.to_thread(sandbox.fs.delete_file, path)
         except Exception as exc:
@@ -291,6 +305,12 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         await self.set_session()
         sandbox = await self._get_sandbox()
 
+        # Beam's delete succeeds silently for missing paths and removes directories
+        # recursively; fsspec's rmdir must fail for missing and non-empty directories.
+        if not await self._exists(path):
+            raise FileNotFoundError(path)
+        if await self._ls(path, detail=False):
+            raise OSError(errno.ENOTEMPTY, "Directory not empty", path)
         try:
             await asyncio.to_thread(sandbox.fs.delete_directory, path)
         except Exception as exc:
@@ -404,6 +424,15 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
 
+    async def _run_shell(self, script: str) -> str:
+        """Run a shell script in the sandbox and return its stdout."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+        process = await asyncio.to_thread(sandbox.process.exec, "sh", "-c", script)
+        output: str = await asyncio.to_thread(process.stdout.read)
+        await asyncio.to_thread(process.wait)
+        return output
+
     async def _grep(
         self,
         path: str,
@@ -418,30 +447,72 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
         context_after: int | None = None,
         multiline: bool = False,
     ) -> list[GrepMatch]:
-        """Search for pattern in files using Beam's find_in_files."""
-        await self.set_session()
-        sandbox = await self._get_sandbox()
+        """Search files inside the sandbox with ripgrep (or grep as fallback).
 
-        try:
-            results = await asyncio.to_thread(sandbox.fs.find_in_files, path, pattern)
-        except Exception as exc:
-            msg = f"Failed to grep pattern {pattern!r} in {path}: {exc}"
-            raise OSError(msg) from exc
-        else:
-            matches = [
-                GrepMatch(
-                    path=result.path,
-                    line_number=match.range.start.line,
-                    text=match.content,
-                )
-                for result in results
-                for match in result.matches
-            ]
-            if max_count is not None:
-                return matches[:max_count]
-            return matches
+        Unlike Beam's `find_in_files`, this honours case sensitivity, globs and
+        hidden files.
+        """
+        script = build_grep_script(
+            path,
+            pattern,
+            max_count=max_count,
+            case_sensitive=case_sensitive,
+            hidden=hidden,
+            no_ignore=no_ignore,
+            globs=globs,
+            multiline=multiline,
+        )
+        return parse_grep_output(await self._run_shell(script), max_count=max_count)
 
-    # TODO: Add _find and _glob using sandbox.process.exec() with Linux CLI tools (find)
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[False] = False,
+        **kwargs: Any,
+    ) -> list[str]: ...
+
+    @overload
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: Literal[True],
+        **kwargs: Any,
+    ) -> dict[str, BeamInfo]: ...
+
+    async def _find(
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        withdirs: bool = False,
+        *,
+        detail: bool = False,
+        **kwargs: Any,
+    ) -> list[str] | dict[str, BeamInfo]:
+        """List everything below a path with one `find` run inside the sandbox."""
+        script = build_find_script(path, maxdepth=maxdepth, withdirs=withdirs)
+        entries = parse_find_output(await self._run_shell(script))
+        found = {
+            entry.path: BeamInfo(
+                name=entry.path, type=entry.type, size=entry.size, mtime=entry.mtime
+            )
+            for entry in entries
+        }
+        if withdirs and found and path not in found:
+            found[path] = await self._info(path)
+        if not found and await self._isfile(path):
+            found[path] = await self._info(path)
+        names = sorted(found)
+        if detail:
+            return {name: found[name] for name in names}
+        return names
+
     # This would be faster than fsspec's default _walk which does multiple _ls round trips.
 
     # Sync wrappers for async methods
@@ -458,3 +529,4 @@ class BeamFS(BaseAsyncFileSystem[BeamPath, BeamInfo]):
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
     grep = sync_wrapper(_grep)
+    find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]

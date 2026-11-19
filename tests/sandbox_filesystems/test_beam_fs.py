@@ -278,3 +278,49 @@ print(f"Processed {len(data)} rows")
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__, "-m", "integration", "-s"])
+
+
+@pytest.mark.integration
+async def test_beam_grep_runs_in_sandbox(shared_beam_fs: BeamFS):
+    """Grep honours case sensitivity, globs and hidden files."""
+    await shared_beam_fs._pipe_file("/tmp/upt-grep/a.py", b"import os\nTODO: fix\n")
+    await shared_beam_fs._pipe_file("/tmp/upt-grep/b.txt", b"todo lowercase\n")
+    await shared_beam_fs._pipe_file("/tmp/upt-grep/.hidden/c.py", b"TODO hidden\n")
+
+    matches = await shared_beam_fs._grep("/tmp/upt-grep", "todo")
+    assert {(m.path.rsplit("/", 1)[-1], m.line_number) for m in matches} == {
+        ("a.py", 2),
+        ("b.txt", 1),
+    }
+    matches = await shared_beam_fs._grep(
+        "/tmp/upt-grep", "TODO", case_sensitive=True, hidden=True, globs=["*.py"]
+    )
+    assert {m.path.rsplit("/", 1)[-1] for m in matches} == {"a.py", "c.py"}
+
+
+@pytest.mark.integration
+async def test_beam_find_lists_tree_with_metadata(shared_beam_fs: BeamFS):
+    """Find lists the whole tree in one call, with sizes."""
+    await shared_beam_fs._pipe_file("/tmp/upt-find/sub/data.bin", b"x" * 77)
+    await shared_beam_fs._pipe_file("/tmp/upt-find/top.txt", b"top")
+    files = await shared_beam_fs._find("/tmp/upt-find")
+    assert files == ["/tmp/upt-find/sub/data.bin", "/tmp/upt-find/top.txt"]
+    detailed = await shared_beam_fs._find("/tmp/upt-find", detail=True, withdirs=True)
+    assert detailed["/tmp/upt-find/sub/data.bin"]["size"] == 77  # noqa: PLR2004
+    assert detailed["/tmp/upt-find/sub"]["type"] == "directory"
+    assert await shared_beam_fs._find("/tmp/upt-find", maxdepth=1) == ["/tmp/upt-find/top.txt"]
+    assert await shared_beam_fs._find("/tmp/upt-find/top.txt") == ["/tmp/upt-find/top.txt"]
+
+
+@pytest.mark.integration
+async def test_beam_rmdir_refuses_non_empty_directory(shared_beam_fs: BeamFS):
+    """Beam deletes directories recursively; rmdir must not delete contents."""
+    await shared_beam_fs._pipe_file("/tmp/upt-rmdir/keep.txt", b"keep")
+    with pytest.raises(OSError, match="not empty"):
+        await shared_beam_fs._rmdir("/tmp/upt-rmdir")
+    assert await shared_beam_fs._cat_file("/tmp/upt-rmdir/keep.txt") == b"keep"
+    await shared_beam_fs._rm_file("/tmp/upt-rmdir/keep.txt")
+    await shared_beam_fs._rmdir("/tmp/upt-rmdir")
+    assert not await shared_beam_fs._exists("/tmp/upt-rmdir")
+    with pytest.raises(FileNotFoundError):
+        await shared_beam_fs._rmdir("/tmp/upt-rmdir")
