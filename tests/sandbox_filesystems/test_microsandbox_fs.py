@@ -39,8 +39,14 @@ BINARY = bytes(range(256)) + b"'\"$(rm -rf /)`\n"
 
 @pytest.fixture(scope="session")
 async def msb_fs() -> AsyncIterator[MicrosandboxFS]:
+    from microsandbox import MicrosandboxError
+
     fs = MicrosandboxFS()
-    await fs.set_session()
+    try:
+        await fs.set_session()
+    except MicrosandboxError as e:
+        # e.g. CI runners with the runtime installed but no usable hypervisor
+        pytest.skip(f"microVMs cannot start here: {e}")
     yield fs
     await fs.close_session()
 
@@ -122,7 +128,9 @@ async def test_host_transfer(msb_fs: MicrosandboxFS, tmp_path: Path) -> None:
     assert target.read_bytes() == BINARY
 
 
-async def test_existing_sandbox_is_used_and_not_stopped() -> None:
+async def test_existing_sandbox_is_used_and_not_stopped(msb_fs: MicrosandboxFS) -> None:
+    # Depends on msb_fs only so it is skipped where microVMs cannot start.
+    assert msb_fs._sandbox is not None
     import uuid
 
     from microsandbox import Sandbox
