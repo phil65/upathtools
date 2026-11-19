@@ -314,3 +314,56 @@ print(f"Processed {len(data)} rows")
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__, "-m", "integration"])
+
+
+@pytest.mark.integration
+async def test_e2b_grep_runs_in_sandbox(shared_e2b_fs: E2BFS):
+    """Grep runs rg/grep inside the sandbox with case, glob and hidden handling."""
+    await shared_e2b_fs._pipe_file("/tmp/upt-grep/a.py", b"import os\nTODO: fix\n")
+    await shared_e2b_fs._pipe_file("/tmp/upt-grep/b.txt", b"todo lowercase\n")
+    await shared_e2b_fs._pipe_file("/tmp/upt-grep/.hidden/c.py", b"TODO hidden\n")
+
+    matches = await shared_e2b_fs._grep("/tmp/upt-grep", "todo")
+    assert {(m.path.rsplit("/", 1)[-1], m.line_number) for m in matches} == {
+        ("a.py", 2),
+        ("b.txt", 1),
+    }
+    matches = await shared_e2b_fs._grep(
+        "/tmp/upt-grep", "TODO", case_sensitive=True, hidden=True, globs=["*.py"]
+    )
+    assert {m.path.rsplit("/", 1)[-1] for m in matches} == {"a.py", "c.py"}
+    assert await shared_e2b_fs._grep("/tmp/upt-grep/missing", "x") == []
+
+
+@pytest.mark.integration
+async def test_e2b_find_returns_real_metadata(shared_e2b_fs: E2BFS):
+    """Find reports sizes and mtimes from the listing (previously all zero)."""
+    await shared_e2b_fs._pipe_file("/tmp/upt-find/sub/data.bin", b"x" * 123)
+    found = await shared_e2b_fs._find("/tmp/upt-find", detail=True)
+    info = found["/tmp/upt-find/sub/data.bin"]
+    assert info["size"] == 123  # noqa: PLR2004
+    assert info["mtime"] > 0
+    assert info["type"] == "file"
+
+
+@pytest.mark.integration
+async def test_e2b_mv_uses_native_rename(shared_e2b_fs: E2BFS):
+    """Moving keeps content and removes the source."""
+    await shared_e2b_fs._pipe_file("/tmp/upt-mv/src.txt", b"content")
+    await shared_e2b_fs._mv("/tmp/upt-mv/src.txt", "/tmp/upt-mv/dst.txt")
+    assert not await shared_e2b_fs._exists("/tmp/upt-mv/src.txt")
+    assert await shared_e2b_fs._cat_file("/tmp/upt-mv/dst.txt") == b"content"
+    with pytest.raises(FileNotFoundError):
+        await shared_e2b_fs._mv("/tmp/upt-mv/missing", "/tmp/upt-mv/other")
+
+
+@pytest.mark.integration
+async def test_e2b_rmdir_refuses_non_empty_directory(shared_e2b_fs: E2BFS):
+    """e2b removes recursively; rmdir must not delete contents."""
+    await shared_e2b_fs._pipe_file("/tmp/upt-rmdir/keep.txt", b"keep")
+    with pytest.raises(OSError, match="not empty"):
+        await shared_e2b_fs._rmdir("/tmp/upt-rmdir")
+    assert await shared_e2b_fs._cat_file("/tmp/upt-rmdir/keep.txt") == b"keep"
+    await shared_e2b_fs._rm_file("/tmp/upt-rmdir/keep.txt")
+    await shared_e2b_fs._rmdir("/tmp/upt-rmdir")
+    assert not await shared_e2b_fs._exists("/tmp/upt-rmdir")

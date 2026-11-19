@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import base64
+import errno
 import logging
 import os
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 
 from upathtools.async_helpers import sync_wrapper
-from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo, GrepMatch
+from upathtools.filesystems.sandbox_filesystems._shell_search import (
+    build_grep_script,
+    parse_grep_output,
+)
 
 
 if TYPE_CHECKING:
+    from e2b.sandbox.filesystem.filesystem import EntryInfo
+
     from upathtools.filesystems.base import CreationMode
 
 
@@ -28,6 +35,33 @@ class E2BInfo(FileInfo, total=False):
     owner: Required[str]
     group: Required[str]
     symlink_target: Required[str | None]
+
+
+def _is_not_found(exc: Exception) -> bool:
+    """Whether an e2b error means the path does not exist."""
+    from e2b.exceptions import NotFoundException
+
+    if isinstance(exc, NotFoundException):
+        return True
+    message = str(exc).lower()
+    return "not found" in message or "no such file" in message
+
+
+def _entry_info(path: str, entry: EntryInfo) -> E2BInfo:
+    """Convert e2b entry metadata to an info dict."""
+    from e2b.sandbox.filesystem.filesystem import FileType
+
+    return E2BInfo(
+        name=path,
+        size=entry.size,
+        type="directory" if entry.type == FileType.DIR else "file",
+        mtime=entry.modified_time.timestamp() if entry.modified_time else 0.0,
+        mode=entry.mode,
+        permissions=entry.permissions,
+        owner=entry.owner,
+        group=entry.group,
+        symlink_target=entry.symlink_target,
+    )
 
 
 class E2BPath(BaseUPath[E2BInfo]):
@@ -124,7 +158,7 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
         try:
             items = await sandbox.files.list(path)
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             msg = f"Failed to list directory {path}: {exc}"
             raise OSError(msg) from exc
@@ -177,18 +211,14 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
         sandbox = await self._get_sandbox()
 
         try:
-            content = await sandbox.files.read(path)
+            content = bytes(await sandbox.files.read(path, format="bytes"))
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
             msg = f"Failed to read file {path}: {exc}"
             raise OSError(msg) from exc
-
-        # Handle byte ranges if specified
-        if isinstance(content, str):
-            content = content.encode("utf-8")
 
         if start is not None or end is not None:
             start = start or 0
@@ -269,10 +299,13 @@ with open({path!r}, 'wb') as f:
         await self.set_session()
         sandbox = await self._get_sandbox()
 
+        # e2b's remove succeeds silently for missing paths; fsspec expects an error.
+        if not await sandbox.files.exists(path):
+            raise FileNotFoundError(path)
         try:
             await sandbox.files.remove(path)
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             if "is a directory" in str(exc).lower():
                 raise IsADirectoryError(path) from exc
@@ -284,10 +317,16 @@ with open({path!r}, 'wb') as f:
         await self.set_session()
         sandbox = await self._get_sandbox()
 
+        # e2b's remove succeeds silently for missing paths and deletes directories
+        # recursively; fsspec's rmdir must fail for missing and non-empty directories.
+        if not await sandbox.files.exists(path):
+            raise FileNotFoundError(path)
+        if await sandbox.files.list(path, depth=1):
+            raise OSError(errno.ENOTEMPTY, "Directory not empty", path)
         try:
             await sandbox.files.remove(path)
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             if "not a directory" in str(exc).lower():
                 raise NotADirectoryError(path) from exc
@@ -341,7 +380,7 @@ with open({path!r}, 'wb') as f:
         try:
             info = await sandbox.files.get_info(path)
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             raise OSError(f"Failed to get file size for {path}: {exc}") from exc
         else:
@@ -356,31 +395,18 @@ with open({path!r}, 'wb') as f:
             info = await sandbox.files.get_info(path)
             return info.modified_time.timestamp() if info.modified_time else 0.0
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             raise OSError(f"Failed to get modification time for {path}: {exc}") from exc
 
     async def _info(self, path: str, **kwargs: Any) -> E2BInfo:
         """Get info about a file or directory."""
-        from e2b.sandbox.filesystem.filesystem import FileType
-
         await self.set_session()
         sandbox = await self._get_sandbox()
         try:
-            info = await sandbox.files.get_info(path)
-            return E2BInfo(
-                name=path,
-                size=info.size,
-                type="directory" if info.type == FileType.DIR else "file",
-                mtime=info.modified_time.timestamp() if info.modified_time else 0.0,
-                mode=info.mode,
-                permissions=info.permissions,
-                owner=info.owner,
-                group=info.group,
-                symlink_target=info.symlink_target,
-            )
+            return _entry_info(path, await sandbox.files.get_info(path))
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             msg = f"Failed to get info for {path}: {exc}"
             raise OSError(msg) from exc
@@ -429,30 +455,70 @@ with open({path!r}, 'wb') as f:
         try:
             items = await sandbox.files.list(path, depth=depth)
         except Exception as exc:
-            if "not found" in str(exc).lower() or "no such file" in str(exc).lower():
+            if _is_not_found(exc):
                 raise FileNotFoundError(path) from exc
             msg = f"Failed to find files in {path}: {exc}"
             raise OSError(msg) from exc
         else:
             filtered = items if withdirs else [item for item in items if item.type == FileType.FILE]
             if detail:
-                return {
-                    item.path: E2BInfo(
-                        name=item.path,
-                        type="directory" if item.type == FileType.DIR else "file",
-                        size=0,  # E2B list doesn't return size
-                        mtime=0.0,
-                        mode=0,
-                        permissions="",
-                        owner="",
-                        group="",
-                        symlink_target=None,
-                    )
-                    for item in filtered
-                }
+                return {item.path: _entry_info(item.path, item) for item in filtered}
             return [item.path for item in filtered]
 
-    # TODO: Add _glob and _grep using sandbox.commands.run() with Linux CLI tools (find, grep)
+    async def _run_shell(self, script: str) -> str:
+        """Run a shell script in the sandbox and return its stdout."""
+        from e2b.sandbox.commands.command_handle import CommandExitException
+
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+        try:
+            result = await sandbox.commands.run(script)
+        except CommandExitException as exc:
+            return exc.stdout
+        return result.stdout
+
+    async def _grep(
+        self,
+        path: str,
+        pattern: str,
+        *,
+        max_count: int | None = None,
+        case_sensitive: bool | None = None,
+        hidden: bool = False,
+        no_ignore: bool = False,
+        globs: list[str] | None = None,
+        context_before: int | None = None,
+        context_after: int | None = None,
+        multiline: bool = False,
+    ) -> list[GrepMatch]:
+        """Search files inside the sandbox with ripgrep (or grep as fallback).
+
+        Runs next to the data instead of downloading every file.
+        """
+        script = build_grep_script(
+            path,
+            pattern,
+            max_count=max_count,
+            case_sensitive=case_sensitive,
+            hidden=hidden,
+            no_ignore=no_ignore,
+            globs=globs,
+            multiline=multiline,
+        )
+        return parse_grep_output(await self._run_shell(script), max_count=max_count)
+
+    async def _mv(self, path1: str, path2: str, **kwargs: Any) -> None:
+        """Move or rename a file or directory (native rename)."""
+        await self.set_session()
+        sandbox = await self._get_sandbox()
+        try:
+            await sandbox.files.rename(path1, path2)
+        except Exception as exc:
+            if _is_not_found(exc):
+                raise FileNotFoundError(path1) from exc
+            msg = f"Failed to move {path1} to {path2}: {exc}"
+            raise OSError(msg) from exc
+
     # This would be faster than fsspec's default implementations.
 
     # Sync wrappers for async methods
@@ -469,6 +535,7 @@ with open({path!r}, 'wb') as f:
     modified = sync_wrapper(_modified)
     info = sync_wrapper(_info)
     find = sync_wrapper(_find)  # pyright: ignore[reportAssignmentType]
+    mv = sync_wrapper(_mv)
 
 
 if __name__ == "__main__":
