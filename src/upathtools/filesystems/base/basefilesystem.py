@@ -43,6 +43,20 @@ _DEFAULT_PARALLEL_BATCH_SIZE = 8
 logger = logging.getLogger(__name__)
 
 
+def _ensure_upath_registered(protocol: str | tuple[str, ...], upath_cls: type[UPath]) -> None:
+    """Make sure universal-pathlib maps `protocol` to a path class.
+
+    UPath subclasses only accept URLs whose protocol is registered for them.
+    Entry points are loaded lazily (and some are named differently than the
+    filesystem protocol), so constructing e.g. `SqlitePath("sqlite://...")`
+    in a fresh process fails. Protocols that already have an implementation
+    are left untouched.
+    """
+    name = protocol if isinstance(protocol, str) else protocol[0]
+    if registry.get_upath_class(name) is None:
+        registry.register_implementation(name, upath_cls)
+
+
 @dataclass
 class GrepMatch:
     """A single grep match result."""
@@ -667,6 +681,7 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str,
         prefix = f"{self.protocol}://"
         raw_path = path if path is not None else self.root_marker
         full_path = raw_path if raw_path.startswith(prefix) else prefix + raw_path
+        _ensure_upath_registered(self.protocol, self.upath_cls)
         path_obj = self.upath_cls(full_path)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -994,6 +1009,7 @@ class BaseFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str, Any]
         prefix = f"{self.protocol}://"
         raw_path = path if path is not None else self.root_marker
         full_path = raw_path if raw_path.startswith(prefix) else prefix + raw_path
+        _ensure_upath_registered(self.protocol, self.upath_cls)
         path_obj = self.upath_cls(full_path)
         path_obj._fs_cached = self  # pyright: ignore[reportAttributeAccessIssue]
 

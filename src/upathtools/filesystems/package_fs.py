@@ -116,7 +116,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
                             PackageInfo(
                                 name=item.name,
                                 type="package" if item.ispkg else "module",
-                                size=0 if item.ispkg else 1,
+                                size=0 if item.ispkg else self._get_size(sub_module),
                                 mtime=self._get_mtime(sub_module),
                                 doc=sub_module.__doc__,
                             )
@@ -126,6 +126,15 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
             raise FileNotFoundError(msg) from exc
         else:
             return contents
+
+    def _get_size(self, module: ModuleType) -> int:
+        """Get the size of a module's source file (0 if unknown)."""
+        try:
+            if module.__file__:
+                return os.path.getsize(module.__file__)  # noqa: PTH202
+        except (OSError, AttributeError):
+            pass
+        return 0
 
     def _get_mtime(self, module: ModuleType) -> float | None:
         """Get modification time of a module."""
@@ -154,7 +163,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
             return PackageInfo(
                 name=module_name.split(".")[-1],
                 type=type_,
-                size=0 if type_ == "package" else 1,
+                size=0 if type_ == "package" else self._get_size(module),
                 mtime=self._get_mtime(module),
                 doc=module.__doc__,
             )

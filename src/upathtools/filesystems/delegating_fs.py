@@ -15,6 +15,7 @@ both JSON Schema and OpenAPI), content probing determines the best match.
 
 from __future__ import annotations
 
+import inspect
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
 
@@ -248,8 +249,16 @@ class DelegatingFileSystem(AsyncFileSystem):
         ext = _get_extension(file_path)
         return find_fs_for_extension(ext) is not None
 
-    def _call_fs_method(self, file_fs: FileFS, method: str, *args: Any, **kwargs: Any) -> Any:
-        """Call a method on a file filesystem, handling sync/async differences."""
+    async def _call_fs_method(self, file_fs: FileFS, method: str, *args: Any, **kwargs: Any) -> Any:
+        """Call a method on a file filesystem, handling sync/async differences.
+
+        Async filesystems are called via their coroutine variant (`_<method>`):
+        their sync wrappers can't be used from within the running event loop.
+        """
+        if isinstance(file_fs, AsyncFileSystem):
+            async_method = getattr(file_fs, f"_{method}", None)
+            if async_method is not None and inspect.iscoroutinefunction(async_method):
+                return await async_method(*args, **kwargs)
         return getattr(file_fs, method)(*args, **kwargs)
 
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
@@ -261,7 +270,7 @@ class DelegatingFileSystem(AsyncFileSystem):
                 msg = f"No filesystem available for: {file_path}"
                 raise FileNotFoundError(msg)
 
-            return self._call_fs_method(file_fs, "info", internal_path, **kwargs)
+            return await self._call_fs_method(file_fs, "info", internal_path, **kwargs)
 
         # Check if this is a file with supported extension
         info = await self.fs._info(file_path, **kwargs)
@@ -297,7 +306,9 @@ class DelegatingFileSystem(AsyncFileSystem):
             if file_fs is None:
                 raise FileNotFoundError(f"No filesystem available for: {file_path}")
 
-            result = self._call_fs_method(file_fs, "ls", internal_path, detail=detail, **kwargs)
+            result = await self._call_fs_method(
+                file_fs, "ls", internal_path, detail=detail, **kwargs
+            )
 
             # Prefix paths with file_path::
             if detail:
@@ -315,7 +326,7 @@ class DelegatingFileSystem(AsyncFileSystem):
                 ext = _get_extension(file_path)
                 if find_fs_for_extension(ext) and (file_fs := await self._get_file_fs(file_path)):
                     # List root of file filesystem
-                    result = self._call_fs_method(file_fs, "ls", "/", detail=detail, **kwargs)
+                    result = await self._call_fs_method(file_fs, "ls", "/", detail=detail, **kwargs)
 
                     if detail:
                         for item in result:
@@ -355,9 +366,9 @@ class DelegatingFileSystem(AsyncFileSystem):
 
             # Try cat_file first (standard fsspec), fall back to cat
             if hasattr(file_fs, "cat_file"):
-                content = self._call_fs_method(file_fs, "cat_file", internal_path, **kwargs)
+                content = await self._call_fs_method(file_fs, "cat_file", internal_path, **kwargs)
             else:
-                content = self._call_fs_method(file_fs, "cat", internal_path)
+                content = await self._call_fs_method(file_fs, "cat", internal_path)
             if isinstance(content, str):
                 content = content.encode()
 
@@ -376,7 +387,7 @@ class DelegatingFileSystem(AsyncFileSystem):
                 return False
 
             try:
-                return self._call_fs_method(file_fs, "exists", internal_path)
+                return await self._call_fs_method(file_fs, "exists", internal_path)
             except (FileNotFoundError, OSError):
                 return False
 
@@ -390,7 +401,7 @@ class DelegatingFileSystem(AsyncFileSystem):
             if file_fs is None:
                 return False
 
-            return self._call_fs_method(file_fs, "isdir", internal_path)
+            return await self._call_fs_method(file_fs, "isdir", internal_path)
 
         # Check if it's a file with supported extension (treated as directory)
         try:
@@ -412,7 +423,7 @@ class DelegatingFileSystem(AsyncFileSystem):
             if file_fs is None:
                 return False
 
-            return self._call_fs_method(file_fs, "isfile", internal_path)
+            return await self._call_fs_method(file_fs, "isfile", internal_path)
 
         # Files with supported extensions are treated as directories
         try:
