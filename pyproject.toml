@@ -189,6 +189,7 @@ dev = [
 ]
 benchmark = ["pyinstrument"]
 docs = [
+  "mkdocstrings[python]",
   "mknodes>=2.2.0",
   "pymdown-extensions",
   # Only add below (Copier)
