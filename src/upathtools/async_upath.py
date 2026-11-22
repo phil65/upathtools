@@ -99,14 +99,24 @@ class AsyncUPath(ProxyUPath):
     async def atouch(self, exist_ok: bool = True) -> None:
         """Asynchronously create empty file or update timestamp."""
         fs = await self.afs()
-        if hasattr(fs, "_touch"):
-            await fs._touch(self.path, exist_ok=exist_ok)  # type: ignore
-        else:
+        if not hasattr(fs, "_touch"):
             await asyncio.to_thread(self.touch, exist_ok=exist_ok)
+            return
+        exists = await fs._exists(self.path)
+        if exists and not exist_ok:
+            raise FileExistsError(str(self))
+        try:
+            # Like UPath.touch: never truncate an existing file.
+            await fs._touch(self.path, truncate=not exists)  # type: ignore
+        except (NotImplementedError, ValueError):
+            if not exists:
+                raise
 
     async def aunlink(self, missing_ok: bool = False) -> None:
         """Asynchronously remove file."""
         fs = await self.afs()
+        if missing_ok and not await fs._exists(self.path):
+            return
         await fs._rm_file(self.path)
 
     async def armdir(self) -> None:
