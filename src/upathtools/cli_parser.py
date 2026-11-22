@@ -32,6 +32,17 @@ SHORT_TO_LONG = {
     "d": "max_depth",
     "f": "force",
     "p": "parents",
+    "R": "recursive",
+}
+
+# find-style options written with a single dash (e.g. `find . -name "*.py"`)
+FIND_OPTIONS = {
+    "name": "name",
+    "iname": "iname",
+    "type": "type_",
+    "maxdepth": "maxdepth",
+    "mindepth": "mindepth",
+    "regex": "regex",
 }
 
 
@@ -80,7 +91,7 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
         raise ValueError(msg)
 
     cmd = parts[0]
-    args, kwargs = _parse_args(parts[1:])
+    args, kwargs = _parse_args(parts[1:], find_style=cmd == "find")
 
     match cmd:
         case "grep":
@@ -88,18 +99,12 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "grep requires pattern argument"
                 raise ValueError(msg)
 
+            pattern = args[0]
             path = args[1] if len(args) > 1 else "."
-            grep_results = [result async for result in agrep(cmd, path, base, **kwargs)]
-            return CLIResult(grep_results, f"grep {cmd} {path}")
+            grep_results = [result async for result in agrep(pattern, path, base, **kwargs)]
+            return CLIResult(grep_results, f"grep {pattern} {path}")
         case "find":
             path = args[0] if args else "."
-
-            # Map common find args
-            if "name" in args:
-                idx = args.index("name")
-                if idx + 1 < len(args):
-                    kwargs["name"] = args[idx + 1]
-
             find_results = [i async for i in afind(path, base, **kwargs)]
             return CLIResult(find_results, f"find {path}")
         case "head":
@@ -107,15 +112,15 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "head requires file argument"
                 raise ValueError(msg)
 
-            result = await ahead(cmd, base, **kwargs)
-            return CLIResult(result, f"head {cmd}")
+            result = await ahead(args[0], base, **kwargs)
+            return CLIResult(result, f"head {args[0]}")
         case "tail":
             if not args:
                 msg = "tail requires file argument"
                 raise ValueError(msg)
 
-            result = await atail(cmd, base, **kwargs)
-            return CLIResult(result, f"tail {cmd}")
+            result = await atail(args[0], base, **kwargs)
+            return CLIResult(result, f"tail {args[0]}")
 
         case "cat":
             if not args:
@@ -130,15 +135,15 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "wc requires file argument"
                 raise ValueError(msg)
 
-            result = await awc(cmd, base, **kwargs)
-            return CLIResult(result, f"wc {cmd}")
+            result = await awc(args[0], base, **kwargs)
+            return CLIResult(result, f"wc {args[0]}")
 
         case "ls":
-            path = cmd if args else "."
+            path = args[0] if args else "."
             ls_results = await als(path, base, **kwargs)
             return CLIResult(ls_results, f"ls {path}")
         case "du":
-            path = cmd if args else "."
+            path = args[0] if args else "."
             du_results = await adu(path, base, **kwargs)
             return CLIResult(du_results, f"du {path}")
         case "diff":
@@ -146,8 +151,8 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
                 msg = "diff requires two file arguments"
                 raise ValueError(msg)
 
-            result = await adiff(cmd, args[1], base, **kwargs)
-            return CLIResult(result, f"diff {cmd} {args[1]}")
+            result = await adiff(args[0], args[1], base, **kwargs)
+            return CLIResult(result, f"diff {args[0]} {args[1]}")
         case _:
             msg = f"Unknown command: {cmd}"
             raise ValueError(msg)
@@ -158,11 +163,12 @@ def execute_cli(command: str, base: UPath) -> CLIResult:
     return asyncio.run(execute_cli_async(command, base))
 
 
-def _parse_args(args: list[str]) -> tuple[list[str], dict[str, Any]]:
+def _parse_args(args: list[str], find_style: bool = False) -> tuple[list[str], dict[str, Any]]:
     """Parse positional args and flags from command arguments.
 
     Args:
         args: List of argument strings
+        find_style: Accept find's single-dash long options (`-name`, `-type`, ...)
 
     Returns:
         Tuple of (positional_args, kwargs_dict)
@@ -174,7 +180,11 @@ def _parse_args(args: list[str]) -> tuple[list[str], dict[str, Any]]:
     while i < len(args):
         arg = args[i]
 
-        if arg.startswith("--"):
+        if find_style and arg.startswith("-") and arg[1:] in FIND_OPTIONS:
+            if i + 1 < len(args):
+                kwargs[FIND_OPTIONS[arg[1:]]] = _parse_value(args[i + 1])
+                i += 1
+        elif arg.startswith("--"):
             # Long option
             key = arg[2:].replace("-", "_")
             if "=" in key:
