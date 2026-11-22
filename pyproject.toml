@@ -3,7 +3,7 @@
 [project]
 name = "upathtools"
 version = "1.23.0"
-description = "UPath utilities"
+description = "Async helpers, typed base classes and many filesystem implementations for fsspec and universal-pathlib"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
@@ -11,16 +11,30 @@ license-files = ["LICENSE"]
 authors = [
   { name = "Philipp Temminghoff", email = "philipptemminghoff@googlemail.com" },
 ]
-keywords = []
+keywords = [
+  "async",
+  "filesystem",
+  "fsspec",
+  "mcp",
+  "pathlib",
+  "sandbox",
+  "sqlite",
+  "universal-pathlib",
+  "upath",
+  "vfs",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
-  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: System :: Filesystems",
   "Topic :: Utilities",
   "Typing :: Typed",
 ]
@@ -37,6 +51,7 @@ dependencies = [
 "Code coverage" = "https://app.codecov.io/gh/phil65/upathtools"
 Discussions = "https://github.com/phil65/upathtools/discussions"
 Documentation = "https://phil65.github.io/upathtools/"
+Homepage = "https://phil65.github.io/upathtools/"
 Issues = "https://github.com/phil65/upathtools/issues"
 Source = "https://github.com/phil65/upathtools"
 
