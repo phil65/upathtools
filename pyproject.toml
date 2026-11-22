@@ -18,10 +18,8 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
-  "Topic :: Documentation",
   "Topic :: Software Development",
   "Topic :: Utilities",
   "Typing :: Typed",
@@ -122,9 +120,7 @@ adlfs = ["adlfs"]  # ADLS integration
 #   "agentfs-sdk>=0.4.0rc17",
 # ]
 appwrite = ["appwrite>=16"]  # Appwrite integration (typed models since 16)
-beam = [
-  "beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"
-]  # Beam integration
+beam = ["beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"]  # Beam integration
 cloudflare = ["httpx"]  # Cloudflare Sandbox integration
 codex = ["codexed"]  # Codex CLI integration
 daytona = ["daytona; python_version < '3.14'"]  # Daytona integration
@@ -137,9 +133,7 @@ huggingface_hub = ["huggingface_hub"]  # HuggingFace integration
 jq = ["jq>=1.8.0"]  # jq JSON processor
 jsonschema = ["PyYAML"]  # JSON Schema integration
 mcp = ["fastmcp", "mcp"]  # Virtual MCP Tools & MCP Resources filesystem
-microsandbox = [
-  "microsandbox; sys_platform != 'win32'"
-]  # Microsandbox integration
+microsandbox = ["microsandbox; sys_platform != 'win32'"]  # Microsandbox integration
 modal = ["modal"]  # Modal integration
 monty = [
   "pydantic-monty>=0.0.5",
@@ -170,6 +164,7 @@ webdav4 = ["webdav4"]  # WebDAV integration
 
 [dependency-groups]
 dev = [
+  "deptry",
   "devtools",
   "pyreadline3",
   "pytest",
@@ -402,13 +397,7 @@ preview = true
 # Platform/version-gated extras (beam-client provides beam and beta9; it and
 # microsandbox are not installed on Windows; daytona: < 3.14) and jq (no wheels
 # everywhere). Still type-checked wherever installed.
-allowed-unresolved-imports = [
-  "beam.**",
-  "beta9.**",
-  "daytona.**",
-  "jq.**",
-  "microsandbox.**"
-]
+allowed-unresolved-imports = ["beam.**", "beta9.**", "daytona.**", "jq.**", "microsandbox.**"]
 
 [tool.ty.rules]
 # Narrowing an overridden class attribute (e.g. pydantic discriminators,

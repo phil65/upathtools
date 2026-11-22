@@ -31,15 +31,16 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
           cache-suffix: py${{ matrix.python_version }}
+          python-version: ${{ matrix.python_version }}
 
       - name: Install dependencies (uv sync)
         run: uv sync --all-extras --no-group docs --no-group lint
 
       - name: Check for code issues (ruff check)
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
 
       - name: Check code format (ruff format)
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
         with:
           args: "format --check"
 
