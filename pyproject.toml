@@ -123,7 +123,7 @@ appwrite = ["appwrite>=16"]  # Appwrite integration (typed models since 16)
 beam = ["beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"]  # Beam integration
 cloudflare = ["httpx"]  # Cloudflare Sandbox integration
 codex = ["codexed"]  # Codex CLI integration
-daytona = ["daytona; python_version < '3.14'"]  # Daytona integration
+daytona = ["daytona<2; python_version < '3.14'"]  # Daytona integration
 e2b = ["e2b-code-interpreter"]  # E2B integration
 gcsfs = ["gcsfs"]  # GCS integration
 gitlab = ["python-gitlab>=7.0.0"]  # GitLab integration
