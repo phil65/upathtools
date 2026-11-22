@@ -30,7 +30,7 @@ dependencies = [
   "fsspec>=2025.2.0",
   "pydantic>=2.10",  # upathtools_config, pydantic_type
   "ripgrep-rs>=0.3.14",
-  "universal-pathlib>=0.2.6",
+  "universal-pathlib>=0.3.0",
 ]
 
 [project.urls]
