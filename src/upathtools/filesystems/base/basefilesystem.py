@@ -53,6 +53,8 @@ def _ensure_upath_registered(protocol: str | tuple[str, ...], upath_cls: type[UP
     are left untouched.
     """
     name = protocol if isinstance(protocol, str) else protocol[0]
+    if name in ("", "abstract"):  # no real protocol set on the filesystem class
+        return
     if registry.get_upath_class(name) is None:
         registry.register_implementation(name, upath_cls)
 
