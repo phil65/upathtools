@@ -222,7 +222,7 @@ def upath_to_fs(
 ) -> fsspec.AbstractFileSystem:
     """Convert a UPath to its underlying filesystem, using the path as root.
 
-    Uses DirFileSystem to wrap the filesystem with the path's directory as the root,
+    Uses DirFileSystem to wrap the filesystem with the path as the root,
     making the filesystem appear to be rooted at that specific directory.
 
     Args:
@@ -238,12 +238,12 @@ def upath_to_fs(
         ```python
         from upath import UPath
 
-        # Get filesystem rooted at the path's directory
-        path = UPath("s3://bucket/folder/file.txt")
-        fs = upath_to_fs(path)  # Rooted at "bucket/folder/"
+        # Get an (async) filesystem rooted at the given path
+        path = UPath("s3://bucket/folder")
+        async_fs = upath_to_fs(path)  # Rooted at "bucket/folder"
 
-        # Get async filesystem
-        async_fs = upath_to_fs(path, asynchronous=True)
+        # Get a sync filesystem
+        fs = upath_to_fs(path, asynchronous=False)
         ```
     """
     from fsspec.asyn import AsyncFileSystem
@@ -254,7 +254,9 @@ def upath_to_fs(
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     if parsed_path not in ("", "/", "."):
-        fs = DirFileSystem(path=parsed_path, fs=fs, asynchronous=asynchronous)
+        # DirFileSystem must match the sync/async mode of an async-capable inner fs
+        dir_async = fs.asynchronous if isinstance(fs, AsyncFileSystem) else asynchronous
+        fs = DirFileSystem(path=parsed_path, fs=fs, asynchronous=dir_async)
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     return fs

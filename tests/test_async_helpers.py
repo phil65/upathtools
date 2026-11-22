@@ -148,3 +148,11 @@ if __name__ == "__main__":
     import pytest
 
     pytest.main(["-v", __file__])
+
+
+def test_upath_to_fs_sync_dirfs(tmp_path):
+    from upathtools.helpers import upath_to_fs
+
+    (tmp_path / "f.txt").write_bytes(b"x")
+    fs = upath_to_fs(tmp_path, asynchronous=False)
+    assert fs.ls("/", detail=False) == ["f.txt"]
