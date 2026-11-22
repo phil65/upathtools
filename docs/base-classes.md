@@ -10,6 +10,7 @@ The base classes form a foundation for creating custom filesystems:
 - **`BaseFileSystem[TPath, TInfoDict]`**: Sync filesystem with typed paths and info dicts
 - **`BaseUPath[TInfoDict]`**: UPath subclass with async methods and typed info
 - **`WrapperFileSystem`**: Base for filesystems that wrap another filesystem
+- **`BaseAsyncFileFileSystem[TPath, TInfoDict]`**: Base for filesystems exposing the contents of a single file (used by the delegating filesystem)
 
 ## BaseAsyncFileSystem
 
@@ -230,7 +231,7 @@ class MyPath(BaseUPath[MyInfoDict]):
 BaseUPath provides all async I/O methods:
 
 ```python
-path = MyPath("/path/to/file")
+path = fs.get_upath("/path/to/file")  # MyPath
 
 # Read operations
 content = await path.aread_bytes()
@@ -263,7 +264,7 @@ async for match in path.aglob("*.py"):
 BaseUPath fixes a upath bug with the `name` property:
 
 ```python
-path = MyPath("relative/path/file.txt")
+path = fs.get_upath("relative/path/file.txt")
 # Standard UPath incorrectly treats first char as root
 # BaseUPath returns correct name
 assert path.name == "file.txt"
@@ -355,6 +356,21 @@ fs1 = WrapperFileSystem(info_callback=sync_enrich)
 fs2 = WrapperFileSystem(info_callback=async_enrich)
 ```
 
+### Mounts
+
+Mount static content or other filesystems into the wrapped tree:
+
+```python
+from fsspec.implementations.memory import MemoryFileSystem
+
+fs = WrapperFileSystem(target_protocol="file")
+fs.mount("/config.json", content=b'{"key": "value"}')  # virtual file
+fs.mount("/scratch", fs=MemoryFileSystem())  # whole filesystem
+fs.mount("/project", fs=other_fs, root="/some/path")  # sub directory of a filesystem
+fs.unmount("/scratch")
+print(fs.mounts)
+```
+
 ### Delegation
 
 Most methods are delegated to wrapped filesystem:
@@ -366,6 +382,34 @@ fs = WrapperFileSystem(target_protocol="s3")
 await fs._cat_file("s3://bucket/key")
 await fs._makedirs("s3://bucket/dir")
 ```
+
+## BaseAsyncFileFileSystem
+
+Base class for filesystems that present the *contents of one file* as a tree
+(Markdown, SQLite, tree-sitter, OpenAPI, JSON Schema). Subclasses declare which files they
+handle and can be created from a path, a parent filesystem or raw bytes:
+
+```python
+from upathtools.filesystems.base import BaseAsyncFileFileSystem, ProbeResult
+
+class IniFileSystem(BaseAsyncFileFileSystem[IniPath, IniInfo]):
+    protocol = "ini"
+    upath_cls = IniPath
+    supported_extensions = frozenset({"ini", "cfg"})
+    priority = 50  # lower = preferred when several filesystems match
+
+    @classmethod
+    def probe_content(cls, content: bytes, extension: str = "") -> ProbeResult:
+        return ProbeResult.SUPPORTED if content.lstrip().startswith(b"[") else ProbeResult.MAYBE
+
+# Creating instances
+fs = IniFileSystem.from_file("setup.cfg")
+fs = IniFileSystem.from_content(b"[section]\nkey = value\n")
+fs = await IniFileSystem.from_filesystem_async("setup.cfg", parent_async_fs)
+```
+
+Register it with `upathtools.filesystems.delegating_fs.register_file_filesystem` to make it
+available via `DelegatingFileSystem` (`"setup.cfg::section"`).
 
 ## Complete Example
 

@@ -50,34 +50,30 @@ async_p = to_upath("/path", as_async=True)  # AsyncUPath
 
 ### upath_to_fs()
 
-Extract filesystem from a UPath and optionally root it at the path's directory:
+Get the filesystem of a path, rooted at that path (via `DirFileSystem`).
+By default an async filesystem is returned:
 
 ```python
 from upathtools.helpers import upath_to_fs
 from upath import UPath
 
-# Get filesystem rooted at the path's directory
-path = UPath("s3://bucket/folder/subfolder/file.txt")
-fs = upath_to_fs(path)
-# fs is rooted at "bucket/folder/subfolder/"
+path = UPath("s3://bucket/folder/subfolder")
 
-# List relative to that directory
-files = fs.ls("/")  # Lists contents of bucket/folder/subfolder/
-
-# Get async filesystem
-async_fs = upath_to_fs(path, asynchronous=True)
+# Async filesystem (default), rooted at "bucket/folder/subfolder"
+async_fs = upath_to_fs(path)
 files = await async_fs._ls("/")
+
+# Sync filesystem
+fs = upath_to_fs(path, asynchronous=False)
+files = fs.ls("/")  # Lists contents of bucket/folder/subfolder/
 ```
 
 **Use Cases:**
 
 ```python
-# Extract filesystem for operations on parent directory
-file_path = UPath("s3://bucket/data/2024/file.csv")
-fs = upath_to_fs(file_path)
-
-# Work relative to the file's directory
-sibling_files = fs.ls("/")  # Files in data/2024/
+# Work relative to a directory
+fs = upath_to_fs(UPath("s3://bucket/data/2024"), asynchronous=False)
+files = fs.ls("/")  # Files in data/2024/
 
 # Upload more files to same directory
 fs.pipe("new_file.csv", b"data")
@@ -122,8 +118,8 @@ write_file("Hello, world!", "/tmp/output.txt")
 # Write bytes
 write_file(b"binary data", "/tmp/output.bin")
 
-# Custom encoding
-write_file("Ünïcödé", "/tmp/unicode.txt", encoding="utf-8")
+# Text is always written as UTF-8
+write_file("Ünïcödé", "/tmp/unicode.txt")
 
 # Error handling
 write_file(
@@ -256,26 +252,28 @@ def process_path(path: AnyPath) -> None:
 
 ## Pydantic Integration
 
-### UPathType
+### UPath field types
 
-Use UPath in Pydantic models:
+Use UPath in Pydantic models (`upathtools.pydantic_type`):
+
+- `UPath`: converts strings to `upath.UPath`, serializes to `str` in JSON mode
+- `UPathExists`, `UPathFile`, `UPathDir`: additionally validate existence / type
 
 ```python
-from upathtools.pydantic_type import UPathType
+import upath
 from pydantic import BaseModel
 
+from upathtools.pydantic_type import UPath, UPathDir
+
+
 class Config(BaseModel):
-    input_file: UPathType
-    output_dir: UPathType
+    input_file: UPath
+    output_dir: UPathDir  # must be an existing directory
 
-# Validate and convert to UPath
-config = Config(
-    input_file="s3://bucket/input.txt",
-    output_dir="/tmp/output/"
-)
 
-# Access as UPath
-assert isinstance(config.input_file, UPath)
+config = Config(input_file="s3://bucket/input.txt", output_dir="/tmp")
+
+assert isinstance(config.input_file, upath.UPath)
 ```
 
 ## Directory Trees
@@ -314,6 +312,8 @@ print(tree)
 **Options:**
 
 ```python
+import re
+
 tree = get_directory_tree(
     path,
     show_hidden=False,           # Hide hidden files
@@ -322,10 +322,10 @@ tree = get_directory_tree(
     show_permissions=False,      # Show permissions
     show_icons=True,             # Show icons
     max_depth=None,              # Unlimited depth
-    include_pattern=r"\.py$",    # Include only .py files
-    exclude_pattern=r"__pycache__",  # Exclude __pycache__
+    include_pattern=None,        # Compiled regex: only include matching entries
+    exclude_pattern=re.compile(r"__pycache__"),  # Compiled regex: exclude matches
     allowed_extensions={".py", ".md"},  # Only these extensions
-    hide_empty=True,             # Hide empty directories
+    hide_empty=False,            # Hide empty directories
     sort_criteria="name",        # Sort by name, size, or date
     reverse_sort=False,          # Reverse sort order
     date_format="%Y-%m-%d",      # Date format string

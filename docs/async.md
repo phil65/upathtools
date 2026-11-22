@@ -19,10 +19,13 @@ async def main():
     # From a local path
     local = AsyncUPath("/tmp/file.txt")
     
-    # From an existing UPath
-    from upath import UPath
-    regular_path = UPath("s3://bucket/key")
-    async_path = AsyncUPath._from_upath(regular_path)
+    # From anything path-like (str, Path, UPath)
+    from upathtools import to_upath
+    async_path = to_upath("s3://bucket/key", as_async=True)
+
+    # From a filesystem instance
+    from upathtools.filesystems import PackageFileSystem
+    pkg_path = PackageFileSystem("upathtools").get_upath("helpers", as_async=True)
 
 asyncio.run(main())
 ```
@@ -130,9 +133,9 @@ async def file_operations():
     # Move file
     moved = await source.amove(target)
     
-    # Open file
-    async with await source.aopen("r") as f:
-        content = await f.read()
+    # Open file: returns an async file object (AsyncBufferedFile) for
+    # upathtools filesystems, otherwise a regular (sync) file object
+    f = await source.aopen("rb")
 ```
 
 ## Batch Operations
@@ -264,6 +267,7 @@ async def main():
 Custom filesystems inheriting from `BaseAsyncFileSystem` have native async support:
 
 ```python
+from upathtools import AsyncUPath
 from upathtools.filesystems import HTTPFileSystem
 
 async def main():
@@ -274,29 +278,25 @@ async def main():
     files = await fs._ls("https://example.com/", detail=True)
     exists = await fs._exists("https://example.com/file.txt")
     
-    # Get async UPath
-    path = fs.get_upath("https://example.com/", as_async=True)
+    # Async path API
+    path = AsyncUPath("https://example.com/")
     async for item in path.aiterdir():
         print(item)
 ```
 
 ## BaseUPath with Async Methods
 
-Custom UPath classes can inherit from `BaseUPath` to get async methods:
+Path classes of upathtools filesystems inherit from `BaseUPath`, which provides the same
+async methods directly:
 
 ```python
-from upathtools.filesystems.base import BaseUPath
-
-class MyPath(BaseUPath):
-    """Custom path with async support."""
-    pass
+from upathtools.filesystems import SqliteFileSystem
 
 async def main():
-    path = MyPath("/some/path")
-    
-    # All async methods available
+    path = SqliteFileSystem("data.db").get_upath("users")  # SqlitePath (a BaseUPath)
+
     content = await path.aread_text()
-    async for item in path.aiterdir():
+    async for item in path.parent.aiterdir():
         print(item)
 ```
 
@@ -327,20 +327,6 @@ files = await read_folder("data/", chunk_size=200)
 
 # Balance for most cases
 files = await read_folder("data/", chunk_size=50)
-```
-
-### Async Context Managers
-
-Use async context managers for file operations:
-
-```python
-async def safe_file_operations():
-    path = AsyncUPath("/tmp/data.txt")
-    
-    # Proper resource cleanup
-    async with await path.aopen("r") as f:
-        content = await f.read()
-    # File is automatically closed
 ```
 
 ## Fallback Behavior
@@ -430,5 +416,4 @@ async def concurrent_operations():
 1. **Use async consistently**: Don't mix sync and async operations in the same context
 2. **Tune chunk_size**: Balance memory usage and performance based on file sizes
 3. **Handle errors gracefully**: Network operations can fail, always use try/except
-4. **Use context managers**: For file operations, use `async with` for proper cleanup
-5. **Monitor concurrency**: Too much parallelism can overwhelm systems or APIs
+4. **Monitor concurrency**: Too much parallelism can overwhelm systems or APIs

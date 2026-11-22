@@ -15,15 +15,18 @@
 - **Proper overloads** for detail/non-detail variants of operations
 
 ### 📦 Specialized Filesystems
-- **Virtual filesystems**: Browse Python AST, module structures, SQLite databases
-- **Developer tools**: CLI command output, Git repositories, package metadata
-- **Aggregation**: Filesystem wrappers to compose multiple filesystems into one
-- **Remote**: GitHub Gists / Issues / Wiki, Notion, Linear and multiple other remote filesystems
+- **File contents as filesystems**: Markdown sections, SQLite tables, tree-sitter code structure, OpenAPI / JSON Schema specs
+- **Python introspection**: installed packages, distributions, Pydantic models and instances
+- **Aggregation**: union (mount points), flat union, overlay and delegating filesystems
+- **Remote**: HTTP (httpx), GitHub Gists / Issues / Wiki, GitLab, Linear, Notion, Appwrite, MCP resources and tools
+- **Sandboxes**: E2B, Modal, Daytona, Beam, Vercel, Cloudflare, Microsandbox, HopX, Sprites, Codex, SRT
 
 ### 🛠️ Utility Functions
 - **Async batch operations**: `read_folder()`, `list_files()`, `read_folder_as_text()`
 - **Path helpers**: `to_upath()`, `upath_to_fs()`, type conversions
 - **Tree visualization**: Rich directory tree rendering
+- **Shell-like commands**: `path.cli("grep TODO . -r")` on any `BaseUPath` / filesystem
+- **Configs**: Pydantic models for all filesystems in `upathtools_config` (see [Configs](configs.md))
 
 ## Quick Start
 
@@ -37,9 +40,9 @@ async def main():
     # Read a file asynchronously
     path = AsyncUPath("https://example.com/data.json")
     content = await path.aread_text()
-    
+
     # Iterate directory contents
-    async for item in path.aiterdir():
+    async for item in AsyncUPath("src/").aiterdir():
         print(item)
 
 asyncio.run(main())
@@ -71,11 +74,25 @@ asyncio.run(main())
 UPathTools provides:
 
 ```python
-from upathtools.filesystems.base import BaseAsyncFileSystem
+from typing import TypedDict
 
-class MyFileSystem[MyPath, MyInfoDict](BaseAsyncFileSystem):
+from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath
+
+
+class MyInfoDict(TypedDict):
+    name: str
+    size: int
+    type: str
+
+
+class MyPath(BaseUPath[MyInfoDict]):
+    pass
+
+
+class MyFileSystem(BaseAsyncFileSystem[MyPath, MyInfoDict]):
     """Fully typed filesystem with custom info structure."""
-    
+
+    protocol = "my"
     upath_cls = MyPath
     
     async def _ls(self, path: str, detail: bool = True) -> list[MyInfoDict]:
@@ -86,10 +103,10 @@ class MyFileSystem[MyPath, MyInfoDict](BaseAsyncFileSystem):
 ## Installation
 
 ```bash
-uv add upathtools[httpx]
+uv add upathtools
 
-# All optional dependencies
-uv add upathtools[all]
+# Optional backends are extras, e.g.
+uv add "upathtools[httpx,sqlite,mcp]"
 ```
 
 ## Extras
