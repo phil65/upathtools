@@ -49,7 +49,6 @@ dependencies = [
 
 [project.urls]
 "Code coverage" = "https://app.codecov.io/gh/phil65/upathtools"
-Discussions = "https://github.com/phil65/upathtools/discussions"
 Documentation = "https://phil65.github.io/upathtools/"
 Homepage = "https://phil65.github.io/upathtools/"
 Issues = "https://github.com/phil65/upathtools/issues"
@@ -196,16 +195,18 @@ docs = [
   "zensical>=0.0.11",
 ]
 lint = [
+  # Only add below (Copier)
   "jinja2",  # type-only import (filetree jinja filters) for ty
-  "ruff",
-  "ty",
+  # Pinned on purpose: CI, pre-commit and editors all run exactly these versions.
+  # Bump them here (template) and roll out via `copier update`.
+  "ruff==0.17.6",
+  "ty==0.0.107",
   "types-Authlib",
   "types-PyYAML",
   "types-Pygments",
   "types-jsonschema",
   "types-protobuf",
   "types-requests",
-  # Only add below (Copier)
 ]
 
 [build-system]

@@ -9,7 +9,6 @@
 [![Implementation](https://img.shields.io/pypi/implementation/upathtools.svg)](https://pypi.org/project/upathtools/)
 [![Releases](https://img.shields.io/github/downloads/phil65/upathtools/total.svg)](https://github.com/phil65/upathtools/releases)
 [![Github Contributors](https://img.shields.io/github/contributors/phil65/upathtools)](https://github.com/phil65/upathtools/graphs/contributors)
-[![Github Discussions](https://img.shields.io/github/discussions/phil65/upathtools)](https://github.com/phil65/upathtools/discussions)
 [![Github Forks](https://img.shields.io/github/forks/phil65/upathtools)](https://github.com/phil65/upathtools/forks)
 [![Github Issues](https://img.shields.io/github/issues/phil65/upathtools)](https://github.com/phil65/upathtools/issues)
 [![Github Issues](https://img.shields.io/github/issues-pr/phil65/upathtools)](https://github.com/phil65/upathtools/pulls)
