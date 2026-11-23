@@ -18,7 +18,7 @@
 - **File contents as filesystems**: Markdown sections, SQLite tables, tree-sitter code structure, OpenAPI / JSON Schema specs
 - **Python introspection**: installed packages, distributions, Pydantic models and instances
 - **Aggregation**: union (mount points), flat union, overlay and delegating filesystems
-- **Remote**: HTTP (httpx), GitHub Gists / Issues / Wiki, GitLab, Linear, Notion, Appwrite, MCP resources and tools
+- **Remote**: HTTP (httpx2), GitHub Gists / Issues / Wiki, GitLab, Linear, Notion, Appwrite, MCP resources and tools
 - **Sandboxes**: E2B, Modal, Daytona, Beam, Vercel, Cloudflare, Microsandbox, HopX, Sprites, Codex, SRT
 
 ### 🛠️ Utility Functions

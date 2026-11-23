@@ -108,10 +108,10 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
     ) -> Any:
         """Make an HTTP request to the Cloudflare Sandbox API."""
         url = f"{self._base_url}{path}"
-        import httpx
+        import httpx2
 
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(self._timeout),
+        async with httpx2.AsyncClient(
+            timeout=httpx2.Timeout(self._timeout),
         ) as client:
             response = await client.request(
                 method,

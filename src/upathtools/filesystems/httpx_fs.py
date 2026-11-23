@@ -1,4 +1,4 @@
-"""HTTP filesystem implementation with async support using httpx."""
+"""HTTP filesystem implementation with async support using httpx2."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Mapping
 
-    import httpx
-    from httpx import Response
+    import httpx2
+    from httpx2 import Response
     from yarl import URL
 
     from upathtools.filesystems.base import CreationMode
@@ -68,11 +68,11 @@ class HttpPath(BaseUPath[HttpInfo]):
     __slots__ = ()
 
 
-async def get_client(**kwargs: Any) -> httpx.AsyncClient:
+async def get_client(**kwargs: Any) -> httpx2.AsyncClient:
     """Create and return an async HTTP client."""
-    import httpx
+    import httpx2
 
-    return httpx.AsyncClient(follow_redirects=True, **kwargs)
+    return httpx2.AsyncClient(follow_redirects=True, **kwargs)
 
 
 class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
@@ -127,7 +127,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         return URL(url, encoded=self.encoded)
 
     @staticmethod
-    def close_session(loop: Any, session: httpx.AsyncClient) -> None:
+    def close_session(loop: Any, session: httpx2.AsyncClient) -> None:
         if loop is not None and loop.is_running():
             try:
                 sync(loop, session.aclose, timeout=0.1)
@@ -137,7 +137,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
             else:
                 return
 
-    async def set_session(self) -> httpx.AsyncClient:
+    async def set_session(self) -> httpx2.AsyncClient:
         if self._session is None:
             self._session = await self.get_client(**self.client_kwargs)
             assert self._session
@@ -165,7 +165,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         par = super()._parent(path)
         return par if len(par) > 7 else ""  # noqa: PLR2004
 
-    async def _get_decompressor(self, response: httpx.Response) -> Callable[[bytes], bytes] | None:
+    async def _get_decompressor(self, response: httpx2.Response) -> Callable[[bytes], bytes] | None:
         """Get decompressor based on Content-Encoding header."""
         encoding = response.headers.get("Content-Encoding", "").lower()
         if encoding == "gzip":
@@ -284,7 +284,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
 
     ls = sync_wrapper(_ls)  # pyright: ignore[reportAssignmentType]
 
-    def _raise_not_found_for_status(self, response: httpx.Response, url: str) -> None:
+    def _raise_not_found_for_status(self, response: httpx2.Response, url: str) -> None:
         """Raise FileNotFoundError for 404s, otherwise raises HTTP errors."""
         if response.status_code == 404:  # noqa: PLR2004
             raise FileNotFoundError(url)
@@ -391,7 +391,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         self._raise_not_found_for_status(r, rpath)
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
-        import httpx
+        import httpx2
 
         kw = self.kwargs.copy()
         kw.update(kwargs)
@@ -399,7 +399,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
             logger.debug(path)
             session = await self.set_session()
             r = await session.get(str(self.encode_url(path)), **kw)
-        except httpx.RequestError:
+        except httpx2.RequestError:
             return False
         else:
             return r.status_code < 400  # noqa: PLR2004
@@ -628,7 +628,7 @@ class HTTPFile(AbstractBufferedFile):
         self,
         fs: HTTPFileSystem,
         url: str,
-        session: httpx.AsyncClient | None = None,
+        session: httpx2.AsyncClient | None = None,
         block_size: Literal["default"] | int | None = None,
         mode: str = "rb",
         cache_type: str = "bytes",
@@ -760,7 +760,7 @@ class HTTPStreamFile(AbstractBufferedFile):
         url: str,
         mode: str = "rb",
         loop: Any = None,
-        session: httpx.AsyncClient | None = None,
+        session: httpx2.AsyncClient | None = None,
         **kwargs: Any,
     ) -> None:
         self.asynchronous = kwargs.pop("asynchronous", False)
@@ -903,13 +903,13 @@ class AsyncStreamFile(AbstractAsyncStreamedFile):
         url: str,
         mode: str = "rb",
         loop: Any = None,
-        session: httpx.AsyncClient | None = None,
+        session: httpx2.AsyncClient | None = None,
         size: int | None = None,
         **kwargs: Any,
     ) -> None:
         self.url = url
         self.session = session
-        self.r: httpx.Response | None = None
+        self.r: httpx2.Response | None = None
         if mode != "rb":
             msg = "Write mode not supported"
             raise ValueError(msg)
@@ -938,7 +938,7 @@ class AsyncStreamFile(AbstractAsyncStreamedFile):
 
 
 async def get_range(
-    session: httpx.AsyncClient,
+    session: httpx2.AsyncClient,
     url: str,
     start: int,
     end: int,
@@ -965,7 +965,7 @@ async def get_range(
 
 async def _file_info(
     url: str,
-    session: httpx.AsyncClient,
+    session: httpx2.AsyncClient,
     size_policy: str = "head",
     **kwargs: Any,
 ) -> dict[str, Any]:
@@ -1018,7 +1018,7 @@ async def _file_info(
 async def _file_size(
     url: str,
     *args: Any,
-    session: httpx.AsyncClient | None = None,
+    session: httpx2.AsyncClient | None = None,
     **kwargs: Any,
 ) -> int | None:
     """Get file size from remote server."""

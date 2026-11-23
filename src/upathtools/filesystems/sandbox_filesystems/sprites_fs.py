@@ -1,6 +1,6 @@
 """Sprites (Fly.io) async filesystem implementation for upathtools.
 
-Uses the Sprites filesystem REST API directly via httpx.
+Uses the Sprites filesystem REST API directly via httpx2.
 All file operations use dedicated /fs/* endpoints.
 """
 
@@ -15,7 +15,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 logger = logging.getLogger(__name__)
@@ -100,13 +100,13 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
         json: dict[str, Any] | None = None,
         content: bytes | None = None,
         content_type: str = "application/json",
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         """Make an HTTP request to the Sprites filesystem API."""
-        import httpx
+        import httpx2
 
         url = self._fs_url(endpoint)
         headers = self._headers(content_type=content_type)
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
+        async with httpx2.AsyncClient(timeout=httpx2.Timeout(self._timeout)) as client:
             response = await client.request(
                 method,
                 url,
@@ -124,7 +124,7 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
         return response
 
     @staticmethod
-    def _handle_error(response: httpx.Response, params: dict[str, Any] | None = None) -> None:
+    def _handle_error(response: httpx2.Response, params: dict[str, Any] | None = None) -> None:
         """Handle HTTP error responses, raising appropriate Python exceptions."""
         path = (params or {}).get("path", "")
         try:

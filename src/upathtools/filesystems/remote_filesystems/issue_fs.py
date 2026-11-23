@@ -1,4 +1,4 @@
-"""GitHub Issues filesystem implementation with async support using httpx."""
+"""GitHub Issues filesystem implementation with async support using httpx2."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class IssueInfo(FileInfo, total=False):
@@ -81,7 +81,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
             token: GitHub personal access token for authentication
             timeout: Connection timeout in seconds
             loop: Event loop for async operations
-            client_kwargs: Additional arguments for httpx client
+            client_kwargs: Additional arguments for httpx2 client
             **kwargs: Additional filesystem options
         """
         super().__init__(loop=loop, **kwargs)
@@ -92,7 +92,7 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         self.token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
-        self._session: httpx.AsyncClient | None = None
+        self._session: httpx2.AsyncClient | None = None
 
         if not org or not repo:
             msg = "Both org and repo must be provided"
@@ -112,12 +112,12 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         """Filesystem ID."""
         return f"githubissues-{self.org}-{self.repo}"
 
-    async def set_session(self) -> httpx.AsyncClient:
-        """Set up and return the httpx async client."""
+    async def set_session(self) -> httpx2.AsyncClient:
+        """Set up and return the httpx2 async client."""
         if self._session is None:
-            import httpx
+            import httpx2
 
-            self._session = httpx.AsyncClient(
+            self._session = httpx2.AsyncClient(
                 follow_redirects=True,
                 timeout=self.timeout,
                 headers=self.headers,
@@ -130,8 +130,8 @@ class IssueFileSystem(BaseAsyncFileSystem[IssuePath, IssueInfo]):
         return self._session
 
     @staticmethod
-    def close_session(loop: Any, session: httpx.AsyncClient) -> None:
-        """Close the httpx session."""
+    def close_session(loop: Any, session: httpx2.AsyncClient) -> None:
+        """Close the httpx2 session."""
         if loop is not None and loop.is_running():
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)

@@ -135,14 +135,15 @@ adlfs = ["adlfs"]  # ADLS integration
 # ]
 appwrite = ["appwrite>=16"]  # Appwrite integration (typed models since 16)
 beam = ["beam-client>=0.2.187; sys_platform != 'win32' or python_version < '3.14'"]  # Beam integration
-cloudflare = ["httpx"]  # Cloudflare Sandbox integration
+cloudflare = ["httpx2>=2.16"]  # Cloudflare Sandbox integration
 codex = ["codexed"]  # Codex CLI integration
 daytona = ["daytona<2; python_version < '3.14'"]  # Daytona integration
 e2b = ["e2b-code-interpreter"]  # E2B integration
 gcsfs = ["gcsfs"]  # GCS integration
 gitlab = ["python-gitlab>=7.0.0"]  # GitLab integration
 hopx = ["hopx-ai"]  # HopX integration
-httpx = ["httpx", "yarl", "brotli"]  # HTTPX based filesystem
+httpx = ["httpx2>=2.16", "yarl", "brotli"]  # httpx2 based filesystem (`httpx://` protocol)
+httpx2 = ["httpx2>=2.16", "yarl", "brotli"]  # alias of the `httpx` extra
 huggingface_hub = ["huggingface_hub"]  # HuggingFace integration
 jq = ["jq>=1.8.0"]  # jq JSON processor
 jsonschema = ["PyYAML", "requests"]  # JSON Schema integration
@@ -155,7 +156,7 @@ monty = [
 notion-client = ["notion-client"]  # Notion integration
 openapi3 = ["openapi3"]  # OpenAPI integration
 s3fs = ["s3fs"]  # S3 integration
-sprites = ["httpx"]  # Sprites (Fly.io) integration
+sprites = ["httpx2>=2.16"]  # Sprites (Fly.io) integration
 sqlite = ["sqlalchemy[aiosqlite]"]  # SQLite integration
 srt = ["anyenv>=2.0.0"]  # Sandbox Runtime (srt) integration
 ssh = [

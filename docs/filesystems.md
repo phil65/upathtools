@@ -31,7 +31,7 @@ Filesystems in UPathTools are organized into several categories:
 | `DistributionFileSystem` | `distribution` | | Installed distributions and their modules |
 | `BaseModelFileSystem` | `basemodel` | | Pydantic model schemas / fields |
 | `BaseModelInstanceFileSystem` | `basemodel-instance` | | Pydantic model instance data |
-| `HTTPFileSystem` | `httpx` | `httpx` | HTTP(S) via httpx |
+| `HTTPFileSystem` | `httpx` | `httpx` | HTTP(S) via httpx2 |
 | `GistFileSystem` | `gist` | `httpx` | GitHub Gists |
 | `IssueFileSystem` | `githubissues` | `httpx` | GitHub Issues |
 | `WikiFileSystem` | `wiki` | | GitHub Wiki pages (needs `git`) |
@@ -127,7 +127,7 @@ schemas) and JSON Schemas the same way. They are mostly used through the
 
 ### HTTPFileSystem (Enhanced)
 
-Improved HTTP/HTTPS support with httpx (extra `httpx`):
+Improved HTTP/HTTPS support with [httpx2](https://github.com/pydantic/httpx2) (extra `httpx`, alias `httpx2`; protocol `httpx`):
 
 ```python
 from upathtools import AsyncUPath, register_http_filesystems
@@ -145,7 +145,7 @@ text = await AsyncUPath("https://example.com/data.json").aread_text()
 ```
 
 **Features:**
-- Native async support with httpx
+- Native async support with httpx2
 - Typed info dicts (`HttpInfo`)
 - Streaming support
 

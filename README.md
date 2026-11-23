@@ -91,7 +91,7 @@ print(union.cat_file("docs/readme.md"))
 - **Filesystems** (registered as fsspec / UPath protocols via entry points):
   - file contents: Markdown sections, SQLite tables, tree-sitter code, OpenAPI and JSON Schema specs
   - Python: installed packages (`pkg://`), distributions, Pydantic models and instances
-  - remote: HTTP (httpx), GitHub Gists / Issues / Wiki, GitLab, Linear, Notion, Appwrite, MCP
+  - remote: HTTP (httpx2), GitHub Gists / Issues / Wiki, GitLab, Linear, Notion, Appwrite, MCP
     resources and tools
   - sandboxes: E2B, Modal, Daytona, Beam, Vercel, Cloudflare, Microsandbox, HopX, Sprites, Codex, SRT
   - combining: union (mount points), flat union (merged view), overlay (layered writes),

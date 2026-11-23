@@ -1,4 +1,4 @@
-"""Linear Issues filesystem implementation with async support using httpx."""
+"""Linear Issues filesystem implementation with async support using httpx2."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 GroupBy = Literal["project"] | None
@@ -253,7 +253,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
             group_by: How to group issues. None for flat, "project" for project folders
             timeout: Connection timeout in seconds
             loop: Event loop for async operations
-            client_kwargs: Additional arguments for httpx client
+            client_kwargs: Additional arguments for httpx2 client
             **kwargs: Additional filesystem options
         """
         super().__init__(loop=loop, **kwargs)
@@ -263,7 +263,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         self.group_by = group_by
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
-        self._session: httpx.AsyncClient | None = None
+        self._session: httpx2.AsyncClient | None = None
 
         if not self.api_key:
             msg = "api_key must be provided or LINEAR_API_KEY environment variable must be set"
@@ -277,12 +277,12 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         """Filesystem ID."""
         return f"linear-{self.group_by or 'flat'}"
 
-    async def set_session(self) -> httpx.AsyncClient:
-        """Set up and return the httpx async client."""
+    async def set_session(self) -> httpx2.AsyncClient:
+        """Set up and return the httpx2 async client."""
         if self._session is None:
-            import httpx
+            import httpx2
 
-            self._session = httpx.AsyncClient(
+            self._session = httpx2.AsyncClient(
                 follow_redirects=True,
                 timeout=self.timeout,
                 headers=self.headers,
@@ -295,8 +295,8 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
         return self._session
 
     @staticmethod
-    def close_session(loop: Any, session: httpx.AsyncClient) -> None:
-        """Close the httpx session."""
+    def close_session(loop: Any, session: httpx2.AsyncClient) -> None:
+        """Close the httpx2 session."""
         if loop is not None and loop.is_running():
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)

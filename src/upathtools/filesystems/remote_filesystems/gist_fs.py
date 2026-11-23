@@ -1,4 +1,4 @@
-"""GitHub Gist filesystem implementation with async support using httpx."""
+"""GitHub Gist filesystem implementation with async support using httpx2."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, Buffered
 
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class GistInfo(FileInfo, total=False):
@@ -58,7 +58,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
     """Filesystem for accessing GitHub Gists files.
 
     Supports both individual gists and listing all gists for a user.
-    Uses httpx for both synchronous and asynchronous operations.
+    Uses httpx2 for both synchronous and asynchronous operations.
     """
 
     protocol = "gist"
@@ -90,7 +90,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
             timeout: Connection timeout in seconds
             asynchronous: Whether to use async operations
             loop: Event loop for async operations
-            client_kwargs: Additional arguments for httpx client
+            client_kwargs: Additional arguments for httpx2 client
             **kwargs: Additional filesystem options
         """
         super().__init__(asynchronous=asynchronous, loop=loop, **kwargs)
@@ -101,7 +101,7 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         self.sha = sha
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
-        self._session: httpx.AsyncClient | None = None
+        self._session: httpx2.AsyncClient | None = None
 
         # We can work in two modes:
         # 1. Single gist mode (gist_id is provided)
@@ -118,12 +118,12 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         """Filesystem ID."""
         return "gist"
 
-    async def set_session(self) -> httpx.AsyncClient:
-        """Set up and return the httpx async client."""
+    async def set_session(self) -> httpx2.AsyncClient:
+        """Set up and return the httpx2 async client."""
         if self._session is None:
-            import httpx
+            import httpx2
 
-            self._session = httpx.AsyncClient(
+            self._session = httpx2.AsyncClient(
                 follow_redirects=True,
                 timeout=self.timeout,
                 headers=self.headers,
@@ -136,8 +136,8 @@ class GistFileSystem(BaseAsyncFileSystem[GistPath, GistInfo]):
         return self._session
 
     @staticmethod
-    def close_session(loop: Any, session: httpx.AsyncClient) -> None:
-        """Close the httpx session."""
+    def close_session(loop: Any, session: httpx2.AsyncClient) -> None:
+        """Close the httpx2 session."""
         if loop is not None and loop.is_running():
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)

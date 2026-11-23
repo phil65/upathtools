@@ -1,4 +1,4 @@
-"""GitHub repository filesystem implementation with async support using httpx."""
+"""GitHub repository filesystem implementation with async support using httpx2."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from upathtools.filesystems.base import BaseAsyncFileSystem, BaseUPath, FileInfo
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    import httpx
+    import httpx2
     from upath._chain import FSSpecChainParser
     from upath.types import JoinablePathLike
     from upath.types.storage_options import GitHubStorageOptions
@@ -75,7 +75,7 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
     """Filesystem for accessing GitHub repository files.
 
     Supports accessing files in a GitHub repository at a specific point in history
-    (commit SHA, branch, or tag). Uses httpx for async operations with GitHub API.
+    (commit SHA, branch, or tag). Uses httpx2 for async operations with GitHub API.
 
     For files less than 1 MB, content is returned directly from the API.
     For larger files or git-lfs tracked files, content is fetched from download_url.
@@ -113,7 +113,7 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
             timeout: Connection timeout in seconds
             asynchronous: Whether to use async operations
             loop: Event loop for async operations
-            client_kwargs: Additional arguments for httpx client
+            client_kwargs: Additional arguments for httpx2 client
             **kwargs: Additional filesystem options
         """
         super().__init__(asynchronous=asynchronous, loop=loop, **kwargs)
@@ -128,7 +128,7 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         self.token = token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
         self.timeout = timeout if timeout is not None else 60.0
         self.client_kwargs = client_kwargs or {}
-        self._session: httpx.AsyncClient | None = None
+        self._session: httpx2.AsyncClient | None = None
         self.dircache: dict[str, list[GithubInfo]] = {}
 
         # Build headers for authentication
@@ -146,12 +146,12 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         """Filesystem ID."""
         return f"github-{self.org}-{self.repo}"
 
-    async def set_session(self) -> httpx.AsyncClient:
-        """Set up and return the httpx async client."""
+    async def set_session(self) -> httpx2.AsyncClient:
+        """Set up and return the httpx2 async client."""
         if self._session is None:
-            import httpx
+            import httpx2
 
-            self._session = httpx.AsyncClient(
+            self._session = httpx2.AsyncClient(
                 follow_redirects=True,
                 timeout=self.timeout,
                 headers=self.headers,
@@ -172,8 +172,8 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         return self._session
 
     @staticmethod
-    def close_session(loop: Any, session: httpx.AsyncClient) -> None:
-        """Close the httpx session."""
+    def close_session(loop: Any, session: httpx2.AsyncClient) -> None:
+        """Close the httpx2 session."""
         if loop is not None and loop.is_running():
             with contextlib.suppress(TimeoutError, RuntimeError):
                 sync(loop, session.aclose, timeout=0.1)
@@ -479,14 +479,14 @@ class GithubFileSystem(BaseAsyncFileSystem[GithubPath, GithubInfo]):
         Returns:
             List of repository names
         """
-        import httpx
+        import httpx2
 
         url = f"https://api.github.com/{'orgs' if is_org else 'users'}/{org_or_user}/repos"
         headers = {}
         if token:
             headers["Authorization"] = f"token {token}"
 
-        with httpx.Client(timeout=timeout, headers=headers) as client:
+        with httpx2.Client(timeout=timeout, headers=headers) as client:
             r = client.get(url)
             r.raise_for_status()
             return [repo["name"] for repo in r.json()]
