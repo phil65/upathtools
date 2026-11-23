@@ -16,7 +16,12 @@ Example:
     auto_fs.ls("/path/to/archive.zip")  # Lists contents of the zip
     auto_fs.cat("/path/to/archive.zip/inner/file.txt")  # Reads file inside zip
 
-    # .md files can be browsed by headers
+    # Structured files need an expander (and upathtools' protocols registered):
+    upathtools.register_all_filesystems()
+    def markdown(fs, path):
+        return {"fo": path, "target_protocol": main_protocol(fs)}
+
+    auto_fs = AutoExpandFS(fs=local_fs, expanders={".md": ("md", markdown)})
     auto_fs.ls("/path/to/readme.md")  # Lists markdown sections
     ```
 """
@@ -56,13 +61,20 @@ class AutoExpandPath(BaseUPath[AutoExpandInfo]):
 # The factory takes the parent fs and file path, returns kwargs for the expansion fs
 type ExpanderFactory = Callable[[AsyncFileSystem, str], dict[str, Any]]
 
+
+def main_protocol(fs: AbstractFileSystem) -> str:
+    """A filesystem's protocol as one string (fsspec allows a tuple of aliases)."""
+    protocol = fs.protocol
+    return protocol if isinstance(protocol, str) else protocol[0]
+
+
 DEFAULT_EXPANDERS: dict[str, tuple[str, ExpanderFactory]] = {
-    ".zip": ("zip", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
-    ".tar": ("tar", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
-    ".tar.gz": ("tar", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
-    ".tgz": ("tar", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
-    ".tar.bz2": ("tar", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
-    ".tar.xz": ("tar", lambda fs, path: {"fo": path, "target_protocol": fs.protocol}),
+    ".zip": ("zip", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
+    ".tar": ("tar", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
+    ".tar.gz": ("tar", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
+    ".tgz": ("tar", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
+    ".tar.bz2": ("tar", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
+    ".tar.xz": ("tar", lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)}),
 }
 
 
@@ -112,6 +124,10 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         self.expanders = {**DEFAULT_EXPANDERS, **(expanders or {})}
         self._expansion_cache: dict[str, AsyncFileSystem] = {}
 
+    def _inner_path(self, path: str) -> str:
+        """``path`` as the wrapped filesystem spells it (without protocol, its own root)."""
+        return self.fs._strip_protocol(path)
+
     def _get_expansion_ext(self, path: str) -> str | None:
         """Check if path has an expandable extension.
 
@@ -124,42 +140,45 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
                 return ext
         return None
 
-    def _parse_path(self, path: str) -> tuple[AsyncFileSystem, str]:
-        """Parse path and return (filesystem, remaining_path).
+    async def _parse_path(self, path: str) -> tuple[AsyncFileSystem, str, str]:
+        """Parse path and return (filesystem, remaining_path, expanded_file).
 
-        If path contains an expandable file, returns the expansion filesystem
-        and the path within that filesystem.
+        If path contains an expandable file, returns the expansion filesystem, the
+        path within it, and the expandable file's own path (to prefix inner names
+        with); otherwise the wrapped filesystem, the path, and "".
         """
         if not path or path == self.root_marker:
-            return self.fs, self.root_marker
+            return self.fs, self.root_marker, ""
 
-        # Normalize path
-        path = path.lstrip("/")
+        # Normalize the way the wrapped filesystem does: local paths keep their
+        # leading "/", root-less ones (archives, GitHub, ...) don't have one
+        path = self._inner_path(path)
         parts = path.split("/")
 
         # Walk through path parts looking for expandable files
-        current_path = ""
-        for i, part in enumerate(parts):
-            current_path = f"{current_path}/{part}" if current_path else part
+        for i in range(len(parts)):
+            current_path = "/".join(parts[: i + 1])
+            if not current_path:  # the empty first part of an absolute path
+                continue
 
             ext = self._get_expansion_ext(current_path)
             if ext is None:
                 continue
 
             try:  # Check if this is actually a file on the underlying fs
-                info = self.fs.info(current_path)
+                info = await self.fs._info(current_path)
                 if info.get("type") == "file":
                     # Get or create expansion filesystem
                     expansion_fs = self._get_expansion_fs(current_path, ext)
                     # Remaining path is everything after this part
                     remaining = "/".join(parts[i + 1 :])
-                    return expansion_fs, remaining or "/"
+                    return expansion_fs, remaining or "/", current_path
             except FileNotFoundError:
                 # Not a file, continue checking
                 pass
 
         # No expansion needed
-        return self.fs, path
+        return self.fs, path, ""
 
     def _get_expansion_fs(self, file_path: str, ext: str) -> AsyncFileSystem:
         """Get or create filesystem for expanding a file."""
@@ -179,11 +198,11 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
 
     async def _info(self, path: str, **kwargs: Any) -> AutoExpandInfo:
         """Get info about a path."""
-        fs, inner_path = self._parse_path(path)
+        fs, inner_path, _expanded_file = await self._parse_path(path)
 
         if fs is self.fs:
             # Check if this is an expandable file
-            info = self.fs.info(inner_path)
+            info = await self.fs._info(inner_path)
             ext = self._get_expansion_ext(inner_path)
             if ext and info.get("type") == "file":
                 # Expandable file appears as directory
@@ -222,17 +241,18 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         self, path: str, detail: bool = True, **kwargs: Any
     ) -> list[str] | list[AutoExpandInfo]:
         """List contents of a path."""
-        fs, inner_path = self._parse_path(path)
+        fs, inner_path, expanded_file = await self._parse_path(path)
 
         if fs is self.fs:
             # Check if path is an expandable file
-            ext = self._get_expansion_ext(path.lstrip("/"))
+            path = self._inner_path(path)
+            ext = self._get_expansion_ext(path)
             if ext:
                 try:
-                    info = self.fs.info(path.lstrip("/"))
+                    info = await self.fs._info(path)
                     if info.get("type") == "file":
                         # List contents of expanded file
-                        expansion_fs = self._get_expansion_fs(path.lstrip("/"), ext)
+                        expansion_fs = self._get_expansion_fs(path, ext)
                         items = await expansion_fs._ls("/", detail=True)
 
                         if not detail:
@@ -252,7 +272,8 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
 
             # Regular directory listing
             # detail=True: every entry is an info dict
-            items = [i for i in self.fs.ls(inner_path, detail=True) if isinstance(i, dict)]
+            listing = await self.fs._ls(inner_path, detail=True)
+            items = [i for i in listing if isinstance(i, dict)]
             results: list[AutoExpandInfo] = []
 
             for item in items:
@@ -273,15 +294,19 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
             if not detail:
                 return [r["name"] for r in results]
             return results
-        # Delegating to expansion filesystem
+        # Delegating to expansion filesystem: its names are relative to the expanded
+        # file, so prefix them with that file's path to keep them reachable from here
         items = await fs._ls(inner_path, detail=True)
 
+        def outer(name: str) -> str:
+            return f"{expanded_file}/{name.lstrip('/')}"
+
         if not detail:
-            return [item["name"] for item in items]
+            return [outer(item["name"]) for item in items]
 
         return [
             AutoExpandInfo(
-                name=item.get("name", ""),
+                name=outer(item.get("name", "")),
                 size=item.get("size", 0),
                 type=item.get("type", "file"),
                 expanded=True,
@@ -293,12 +318,12 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
     ) -> bytes:
         """Read file contents."""
-        fs, inner_path = self._parse_path(path)
+        fs, inner_path, _expanded_file = await self._parse_path(path)
         return await fs._cat_file(inner_path, start=start, end=end, **kwargs)
 
     async def _pipe_file(self, path: str, value: bytes, **kwargs: Any) -> None:
         """Write file contents."""
-        fs, inner_path = self._parse_path(path)
+        fs, inner_path, _expanded_file = await self._parse_path(path)
 
         # Don't allow writing into expanded archives
         if fs is not self.fs:
@@ -309,7 +334,7 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
 
     async def _exists(self, path: str) -> bool:
         """Check if path exists."""
-        fs, inner_path = self._parse_path(path)
+        fs, inner_path, _expanded_file = await self._parse_path(path)
         return await fs._exists(inner_path)
 
     async def _isfile(self, path: str) -> bool:
@@ -370,7 +395,7 @@ Content 2
             expanders={
                 ".md": (
                     "md",
-                    lambda fs, path: {"fo": path, "target_protocol": fs.protocol},
+                    lambda fs, path: {"fo": path, "target_protocol": main_protocol(fs)},
                 ),
             },
         )
