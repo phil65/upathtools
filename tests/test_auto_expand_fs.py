@@ -30,7 +30,8 @@ def workspace(tmp_path: Path) -> Path:
 
 
 def names(paths: list[str], root: Path) -> list[str]:
-    return sorted(path.removeprefix(f"{root}/") for path in paths)
+    # fsspec writes paths with forward slashes, also on Windows
+    return sorted(path.replace("\\", "/").removeprefix(f"{root.as_posix()}/") for path in paths)
 
 
 def test_sync_use_over_a_local_directory(workspace: Path) -> None:
