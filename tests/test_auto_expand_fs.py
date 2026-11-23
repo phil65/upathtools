@@ -18,8 +18,12 @@ if TYPE_CHECKING:
 @pytest.fixture
 def workspace(tmp_path: Path) -> Path:
     (tmp_path / "a.txt").write_text("x")
-    (tmp_path / "README.md").write_text("# Install\n\npip install x\n\n# Usage\n\nRun it.\n")
-    (tmp_path / "app.py").write_text("class App:\n    pass\n\n\ndef main():\n    App()\n")
+    (tmp_path / "README.md").write_text(
+        "# Install\n\npip install x\n\n# Usage\n\nRun it.\n\n## Options\n\n--fast\n"
+    )
+    (tmp_path / "app.py").write_text(
+        "class App:\n    def run(self):\n        pass\n\n\ndef main():\n    App().run()\n"
+    )
     with zipfile.ZipFile(tmp_path / "pack.zip", "w") as archive:
         archive.writestr("inner/b.txt", "hello")
     return tmp_path
@@ -57,6 +61,10 @@ def test_markdown_expander(workspace: Path) -> None:
     sections = fs.ls(f"{workspace}/README.md", detail=False)
     assert names(sections, workspace) == ["README.md/Install", "README.md/Usage"]
     assert fs.cat_file(f"{workspace}/README.md/Usage").startswith(b"# Usage")
+    # subsections list under their section, and open from there
+    nested = fs.ls(f"{workspace}/README.md/Usage", detail=False)
+    assert names(nested, workspace) == ["README.md/Usage/Options"]
+    assert fs.cat_file(nested[0]).startswith(b"## Options")
 
 
 @pytest.mark.skipif(
@@ -72,6 +80,7 @@ def test_code_expander(workspace: Path) -> None:
         "app.py/App",
         "app.py/main",
     ]
+    assert names(fs.ls(f"{workspace}/app.py/App", detail=False), workspace) == ["app.py/App/run"]
     assert fs.cat_file(f"{workspace}/app.py/App").startswith(b"class App")
 
 

@@ -298,8 +298,16 @@ class AutoExpandFS(BaseAsyncFileSystem[AutoExpandPath, AutoExpandInfo]):
         # file, so prefix them with that file's path to keep them reachable from here
         items = await fs._ls(inner_path, detail=True)
 
+        listed = inner_path.strip("/")
+
         def outer(name: str) -> str:
-            return f"{expanded_file}/{name.lstrip('/')}"
+            # fsspec filesystems list full paths ("inner/b.txt" in a zip); some file
+            # filesystems list names relative to the listed node ("Setup" under
+            # "Guide" in a Markdown file): put those under the listed node
+            name = name.strip("/")
+            if listed and name != listed and not name.startswith(f"{listed}/"):
+                name = f"{listed}/{name}"
+            return f"{expanded_file}/{name}"
 
         if not detail:
             return [outer(item["name"]) for item in items]
