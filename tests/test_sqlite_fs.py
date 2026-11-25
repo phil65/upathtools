@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -266,6 +267,16 @@ class TestSqliteFileSystem:
             content = f.read().decode()
             assert "Alice Johnson" in content
             assert "id,name,email" in content
+
+    def test_open_from_running_loop(self, sqlite_fs):
+        """`_open` works when called from code running inside another event loop."""
+
+        async def read_inside_loop() -> str:
+            with sqlite_fs._open("orders", "rb") as f:
+                return f.read().decode()
+
+        assert "user_id" in asyncio.run(read_inside_loop())
+        assert "user_id" in asyncio.run(read_inside_loop())
 
     def test_open_write_mode_not_supported(self, sqlite_fs):
         """Test that write mode is not supported."""

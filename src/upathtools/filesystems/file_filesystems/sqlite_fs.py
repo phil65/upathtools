@@ -175,9 +175,7 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
             return
 
         # Use asyncio executor to avoid blocking
-        content = await asyncio.get_event_loop().run_in_executor(
-            None, Path(self.db_path).read_bytes
-        )
+        content = await asyncio.to_thread(Path(self.db_path).read_bytes)
 
         try:
             await self._parent_fs._pipe_file(self._parent_path, content)
@@ -578,14 +576,7 @@ class SqliteFileSystem(BaseAsyncFileFileSystem[SqlitePath, SqliteInfo]):
         if "w" in mode or "a" in mode:
             msg = "Write mode not supported"
             raise NotImplementedError(msg)
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        content = loop.run_until_complete(self._cat_file(path))
-        return io.BytesIO(content)
+        return io.BytesIO(self.cat_file(path))
 
     async def _close(self) -> None:
         """Close the database engine and clean up resources."""
