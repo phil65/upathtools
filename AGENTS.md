@@ -87,6 +87,23 @@ uv run duty lint                     # ruff fix + format + ty
 - ty rules relaxed for fsspec override inconsistencies (`[tool.ty.rules]`); use targeted
   `# ty: ignore[rule]` otherwise.
 
+## Specs
+
+Interfaces implemented and remote APIs wrapped. Sandbox filesystems use the same vendor SDKs as exxec (see exxec's AGENTS.md Specs); generic fsspec backends (s3, gcs, azure, ...) are not listed.
+
+| Spec | URL | Targets | Code | Update check |
+|---|---|---|---|---|
+| fsspec `AbstractFileSystem` / `AsyncFileSystem` | https://filesystem-spec.readthedocs.io/en/latest/api.html | unpinned (tracks latest fsspec / universal-pathlib) | `src/upathtools/filesystems/base/`, all filesystems | https://filesystem-spec.readthedocs.io/en/latest/changelog.html |
+| MCP resources / tools (via fastmcp) | https://modelcontextprotocol.io/specification/latest | unpinned (follows the installed `mcp` SDK) | `src/upathtools/filesystems/remote_filesystems/mcp_fs.py`, `mcp_tools_fs.py` | same URL |
+| Agent Skills (`SKILL.md` frontmatter) | https://agentskills.io/specification | unpinned (tracks latest) | `src/upathtools/filesystems/skills_fs.py` | same URL |
+| GitHub REST (contents, gists, issues; wiki via git) | https://docs.github.com/en/rest/repos/contents | unpinned (default REST API version) | `src/upathtools/filesystems/remote_filesystems/github_fs.py`, `gist_fs.py`, `issue_fs.py`, `wiki_fs.py` | https://docs.github.com/en/rest/about-the-rest-api/api-versions |
+| GitLab repository files (via `python-gitlab`) | https://docs.gitlab.com/api/repository_files/ | API v4 (python-gitlab) | `src/upathtools/filesystems/remote_filesystems/gitlab_fs.py` | same URL |
+| Linear GraphQL API | https://linear.app/developers/graphql | unpinned (`https://api.linear.app/graphql`) | `src/upathtools/filesystems/remote_filesystems/linear_fs.py` | same URL |
+| Notion API (via `notion-client`) | https://developers.notion.com/reference/intro | unpinned (SDK default `Notion-Version`) | `src/upathtools/filesystems/remote_filesystems/notion_fs.py` | https://developers.notion.com/page/changelog |
+| Appwrite Storage (via `appwrite`) | https://appwrite.io/docs/references/cloud/server-python/storage | unpinned (tracks latest SDK) | `src/upathtools/filesystems/remote_filesystems/appwrite_fs.py` | same URL |
+| Codex app-server `fs/*` (via codexed) | https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md | whatever codexed targets (see codexed's AGENTS.md Specs) | `src/upathtools/filesystems/sandbox_filesystems/codex_fs.py` | codexed releases |
+| OpenAPI / JSON Schema documents (read-only browsing) | https://spec.openapis.org/oas/latest.html | unpinned (OpenAPI 3.x, any JSON Schema draft) | `src/upathtools/filesystems/file_filesystems/openapi_fs.py`, `jsonschema_fs.py` | https://json-schema.org/specification |
+
 ## Pitfalls
 
 - Copier-managed (template `copier-phil65`): `.github/workflows/`, `duties.py`, `mkdocs.yml`,
