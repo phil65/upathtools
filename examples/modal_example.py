@@ -269,7 +269,7 @@ async def error_handling_example():
 
         try:
             await fs._ls(test_file)  # Try to list a file as directory
-        except (NotADirectoryError, OSError):
+        except NotADirectoryError, OSError:
             print("✅ Correctly caught directory operation error on file")
 
         # Test size of nonexistent file

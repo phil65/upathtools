@@ -212,7 +212,7 @@ async def _aget_files_to_search(
     """Get list of files to search based on options."""
     try:
         stat_result = await asyncio.to_thread(path.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return
 
     mode = stat_result.st_mode
@@ -229,7 +229,7 @@ async def _aget_files_to_search(
     for item in items:
         try:
             item_stat = await asyncio.to_thread(item.stat)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue
         if stat.S_ISREG(item_stat.st_mode) and _matches_filters(item, include, exclude):
             yield item
@@ -371,7 +371,7 @@ async def afind(
         # Single stat call to get all file info
         try:
             stat_result = await asyncio.to_thread(item.stat)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue
 
         mode = stat_result.st_mode
@@ -426,7 +426,7 @@ async def _awalk_with_depth(
 
     try:
         stat_result = await asyncio.to_thread(path.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return
 
     if stat.S_ISDIR(stat_result.st_mode):
@@ -621,7 +621,7 @@ async def _als_collect(
 
     try:
         stat_result = await asyncio.to_thread(path.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return items
 
     if not stat.S_ISDIR(stat_result.st_mode):
@@ -654,7 +654,7 @@ async def _amake_ls_entry(path: UPath, detailed: bool) -> LsEntry | None:
     """Create an LsEntry from a path asynchronously."""
     try:
         stat_result = await asyncio.to_thread(path.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
 
     file_mode = stat_result.st_mode
@@ -738,7 +738,7 @@ async def atouch(
             raise FileExistsError(msg)
         try:
             await asyncio.to_thread(resolved.touch, exist_ok=True)
-        except (NotImplementedError, AttributeError):
+        except NotImplementedError, AttributeError:
             data = await asyncio.to_thread(resolved.read_bytes)
             await asyncio.to_thread(resolved.write_bytes, data)
     else:
@@ -770,7 +770,7 @@ async def arm(
 
     try:
         stat_result = await asyncio.to_thread(resolved.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         if force:
             return
         raise FileNotFoundError(f"Path not found: {resolved}") from None
@@ -802,7 +802,7 @@ async def acp(
 
     try:
         src_stat = await asyncio.to_thread(src_resolved.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         msg = f"Source not found: {src_resolved}"
         raise FileNotFoundError(msg) from None
 
@@ -812,7 +812,7 @@ async def acp(
         if not force:
             msg = f"Destination exists: {dst_resolved}"
             raise FileExistsError(msg)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         pass  # Destination doesn't exist, that's fine
 
     if stat.S_ISDIR(src_stat.st_mode):
@@ -849,7 +849,7 @@ async def amv(
 
     try:
         src_stat = await asyncio.to_thread(src_resolved.stat)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         msg = f"Source not found: {src_resolved}"
         raise FileNotFoundError(msg) from None
 
@@ -859,12 +859,12 @@ async def amv(
         if not force:
             msg = f"Destination exists: {dst_resolved}"
             raise FileExistsError(msg)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         pass  # Destination doesn't exist, that's fine
 
     try:
         await asyncio.to_thread(src_resolved.rename, dst_resolved)
-    except (OSError, NotImplementedError):
+    except OSError, NotImplementedError:
         src_is_dir = stat.S_ISDIR(src_stat.st_mode)
         await acp(src, dst, base, recursive=src_is_dir, force=force)
         await arm(src, base, recursive=True, force=True)
@@ -886,7 +886,7 @@ async def adu(
         total = 0
         try:
             stat_result = await asyncio.to_thread(p.stat)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return 0
 
         mode = stat_result.st_mode

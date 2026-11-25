@@ -380,7 +380,7 @@ class LinearIssueFileSystem(BaseAsyncFileSystem[LinearIssuePath, LinearIssueInfo
 
             try:
                 issue_number = int(parts[1])
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 msg = f"Invalid issue identifier format: {identifier}"
                 raise FileNotFoundError(msg) from None
             else:

@@ -108,7 +108,7 @@ class AsyncUPath(ProxyUPath):
         try:
             # Like UPath.touch: never truncate an existing file.
             await fs._touch(self.path, truncate=not exists)  # type: ignore
-        except (NotImplementedError, ValueError):
+        except NotImplementedError, ValueError:
             if not exists:
                 raise
 

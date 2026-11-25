@@ -296,7 +296,7 @@ class CloudflareFS(BaseAsyncFileSystem[CloudflarePath, CloudflareInfo]):
                         "encoding": "base64",
                     },
                 )
-        except (FileNotFoundError, OSError):
+        except FileNotFoundError, OSError:
             # Fallback: use shell command to write via base64
             encoded = base64.b64encode(value).decode("ascii")
             dir_path = path.rsplit("/", 1)[0]

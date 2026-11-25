@@ -388,7 +388,7 @@ class DelegatingFileSystem(AsyncFileSystem):
 
             try:
                 return await self._call_fs_method(file_fs, "exists", internal_path)
-            except (FileNotFoundError, OSError):
+            except FileNotFoundError, OSError:
                 return False
 
         return await self.fs._exists(file_path, **kwargs)

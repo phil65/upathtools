@@ -42,7 +42,7 @@ def _parse_daytona_time(time_str: str | None) -> float:
             dt_str = f"{base}.{frac} {tz}"
         dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S.%f %z")
         return dt.timestamp()
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         return 0.0
 
 

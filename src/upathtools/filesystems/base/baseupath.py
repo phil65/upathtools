@@ -246,7 +246,7 @@ class BaseUPath[TInfoDict = dict[str, Any]](UPath):
                 newline=newline,
                 **kwargs,
             )
-        except (NotImplementedError, ValueError):
+        except NotImplementedError, ValueError:
             return await asyncio.to_thread(
                 self.open,
                 mode=mode,

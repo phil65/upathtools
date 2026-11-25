@@ -157,7 +157,7 @@ class SpritesFS(BaseAsyncFileSystem[SpritesPath, SpritesInfo]):
         try:
             dt = datetime.fromisoformat(mod_time_str.replace("Z", "+00:00"))
             return dt.timestamp()
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             return 0.0
 
     @overload

@@ -34,7 +34,7 @@ def _get_mtime(module: ModuleType) -> float | None:
     try:
         if hasattr(module, "__file__") and module.__file__:
             return os.path.getmtime(module.__file__)  # noqa: PTH204
-    except (OSError, AttributeError):
+    except OSError, AttributeError:
         pass
     return None
 

@@ -132,7 +132,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
         try:
             if module.__file__:
                 return os.path.getsize(module.__file__)  # noqa: PTH202
-        except (OSError, AttributeError):
+        except OSError, AttributeError:
             pass
         return 0
 
@@ -141,7 +141,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
         try:
             if hasattr(module, "__file__") and module.__file__:
                 return os.path.getmtime(module.__file__)  # noqa: PTH204
-        except (OSError, AttributeError):
+        except OSError, AttributeError:
             pass
         return None
 
@@ -190,7 +190,7 @@ class PackageFileSystem(BaseAsyncFileSystem[PackagePath, PackageInfo]):
         try:
             module = self._get_module(module_name)
             return hasattr(module, "__path__")
-        except (ImportError, FileNotFoundError):
+        except ImportError, FileNotFoundError:
             return False
 
     async def _cat_file(

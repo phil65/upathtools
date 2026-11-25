@@ -257,7 +257,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         """Extract page title safely."""
         try:
             return page["properties"]["title"]["title"][0]["text"]["content"]
-        except (KeyError, IndexError):
+        except KeyError, IndexError:
             return "Untitled"
 
     def _get_block_title(self, block: dict[str, Any]) -> str:
@@ -267,7 +267,7 @@ class NotionFileSystem(BaseAsyncFileSystem[NotionPath, NotionInfo]):
         if block["type"] == "page":
             try:
                 return block["properties"]["title"]["title"][0]["text"]["content"]
-            except (KeyError, IndexError):
+            except KeyError, IndexError:
                 return "Untitled"
         return block.get("type", "unknown")
 

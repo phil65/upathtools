@@ -131,7 +131,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         if loop is not None and loop.is_running():
             try:
                 sync(loop, session.aclose, timeout=0.1)
-            except (TimeoutError, FSTimeoutError, NotImplementedError, RuntimeError):
+            except TimeoutError, FSTimeoutError, NotImplementedError, RuntimeError:
                 # If we can't close it properly, just let it be garbage collected
                 pass
             else:
@@ -329,7 +329,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
         r = await session.get(str(self.encode_url(rpath)), **kw)
         try:
             size = int(r.headers["content-length"])
-        except (ValueError, KeyError):
+        except ValueError, KeyError:
             size = None
 
         callback.set_size(size)
@@ -617,7 +617,7 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
     async def _isdir(self, path: str) -> bool:
         try:
             return bool(await self._ls(path))
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError, ValueError:
             return False
 
 

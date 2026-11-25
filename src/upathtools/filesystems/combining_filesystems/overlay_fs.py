@@ -128,7 +128,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
             try:
                 if await fs._exists(path):
                     return fs, i
-            except (NotImplementedError, AttributeError):
+            except NotImplementedError, AttributeError:
                 continue
         return None
 
@@ -143,7 +143,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         for fs in self.layers:
             try:
                 return await fs._cat_file(path, start=start, end=end, **kwargs)
-            except (FileNotFoundError, NotImplementedError, AttributeError):
+            except FileNotFoundError, NotImplementedError, AttributeError:
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
@@ -168,7 +168,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
                     size=info.get("size", 0),
                     layer=i,
                 )
-            except (FileNotFoundError, NotImplementedError, AttributeError):
+            except FileNotFoundError, NotImplementedError, AttributeError:
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
@@ -201,7 +201,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
             layer_path = fs.root_marker if path == self.root_marker else path
             try:
                 items = await fs._ls(layer_path, detail=True, **kwargs)
-            except (FileNotFoundError, NotImplementedError):
+            except FileNotFoundError, NotImplementedError:
                 return layer_index, []
             else:
                 return layer_index, items
@@ -236,7 +236,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         """Check if path exists, returning False on errors."""
         try:
             return await fs._exists(path)
-        except (NotImplementedError, AttributeError):
+        except NotImplementedError, AttributeError:
             return False
 
     async def _any_layer(
@@ -252,7 +252,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         async def _safe_check(fs: AsyncFileSystem) -> bool:
             try:
                 return await check(fs)
-            except (NotImplementedError, AttributeError):
+            except NotImplementedError, AttributeError:
                 return False
 
         tasks = [asyncio.ensure_future(_safe_check(fs)) for fs in self.layers]
@@ -334,7 +334,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
                 continue
             try:
                 return await fs._created(path)
-            except (FileNotFoundError, NotImplementedError):
+            except FileNotFoundError, NotImplementedError:
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
@@ -345,7 +345,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
                 continue
             try:
                 return await fs._modified(path)
-            except (FileNotFoundError, NotImplementedError):
+            except FileNotFoundError, NotImplementedError:
                 continue
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 

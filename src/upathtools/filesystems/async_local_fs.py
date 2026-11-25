@@ -447,7 +447,7 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
                                 absolute_offset=data.get("absolute_offset", 0),
                             )
                         )
-                except (json.JSONDecodeError, KeyError):
+                except json.JSONDecodeError, KeyError:
                     continue
 
         return matches

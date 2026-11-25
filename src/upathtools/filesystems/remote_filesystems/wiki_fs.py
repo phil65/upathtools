@@ -273,7 +273,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
                     stdout_result = await self.run_cmd(cmd)
                     stdout = stdout_result.stdout
                     created_at = int(stdout.strip().split("\n")[0]) if stdout.strip() else 0
-                except (subprocess.CalledProcessError, ValueError, IndexError):
+                except subprocess.CalledProcessError, ValueError, IndexError:
                     last_modified = int(stat.st_mtime)
                     created_at = _creation_time(stat)
                 file = pathlib.Path(filename)  # Convert filename to wiki title
@@ -448,7 +448,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
                 str(file_path),
             ])
             created_at = int(first.stdout.strip().split("\n")[0]) if first.stdout.strip() else 0
-        except (subprocess.CalledProcessError, ValueError, IndexError):
+        except subprocess.CalledProcessError, ValueError, IndexError:
             last_modified = int(stat.st_mtime)
             created_at = _creation_time(stat)
 

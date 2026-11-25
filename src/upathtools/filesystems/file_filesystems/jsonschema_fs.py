@@ -912,7 +912,7 @@ class JsonSchemaFileSystem(BaseAsyncFileFileSystem[JsonSchemaPath, JsonSchemaInf
                     in ("properties", "$defs", "definitions", "items", "anyOf", "oneOf", "allOf")
                 )
 
-        except (FileNotFoundError, KeyError):
+        except FileNotFoundError, KeyError:
             return False
         else:
             return False

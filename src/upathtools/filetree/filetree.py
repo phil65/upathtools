@@ -198,7 +198,7 @@ class DirectoryTree:
             else:
                 # If we only found empty directories, this directory is empty
                 return True
-        except (PermissionError, OSError):
+        except PermissionError, OSError:
             # Treat inaccessible directories as empty
             return True
 
