@@ -46,7 +46,7 @@ Filesystems in UPathTools are organized into several categories:
 | `FlatUnionFileSystem` | `flatunion` | | Multiple filesystems merged into one view |
 | `OverlayFileSystem` | `overlay` | | Layered filesystems with copy-on-write |
 | `AsyncLocalFileSystem` | `asynclocal` | | Async local filesystem (ripgrep-based grep) |
-| `IsolatedMemoryFileSystem` | `memory` | | Memory filesystem with per-key isolated storage |
+| `IsolatedMemoryFileSystem` | (none: instantiate it) | | Memory filesystem with per-key isolated storage; `memory://` stays fsspec's shared one |
 
 ## Virtual Filesystems
 

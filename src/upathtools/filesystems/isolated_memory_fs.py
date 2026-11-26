@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any, ClassVar
 import uuid
+import weakref
 
 from fsspec.implementations.memory import MemoryFileSystem
 from upath.implementations.memory import MemoryPath
@@ -39,6 +41,7 @@ class IsolatedMemoryFileSystem(BaseFileSystem[MemoryPath], MemoryFileSystem):
     # Class-level storage maps, keyed by isolation key
     _stores: ClassVar[dict[str, dict[str, Any]]] = {}
     _pseudo_dirs_map: ClassVar[dict[str, list[str]]] = {}
+    _stores_lock: ClassVar[threading.Lock] = threading.Lock()
 
     # Override class attributes to prevent using parent's global storage
     store: dict[str, Any]  # type: ignore[assignment]
@@ -59,19 +62,19 @@ class IsolatedMemoryFileSystem(BaseFileSystem[MemoryPath], MemoryFileSystem):
                 all instances with the same key share the same storage.
             **storage_options: Additional options passed to parent class.
         """
+        anonymous = key is None
         # Generate unique key if not provided
         if key is None:
             key = uuid.uuid4().hex
         self._key = key
 
-        # Initialize storage for this key if it doesn't exist
-        if key not in self._stores:
-            self._stores[key] = {}
-            self._pseudo_dirs_map[key] = [""]
-
-        # Set instance-level storage (overrides class attributes)
-        self.store = self._stores[key]
-        self.pseudo_dirs = self._pseudo_dirs_map[key]
+        # Initialize storage for this key if it doesn't exist (atomic setdefault)
+        with self._stores_lock:
+            self.store = self._stores.setdefault(key, {})
+            self.pseudo_dirs = self._pseudo_dirs_map.setdefault(key, [""])
+        if anonymous:
+            # Nobody else knows the key: drop the store with the instance
+            weakref.finalize(self, self.remove_key, key)
 
         # Call parent init
         super().__init__(**storage_options)
@@ -107,8 +110,9 @@ class IsolatedMemoryFileSystem(BaseFileSystem[MemoryPath], MemoryFileSystem):
         Args:
             key: The isolation key to remove.
         """
-        cls._stores.pop(key, None)
-        cls._pseudo_dirs_map.pop(key, None)
+        with cls._stores_lock:
+            cls._stores.pop(key, None)
+            cls._pseudo_dirs_map.pop(key, None)
 
     @classmethod
     def list_keys(cls) -> list[str]:
