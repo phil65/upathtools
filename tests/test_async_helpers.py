@@ -156,3 +156,76 @@ def test_upath_to_fs_sync_dirfs(tmp_path):
     (tmp_path / "f.txt").write_bytes(b"x")
     fs = upath_to_fs(tmp_path, asynchronous=False)
     assert fs.ls("/", detail=False) == ["f.txt"]
+
+
+@pytest.fixture
+def memory_tree():
+    import fsspec
+
+    fs = fsspec.filesystem("memory")
+    fs.pipe({
+        "/lf-proj/a.txt": b"A",
+        "/lf-proj/sub/b.txt": b"B",
+        "/lf-proj/sub/deep/c.txt": b"C",
+    })
+    yield "memory:///lf-proj"
+    fs.rm("/lf-proj", recursive=True)
+
+
+async def test_list_files_keeps_protocol(memory_tree: str) -> None:
+    files = await async_ops.list_files(memory_tree, pattern="**/*.txt")
+    assert all(f.protocol == "memory" for f in files)
+    assert sorted(f.path for f in files) == [
+        "/lf-proj/a.txt",
+        "/lf-proj/sub/b.txt",
+        "/lf-proj/sub/deep/c.txt",
+    ]
+    content = await async_ops.read_folder(memory_tree, pattern="**/*.txt")
+    assert content == {"a.txt": "A", "sub/b.txt": "B", "sub/deep/c.txt": "C"}
+
+
+async def test_list_files_include_dirs_and_recursive(memory_tree: str) -> None:
+    with_dirs = await async_ops.list_files(memory_tree, pattern="**/*", include_dirs=True)
+    assert {"/lf-proj/sub", "/lf-proj/sub/deep"} <= {f.path for f in with_dirs}
+    top = await async_ops.list_files(memory_tree, pattern="**/*.txt", recursive=False)
+    assert [f.path for f in top] == ["/lf-proj/a.txt"]
+    shallow = await async_ops.list_files(memory_tree, pattern="**/*.txt", max_depth=1)
+    assert [f.path for f in shallow] == ["/lf-proj/a.txt"]
+
+
+async def test_list_files_detail_has_name_and_path(memory_tree: str) -> None:
+    infos = await async_ops.list_files(memory_tree, pattern="*.txt", detail=True)
+    assert [(i["name"], i["path"], i["type"]) for i in infos] == [
+        ("a.txt", "/lf-proj/a.txt", "file")
+    ]
+
+
+async def test_read_path_keeps_storage_options(tmp_path: Path) -> None:
+    import zipfile
+
+    archive = tmp_path / "a.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("inner.txt", "zipped")
+    assert await async_ops.read_path(UPath("zip://inner.txt", fo=str(archive))) == "zipped"
+
+
+async def test_read_path_uses_bound_filesystem() -> None:
+    from upathtools.filesystems import IsolatedMemoryFileSystem
+
+    fs = IsolatedMemoryFileSystem()
+    fs.pipe("/only-here.txt", b"isolated")
+    assert await async_ops.read_path(fs.get_upath("/only-here.txt")) == "isolated"
+
+
+async def test_read_path_encoding(tmp_path: Path) -> None:
+    p = tmp_path / "latin1.txt"
+    p.write_bytes("caf\xe9".encode("latin-1"))
+    assert await async_ops.read_path(p, encoding="latin-1") == "caf\xe9"
+
+
+async def test_read_folder_parallel_skips_only_the_bad_file(tmp_path: Path) -> None:
+    for i in range(5):
+        (tmp_path / f"good{i}.txt").write_text(f"ok{i}")
+    (tmp_path / "bad.txt").write_bytes(b"\xff\xfe\xfa")
+    result = await async_ops.read_folder(tmp_path, pattern="*.txt", load_parallel=True)
+    assert sorted(result) == [f"good{i}.txt" for i in range(5)]

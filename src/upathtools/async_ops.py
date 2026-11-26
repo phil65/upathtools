@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import asyncio
-from itertools import batched
 import logging
 import os
+import posixpath
 import re
 import threading
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
-from upath import UPath
+from fsspec.implementations.local import LocalFileSystem
 
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
     import fsspec
+    from upath import UPath
     from upath.types import JoinablePathLike
 
 
@@ -82,6 +83,11 @@ async def get_async_fs(
         return to_async_fs(path_or_fs)
 
     path_obj = to_upath(path_or_fs)
+    # A UPath bound to a sync filesystem instance (fs.get_upath(), zip with fo, ...):
+    # use that instance; async filesystems are made per loop from protocol + options.
+    bound = getattr(path_obj, "_fs_cached", None)
+    if bound is not None and not isinstance(bound, AsyncFileSystem):
+        return to_async_fs(bound)
     return _fs_for_protocol(path_obj.protocol, path_obj.storage_options)
 
 
@@ -199,9 +205,8 @@ async def read_path(
 
     path_obj = to_upath(path)
     fs = await get_async_fs(path_obj)
-    f = await fs.open_async(path_obj.path, mode=mode)
-    async with f:
-        return await f.read()
+    data = await fs._cat_file(path_obj.path)
+    return data if mode == "rb" else data.decode(encoding)
 
 
 @overload
@@ -269,12 +274,7 @@ async def read_folder(
     Raises:
         FileNotFoundError: If base path doesn't exist
     """
-    from upathtools.helpers import to_upath
-
-    base_path = to_upath(path)
-    # Resolve base_path for relpath computations to match resolved paths from ripgrep
-    resolved_base = str(base_path.resolve())
-    matching_files = await list_files(
+    fs, root, matches = await _glob_matches(
         path,
         pattern=pattern,
         recursive=recursive,
@@ -282,36 +282,88 @@ async def read_folder(
         exclude=exclude,
         max_depth=max_depth,
     )
+    is_local = isinstance(fs, LocalFileSystem)
+    files = [(p, _relative(p, root, is_local)) for p, info in matches if not _is_dir(info)]
+
+    async def read_one(file_path: str) -> str | bytes:
+        data = await fs._cat_file(file_path)
+        return data if mode == "rb" else data.decode(encoding)
 
     result: dict[str, str | bytes] = {}
-
     if load_parallel:
-        # Process files in chunks
-        for chunk in batched(matching_files, chunk_size, strict=False):
-            # Create tasks for this chunk
-            tasks = [read_path(p, mode=mode, encoding=encoding) for p in chunk]
-            # Execute chunk in parallel
-            try:
-                contents: Sequence[str | bytes] = await asyncio.gather(*tasks)
-                # Map results back to relative paths
-                for file_path, content in zip(chunk, contents, strict=True):
-                    rel_path = os.path.relpath(str(file_path), resolved_base)
-                    result[rel_path] = content
-            except Exception as e:  # noqa: BLE001
-                msg = "Failed to read chunk starting at %s: %s"
-                logger.warning(msg, os.path.relpath(str(chunk[0]), resolved_base), e)
-    else:
-        # Sequential reading
-        for file_path in matching_files:
-            try:
-                content = await read_path(file_path, mode=mode, encoding=encoding)
-                rel_path = os.path.relpath(str(file_path), resolved_base)
-                result[rel_path] = content
-            except Exception as e:  # noqa: BLE001
-                rel_path = os.path.relpath(str(file_path), resolved_base)
-                logger.warning("Failed to read %s: %s", rel_path, e)
+        # At most chunk_size reads at a time; one failing file doesn't drop others
+        semaphore = asyncio.Semaphore(max(chunk_size, 1))
 
+        async def bounded(file_path: str) -> str | bytes:
+            async with semaphore:
+                return await read_one(file_path)
+
+        contents = await asyncio.gather(*(bounded(p) for p, _ in files), return_exceptions=True)
+        for (_, rel_path), content in zip(files, contents, strict=True):
+            if isinstance(content, BaseException):
+                if not isinstance(content, Exception):
+                    raise content
+                logger.warning("Failed to read %s: %s", rel_path, content)
+            else:
+                result[rel_path] = content
+    else:
+        for file_path, rel_path in files:
+            try:
+                result[rel_path] = await read_one(file_path)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to read %s: %s", rel_path, e)
     return result
+
+
+def _is_dir(info: Mapping[str, Any]) -> bool:
+    return info.get("type") == "directory"
+
+
+def _relative(path: str, root: str, is_local: bool) -> str:
+    """Path relative to root (OS separators for local paths, like os.path.relpath)."""
+    prefix = root.rstrip("/") + "/"
+    rel = path[len(prefix) :] if path.startswith(prefix) else path.lstrip("/")
+    return os.path.normpath(rel) if is_local else rel
+
+
+async def _glob_matches(
+    path: JoinablePathLike,
+    *,
+    pattern: str,
+    recursive: bool,
+    include_dirs: bool,
+    exclude: list[str] | None,
+    max_depth: int | None,
+) -> tuple[AsyncFileSystem, str, list[tuple[str, dict[str, Any]]]]:
+    """Glob below a path on its own filesystem (protocol and storage options kept)."""
+    from fnmatch import fnmatch
+
+    from upathtools.helpers import to_upath
+
+    base_path = to_upath(path)
+    fs = await get_async_fs(base_path)
+    stripped = fs._strip_protocol(base_path.path)
+    root = stripped if isinstance(stripped, str) else stripped[0]
+    if not await fs._exists(root):
+        msg = f"Path does not exist: {path}"
+        raise FileNotFoundError(msg)
+    if not recursive:
+        # Only the folder itself: drop recursive wildcards from the pattern
+        pattern = "/".join(part for part in pattern.split("/") if part != "**") or "*"
+        max_depth = None
+    glob_path = root.rstrip("/") + "/" + pattern
+    found = await fs._glob(glob_path, maxdepth=max_depth, detail=True)
+    matches: list[tuple[str, dict[str, Any]]] = []
+    for file_path, info in found.items():
+        if file_path.rstrip("/") == root.rstrip("/"):
+            continue
+        rel_path = _relative(file_path, root, is_local=False)
+        if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
+            continue
+        if _is_dir(info) and not include_dirs:
+            continue
+        matches.append((file_path, dict(info)))
+    return fs, root, matches
 
 
 @overload
@@ -367,65 +419,23 @@ async def list_files(
     Raises:
         FileNotFoundError: If base path doesn't exist
     """
-    from fnmatch import fnmatch
-
     from upathtools.helpers import to_upath
 
-    base_path = to_upath(path)
-    if not base_path.exists():
-        msg = f"Path does not exist: {path}"
-        raise FileNotFoundError(msg)
-
-    # Resolve base_path for relpath computations to match resolved paths from ripgrep
-    resolved_base = str(base_path.resolve())
-    fs = await get_async_fs(base_path)
-    matching_files: list[UPath | dict[str, Any]] = []
-
-    # Get all matching paths
-    if recursive:
-        glob_path = str(base_path / pattern)
-        paths = await fs._glob(glob_path, maxdepth=max_depth, detail=detail)
-    else:
-        paths = await fs._glob(str(base_path / pattern), detail=detail)
-
-    # Filter and collect paths
+    _, _, matches = await _glob_matches(
+        path,
+        pattern=pattern,
+        recursive=recursive,
+        include_dirs=include_dirs,
+        exclude=exclude,
+        max_depth=max_depth,
+    )
     if detail:
-        assert isinstance(paths, dict)
-        for file_path, file_info in paths.items():
-            assert isinstance(file_path, str)
-            rel_path = os.path.relpath(file_path, resolved_base)
-            if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
-                continue
-
-            # Skip directories unless explicitly included
-            is_dir = await is_directory(fs, file_path, entry_type=file_info.get("type"))
-            if is_dir and not include_dirs:
-                continue
-
-            if not is_dir:
-                name = os.path.basename(file_path)  # noqa: PTH119
-                dct = {**file_info, "name": name, "path": file_path}
-                matching_files.append(dct)
-    else:
-        for file_path in paths:
-            assert isinstance(file_path, str)
-
-            path_obj = UPath(file_path)
-            rel_path = os.path.relpath(file_path, resolved_base)
-
-            # Skip excluded patterns
-            if exclude and any(fnmatch(rel_path, pat) for pat in exclude):
-                continue
-
-            # Skip directories unless explicitly included
-            is_dir = await fs._isdir(file_path)
-            if is_dir and not include_dirs:
-                continue
-
-            if not is_dir:
-                matching_files.append(path_obj)
-
-    return matching_files  # type: ignore
+        return [
+            {**info, "name": posixpath.basename(file_path.rstrip("/")), "path": file_path}
+            for file_path, info in matches
+        ]
+    base_path = to_upath(path)
+    return [base_path.with_segments(file_path) for file_path, _ in matches]
 
 
 async def read_folder_as_text(
