@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v2.10.0
+_commit: v2.14.1
 _src_path: https://github.com/phil65/copier-phil65.git
 author_email: philipptemminghoff@googlemail.com
 author_fullname: Philipp Temminghoff
@@ -11,11 +11,28 @@ libraries_use_pydantic: false
 libraries_use_qt: false
 project_description: UPath utilities
 project_name: UPathTools
-python_minimum_version: '3.13'
+python_minimum_version: '3.14'
 python_package_command_line_name: upathtools
 python_package_distribution_name: upathtools
 python_package_import_name: upathtools
 repository_name: upathtools
 repository_namespace: phil65
 repository_provider: github.com
+specs:
+-   name: Agent Skills
+    url: https://agentskills.io/specification
+-   name: Appwrite Storage
+    url: https://appwrite.io/docs/references/cloud/server-python/storage
+-   name: GitHub REST
+    url: https://docs.github.com/en/rest
+-   name: GitLab API
+    url: https://docs.gitlab.com/api/repository_files/
+-   name: Linear GraphQL
+    url: https://linear.app/developers/graphql
+-   name: MCP
+    url: https://modelcontextprotocol.io/specification/latest
+-   name: Notion API
+    url: https://developers.notion.com/reference/intro
+-   name: fsspec API
+    url: https://filesystem-spec.readthedocs.io/en/latest/api.html
 
