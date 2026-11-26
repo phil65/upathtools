@@ -5,7 +5,6 @@ This module provides a shell-like interface for executing commands on filesystem
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 import shlex
@@ -160,7 +159,9 @@ async def execute_cli_async(command: str, base: UPath) -> CLIResult:  # noqa: PL
 
 def execute_cli(command: str, base: UPath) -> CLIResult:
     """Execute a CLI-style command on a filesystem/path (sync wrapper)."""
-    return asyncio.run(execute_cli_async(command, base))
+    from upathtools.cli_ops import _run_sync
+
+    return _run_sync(execute_cli_async, command, base)
 
 
 def _parse_args(args: list[str], find_style: bool = False) -> tuple[list[str], dict[str, Any]]:

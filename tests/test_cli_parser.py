@@ -32,3 +32,16 @@ def test_head_tail_wc_ls(tmp_path):
     assert str(execute_cli("tail a.py -n 1", base)) == "y = 2"
     assert execute_cli("wc a.py", base).data.lines == 2  # noqa: PLR2004
     assert sorted(e.name for e in execute_cli("ls", base)) == ["a.py", "b.txt"]
+
+
+async def test_sync_cli_wrappers_inside_running_loop(tmp_path) -> None:
+    """The sync wrappers work from async code (no asyncio.run in a running loop)."""
+    from upath import UPath
+
+    from upathtools import cli_ops
+    from upathtools.cli_parser import execute_cli
+
+    (tmp_path / "f.txt").write_text("one\ntwo\n")
+    base = UPath(tmp_path)
+    assert cli_ops.head("f.txt", base, n=1).strip() == "one"
+    assert "two" in str(execute_cli("cat f.txt", base))

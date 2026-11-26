@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+    from collections.abc import AsyncIterator, Callable, Coroutine, Iterator
     from re import Pattern
 
     from upath import UPath
@@ -921,6 +921,17 @@ async def adu(
 # ==================== Sync wrappers ====================
 
 
+def _run_sync[T](func: Callable[..., Coroutine[Any, Any, T]], *args: Any, **kwargs: Any) -> T:
+    """Run a coroutine function on fsspec's IO loop.
+
+    Works from sync code and from inside a running event loop (unlike asyncio.run),
+    and keeps loop-bound async filesystems on one long-lived loop.
+    """
+    from fsspec.asyn import get_loop, sync
+
+    return sync(get_loop(), func, *args, **kwargs)
+
+
 def grep(
     pattern: str,
     path: str,
@@ -932,7 +943,7 @@ def grep(
     async def _run():
         return [result async for result in agrep(pattern, path, base, **kwargs)]
 
-    results = asyncio.run(_run())
+    results = _run_sync(_run)
     yield from results
 
 
@@ -942,70 +953,70 @@ def find(path: str, base: UPath, **kwargs: Any) -> Iterator[FindResult]:
     async def _run():
         return [result async for result in afind(path, base, **kwargs)]
 
-    results = asyncio.run(_run())
+    results = _run_sync(_run)
     yield from results
 
 
 def head(path: str, base: UPath, **kwargs: Any) -> str:
     """Get first n lines (sync wrapper)."""
-    return asyncio.run(ahead(path, base, **kwargs))
+    return _run_sync(ahead, path, base, **kwargs)
 
 
 def tail(path: str, base: UPath, **kwargs: Any) -> str:
     """Get last n lines (sync wrapper)."""
-    return asyncio.run(atail(path, base, **kwargs))
+    return _run_sync(atail, path, base, **kwargs)
 
 
 def cat(*paths: str, base: UPath, **kwargs: Any) -> str:
     """Concatenate files (sync wrapper)."""
-    return asyncio.run(acat(*paths, base=base, **kwargs))
+    return _run_sync(acat, *paths, base=base, **kwargs)
 
 
 def cat_bytes(*paths: str, base: UPath) -> bytes:
     """Concatenate files as bytes (sync wrapper)."""
-    return asyncio.run(acat_bytes(*paths, base=base))
+    return _run_sync(acat_bytes, *paths, base=base)
 
 
 def wc(path: str, base: UPath, **kwargs: Any) -> WcResult:
     """Count lines, words, chars (sync wrapper)."""
-    return asyncio.run(awc(path, base, **kwargs))
+    return _run_sync(awc, path, base, **kwargs)
 
 
 def ls(path: str, base: UPath, **kwargs: Any) -> list[LsEntry]:
     """List directory (sync wrapper)."""
-    return asyncio.run(als(path, base, **kwargs))
+    return _run_sync(als, path, base, **kwargs)
 
 
 def diff(path1: str, path2: str, base: UPath, **kwargs: Any) -> str:
     """Compare files (sync wrapper)."""
-    return asyncio.run(adiff(path1, path2, base, **kwargs))
+    return _run_sync(adiff, path1, path2, base, **kwargs)
 
 
 def touch(path: str, base: UPath, **kwargs: Any) -> None:
     """Create/touch file (sync wrapper)."""
-    return asyncio.run(atouch(path, base, **kwargs))
+    return _run_sync(atouch, path, base, **kwargs)
 
 
 def mkdir(path: str, base: UPath, **kwargs: Any) -> None:
     """Create directory (sync wrapper)."""
-    return asyncio.run(amkdir(path, base, **kwargs))
+    return _run_sync(amkdir, path, base, **kwargs)
 
 
 def rm(path: str, base: UPath, **kwargs: Any) -> None:
     """Remove file/directory (sync wrapper)."""
-    return asyncio.run(arm(path, base, **kwargs))
+    return _run_sync(arm, path, base, **kwargs)
 
 
 def cp(src: str, dst: str, base: UPath, **kwargs: Any) -> None:
     """Copy file/directory (sync wrapper)."""
-    return asyncio.run(acp(src, dst, base, **kwargs))
+    return _run_sync(acp, src, dst, base, **kwargs)
 
 
 def mv(src: str, dst: str, base: UPath, **kwargs: Any) -> None:
     """Move file/directory (sync wrapper)."""
-    return asyncio.run(amv(src, dst, base, **kwargs))
+    return _run_sync(amv, src, dst, base, **kwargs)
 
 
 def du(path: str, base: UPath, **kwargs: Any) -> list[DuEntry]:
     """Disk usage (sync wrapper)."""
-    return asyncio.run(adu(path, base, **kwargs))
+    return _run_sync(adu, path, base, **kwargs)
