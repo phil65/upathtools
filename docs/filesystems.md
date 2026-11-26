@@ -176,6 +176,10 @@ pages = fs.ls("/", detail=False)
 content = fs.cat_file("Home.md")
 ```
 
+The wiki is a git clone in a temporary directory. Reads pull from GitHub at most once per
+`pull_interval` seconds (default 60; `0` pulls on every read), `await fs.refresh()` pulls right
+away. Writes and deletes always pull before they commit and push.
+
 ### MCP, Notion, Linear, GitLab, Appwrite
 
 `MCPFileSystem` exposes the resources of an MCP server, `MCPToolsFileSystem` exposes its tools
@@ -361,6 +365,10 @@ fs = OverlayFileSystem([upper, lower])
 fs.cat_file("/config.toml")  # b"base" (from lower)
 fs.pipe_file("/config.toml", b"changed")  # written to upper, lower is untouched
 ```
+
+Deleting only removes from the top layer: whiteouts are not supported, so a file that also
+exists in a lower layer stays visible (from that layer) after `rm`. When layers disagree on a
+path's type, `isfile` and `isdir` can both be true.
 
 **Use Cases:**
 - Configuration overlays

@@ -48,7 +48,10 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
     - Reads search through layers from top (index 0) to bottom
     - Writes always go to the uppermost layer (index 0)
 
-    This is similar to Docker's overlay filesystem or union mounts.
+    This is similar to Docker's overlay filesystem or union mounts, without whiteouts:
+    deletes only remove from the upper layer, so a path that also exists in a lower layer
+    stays visible after `rm`. When layers disagree on a path's type, `_isfile` and `_isdir`
+    can both be true.
 
     Example:
         ```python
@@ -298,7 +301,7 @@ class OverlayFileSystem(BaseAsyncFileSystem[OverlayPath, OverlayInfo]):
         await self.upper_fs._rmdir(path, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
-        """Remove file from the upper layer."""
+        """Remove file from the upper layer (lower layers keep theirs: no whiteouts)."""
         await self.upper_fs._rm_file(path, **kwargs)
 
     async def _rm(
