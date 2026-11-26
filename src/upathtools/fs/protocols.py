@@ -1,4 +1,11 @@
-"""Runtime-checkable capability protocols for ``upathtools.fs`` filesystems."""
+"""Runtime-checkable capability protocols for duck-typed non-``AsyncFS`` objects.
+
+Because :class:`~upathtools.fs.base.AsyncFS` defines default implementations for every
+optional operation (raising :class:`~upathtools.fs.errors.UnsupportedOperation` when
+unsupported), ``AsyncFS`` instances satisfy these structural protocols unconditionally.
+For ``AsyncFS`` instances, inspect :attr:`~upathtools.fs.base.AsyncFS.capabilities`
+and :attr:`~upathtools.fs.base.AsyncFS.readonly` instead.
+"""
 
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 

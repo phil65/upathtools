@@ -1,6 +1,7 @@
 """Typed, async-first core filesystem abstractions for ``upathtools``."""
 
 from upathtools.fs._sync import FSSPEC_SYNC_VERSION, FsspecSyncNote
+from upathtools.fs.base import AsyncFS
 from upathtools.fs.batch import run_bounded
 from upathtools.fs.cache import DirCache
 from upathtools.fs.errors import (
@@ -17,6 +18,7 @@ from upathtools.fs.glob import (
     has_magic,
     other_paths,
 )
+from upathtools.fs.implementations import MemoryFS, MemoryStore
 from upathtools.fs.paths import (
     ChainLink,
     check_contained,
@@ -36,6 +38,14 @@ from upathtools.fs.protocols import (
     SupportsSign,
     SupportsWrite,
 )
+from upathtools.fs.streams import (
+    DEFAULT_BLOCK_SIZE,
+    AsyncBufferedReader,
+    AsyncBufferedWriter,
+    AsyncReadStream,
+    AsyncSeekableStream,
+    AsyncWriteStream,
+)
 from upathtools.fs.types import (
     EntryType,
     FileInfo,
@@ -46,7 +56,14 @@ from upathtools.fs.types import (
 
 
 __all__ = [
+    "DEFAULT_BLOCK_SIZE",
     "FSSPEC_SYNC_VERSION",
+    "AsyncBufferedReader",
+    "AsyncBufferedWriter",
+    "AsyncFS",
+    "AsyncReadStream",
+    "AsyncSeekableStream",
+    "AsyncWriteStream",
     "ChainLink",
     "DirCache",
     "EntryType",
@@ -56,6 +73,8 @@ __all__ = [
     "FilesystemClosedError",
     "FsspecSyncNote",
     "GrepMatch",
+    "MemoryFS",
+    "MemoryStore",
     "OpenMode",
     "PathEscapeError",
     "SupportsGrep",
