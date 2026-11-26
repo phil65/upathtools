@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SIZE = 64_000
+_GREP_BATCH_SIZE = 16
 
 
 # Async filesystems created for a protocol, per event loop: async filesystems (HTTP
@@ -549,17 +550,31 @@ async def fsspec_grep(
         total_bytes = 0
 
         file_infos = await fs._glob(glob_path, detail=True)
-        for file_path, info in file_infos.items():  # pyright: ignore[reportAttributeAccessIssue]
+        file_paths = [
+            p
+            for p, info in file_infos.items()  # pyright: ignore[reportAttributeAccessIssue]
+            if not await is_directory(fs, p, entry_type=info.get("type"))
+        ]
+
+        async def read(file_path: str) -> bytes | Exception:
+            try:
+                return await fs._cat_file(file_path)
+            except Exception as e:  # noqa: BLE001
+                return e
+
+        # Fetch a batch of files concurrently, scan in order, stop at the limits
+        batch_size = getattr(fs, "batch_size", None) or _GREP_BATCH_SIZE
+        for start_idx in range(0, len(file_paths), batch_size):
             if total_matches >= max_matches or total_bytes >= max_output_bytes:
                 break
-
-            # Skip directories
-            assert isinstance(file_path, str)
-            if await is_directory(fs, file_path, entry_type=info.get("type")):
-                continue
-
-            try:
-                content = await fs._cat_file(file_path)
+            batch = file_paths[start_idx : start_idx + batch_size]
+            contents = await asyncio.gather(*(read(p) for p in batch))
+            for file_path, content in zip(batch, contents, strict=True):
+                if total_matches >= max_matches or total_bytes >= max_output_bytes:
+                    break
+                if isinstance(content, Exception):
+                    logger.debug("Error reading file %r during grep: %s", file_path, content)
+                    continue
                 # Skip binary files
                 if b"\x00" in content[:8192]:
                     continue
@@ -588,11 +603,7 @@ async def fsspec_grep(
                         total_bytes += len(line.encode("utf-8"))
 
                 if file_matches:
-                    matches[file_path] = file_matches  # pyright: ignore[reportArgumentType]
-
-            except Exception as e:  # noqa: BLE001
-                logger.debug("Error reading file %r during grep: %s", file_path, str(e))
-                continue
+                    matches[file_path] = file_matches
 
         was_truncated = total_matches >= max_matches or total_bytes >= max_output_bytes
     except Exception as e:

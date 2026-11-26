@@ -477,12 +477,26 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str,
 
         matches: list[GrepMatch] = []
         limit = max_count or 100
+        batch_size = self.batch_size or _DEFAULT_PARALLEL_BATCH_SIZE
 
-        for file_path in all_files:
+        async def read(file_path: str) -> bytes | str | BaseException:
+            try:
+                return await self._cat_file(file_path)
+            except (PermissionError, OSError) as exc:
+                return exc
+
+        # Read a batch of files concurrently, scan them in order; stop at the limit
+        for start in range(0, len(all_files), batch_size):
             if len(matches) >= limit:
                 break
-            try:
-                content = await self._cat_file(file_path)
+            batch = all_files[start : start + batch_size]
+            contents = await asyncio.gather(*(read(p) for p in batch))
+            for file_path, content in zip(batch, contents, strict=True):
+                if len(matches) >= limit:
+                    break
+                if isinstance(content, BaseException):
+                    logger.debug("Error reading file %r during grep: %s", file_path, content)
+                    continue
                 if isinstance(content, bytes):
                     # Skip binary files (null bytes in first 8KB)
                     if b"\x00" in content[:8192]:
@@ -515,9 +529,6 @@ class BaseAsyncFileSystem[TPath: UPath, TInfoDict: Mapping[str, Any] = dict[str,
                         if len(matches) >= limit:
                             break
                     byte_offset += len(line.encode("utf-8")) + 1  # +1 for newline
-            except (UnicodeDecodeError, PermissionError, OSError) as exc:
-                logger.debug("Error reading file %r during grep: %s", file_path, exc)
-                continue
 
         return matches
 
