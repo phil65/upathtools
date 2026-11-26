@@ -46,11 +46,8 @@ def to_upath(
     if isinstance(path, UPath):
         path_obj = path
     else:
-        path_obj = (
-            UPath(os.fspath(path), **storage_options)
-            if isinstance(path, os.PathLike)
-            else UPath(path)
-        )
+        raw = os.fspath(path) if isinstance(path, os.PathLike) else path
+        path_obj = UPath(raw, **storage_options)
     return AsyncUPath._from_upath(path_obj) if as_async else path_obj
 
 
@@ -99,16 +96,28 @@ def copy(
     """
     output_p = to_upath(output_path)
     source_p = to_upath(source_path)
-    output_p.parent.mkdir(parents=True, exist_ok=exist_ok)
     if source_p.is_dir():
-        if output_p.is_dir():
+        if output_p.exists() and not output_p.is_dir():
             msg = "Cannot copy folder to file!"
             raise RuntimeError(msg)
-        source_p.copy(output_p, exist_ok=exist_ok)
+        # Copy the folder's content into output_path (created if missing)
+        for src_file in source_p.rglob("*"):
+            if src_file.is_dir():
+                continue
+            _copy_file(src_file, output_p / src_file.relative_to(source_p).as_posix(), exist_ok)
+        output_p.mkdir(parents=True, exist_ok=True)
     else:
         if output_p.is_dir():
             output_p /= source_p.name
-        source_p.copy(output_p)
+        _copy_file(source_p, output_p, exist_ok)
+
+
+def _copy_file(source: UPath, target: UPath, exist_ok: bool) -> None:
+    if not exist_ok and target.exists():
+        msg = f"Target exists: {target}"
+        raise FileExistsError(msg)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source.copy(target)
 
 
 def clean_directory(directory: JoinablePathLike, remove_hidden: bool = False) -> None:
@@ -120,11 +129,10 @@ def clean_directory(directory: JoinablePathLike, remove_hidden: bool = False) ->
     for entry in folder_to_remove.iterdir():
         if entry.name.startswith(".") and not remove_hidden:
             continue
-        path = folder_to_remove / entry
-        if path.is_dir():
-            path.rmdir(True)
+        if entry.is_dir():
+            entry.fs.rm(entry.path, recursive=True)
         else:
-            path.unlink()
+            entry.unlink()
 
 
 def write_file(
@@ -250,7 +258,11 @@ def upath_to_fs(
     from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
     from fsspec.implementations.dirfs import DirFileSystem
 
-    fs, parsed_path = core.url_to_fs(str(path), **storage_options)
+    if isinstance(path, UPath) and not storage_options:
+        # The path's own filesystem keeps its storage options (zip fo=..., s3 keys)
+        fs, parsed_path = path.fs, path.path
+    else:
+        fs, parsed_path = core.url_to_fs(str(path), **storage_options)
     if asynchronous and not isinstance(fs, AsyncFileSystem):
         fs = AsyncFileSystemWrapper(fs, asynchronous=True)
     if parsed_path not in ("", "/", "."):
