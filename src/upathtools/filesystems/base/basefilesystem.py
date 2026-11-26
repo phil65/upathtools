@@ -1,10 +1,10 @@
 """The filesystem base classes."""
 
+import annotationlib
 import asyncio
 from dataclasses import dataclass, field
 from functools import partial
 from glob import has_magic
-import inspect
 import logging
 import os
 import re
@@ -87,7 +87,9 @@ def _info_dict_fields(cls: type) -> list[str]:
         if len(args) >= 2:  # noqa: PLR2004
             info_dict_type = args[1]
             if isinstance(info_dict_type, type) and is_typeddict(info_dict_type):
-                return list(inspect.get_annotations(info_dict_type))
+                # FORWARDREF: only the keys are needed; values may name TYPE_CHECKING-only types
+                fmt = annotationlib.Format.FORWARDREF
+                return list(annotationlib.get_annotations(info_dict_type, format=fmt))
     return []
 
 
