@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any, Literal, overload
 
 from fsspec.utils import infer_storage_options
@@ -56,6 +57,10 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
     This implementation uses git commands to interact with GitHub Wiki repositories.
     GitHub wikis are actually separate git repositories, so we use sparse checkout
     to efficiently access and modify wiki content.
+
+    Reads (listings, page contents) pull from the remote at most once per
+    `pull_interval` seconds; call `refresh()` to pull right away. Writes and deletes
+    always pull first.
     """
 
     protocol = "wiki"
@@ -66,6 +71,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
         owner: str | None = None,
         repo: str | None = None,
         token: str | None = None,
+        pull_interval: float = 60.0,
         asynchronous: bool = False,
         loop: Any = None,
         **kwargs: Any,
@@ -76,6 +82,8 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
             owner: GitHub repository owner/organization
             repo: GitHub repository name
             token: GitHub personal access token for authentication
+            pull_interval: Seconds a pull is reused for reads before the next one
+                (0: pull on every read). `refresh()` pulls regardless.
             asynchronous: Whether to use async operations
             loop: Event loop for async operations
             **kwargs: Additional filesystem options
@@ -97,6 +105,9 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
         self.temp_dir = tempfile.mkdtemp(prefix=f"wiki-{owner}-{repo}-")
         self._initialized = False
         self.dircache: dict[str, Any] = {}
+        self.pull_interval = pull_interval
+        self._last_pull: float | None = None
+        self._pull_lock = asyncio.Lock()
 
     @property
     def fsid(self) -> str:
@@ -147,6 +158,22 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
             return False
         else:
             return True
+
+    async def _pull_if_stale(self) -> None:
+        """Pull unless the last pull is younger than `pull_interval`."""
+        async with self._pull_lock:
+            now = time.monotonic()
+            if self._last_pull is not None and now - self._last_pull < self.pull_interval:
+                return
+            await self._pull_latest_changes()
+            self._last_pull = time.monotonic()
+
+    async def refresh(self) -> None:
+        """Pull the latest changes now (restarts the `pull_interval`)."""
+        async with self._pull_lock:
+            await self._pull_latest_changes()
+            self._last_pull = time.monotonic()
+        self.dircache.clear()
 
     async def _setup_git_repo(self) -> None:
         """Initialize git repository for the wiki."""
@@ -240,7 +267,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
             List of pages with metadata or just page names
         """
         path = self._strip_protocol(path or "")
-        await self._pull_latest_changes()
+        await self._pull_if_stale()
         target = pathlib.Path(self.temp_dir) / path
         if not target.exists():
             if path:  # Only raise error if not root path
@@ -319,7 +346,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
         if not file_path.exists():
             msg = f"Wiki page not found: {path}"
             raise FileNotFoundError(msg)
-        await self._pull_latest_changes()
+        await self._pull_if_stale()
         with file_path.open("rb") as f:
             if start is not None or end is not None:
                 start = start or 0
@@ -567,8 +594,7 @@ class WikiFileSystem(BaseAsyncFileSystem[WikiPath, WikiInfo]):
         Args:
             path: Optional path to invalidate (currently ignores path)
         """
-        self.dircache.clear()  # For simplicity, we just clear the entire cache
-        await self._pull_latest_changes()
+        await self.refresh()  # For simplicity, clears the entire cache
 
 
 if __name__ == "__main__":

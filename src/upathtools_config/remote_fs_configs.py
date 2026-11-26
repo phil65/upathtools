@@ -97,6 +97,9 @@ class WikiFilesystemConfig(FileSystemConfig):
     )
     """Connection timeout in seconds"""
 
+    pull_interval: float = Field(default=60.0, ge=0, title="Pull Interval", examples=[0, 60, 300])
+    """Seconds a git pull is reused for reads (0: pull on every read)"""
+
 
 class AppwriteFilesystemConfig(FileSystemConfig):
     """Configuration for Appwrite storage filesystem."""
