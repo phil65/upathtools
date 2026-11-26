@@ -38,6 +38,7 @@ from upathtools.fs.protocols import (
     SupportsSign,
     SupportsWrite,
 )
+from upathtools.fs.runner import LoopRunner, get_default_runner
 from upathtools.fs.streams import (
     DEFAULT_BLOCK_SIZE,
     AsyncBufferedReader,
@@ -46,6 +47,7 @@ from upathtools.fs.streams import (
     AsyncSeekableStream,
     AsyncWriteStream,
 )
+from upathtools.fs.sync import SyncFileBridge, SyncFS
 from upathtools.fs.types import (
     EntryType,
     FileInfo,
@@ -73,6 +75,7 @@ __all__ = [
     "FilesystemClosedError",
     "FsspecSyncNote",
     "GrepMatch",
+    "LoopRunner",
     "MemoryFS",
     "MemoryStore",
     "OpenMode",
@@ -82,11 +85,14 @@ __all__ = [
     "SupportsRangeRead",
     "SupportsSign",
     "SupportsWrite",
+    "SyncFS",
+    "SyncFileBridge",
     "UnsupportedOperation",
     "WriteMode",
     "check_contained",
     "common_prefix",
     "compile_glob",
+    "get_default_runner",
     "glob_translate",
     "has_magic",
     "infer_storage_options",
