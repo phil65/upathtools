@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import inspect
+import threading
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec import filesystem
@@ -129,6 +130,8 @@ class WrapperFileSystem(AsyncFileSystem):
         self._ls_info_callback = ls_info_callback
         self._on_first_access = on_first_access
         self._initialized = on_first_access is None
+        self._init_done = self._initialized
+        self._init_lock = threading.RLock()
         # Mount storage: path -> mount info
         self._content_mounts: dict[str, ContentMount] = {}
         self._fs_mounts: dict[str, FilesystemMount] = {}
@@ -143,6 +146,8 @@ class WrapperFileSystem(AsyncFileSystem):
             "_ls_info_callback",
             "_on_first_access",
             "_initialized",
+            "_init_done",
+            "_init_lock",
             "_content_mounts",
             "_fs_mounts",
         ):
@@ -150,12 +155,22 @@ class WrapperFileSystem(AsyncFileSystem):
         return getattr(self.fs, name)
 
     def _ensure_initialized(self) -> None:
-        """Run lazy initialization callback if not yet initialized."""
-        if self._initialized:
+        """Run lazy initialization callback if not yet initialized.
+
+        Other threads wait until the callback is done; the callback itself may use
+        the filesystem (re-entry in the same thread returns at once).
+        """
+        if self._init_done:
             return
-        self._initialized = True
-        if self._on_first_access is not None:
-            self._on_first_access(self)
+        with self._init_lock:
+            if self._initialized:
+                return
+            self._initialized = True
+            try:
+                if self._on_first_access is not None:
+                    self._on_first_access(self)
+            finally:
+                self._init_done = True
 
     # Mount helpers
 
@@ -474,15 +489,28 @@ class WrapperFileSystem(AsyncFileSystem):
 
         return await self.fs._cat_file(path, start=start, end=end, **kwargs)
 
+    def _write_target(self, path: str) -> tuple[AsyncFileSystem, str]:
+        """Filesystem and path a write goes to; content mounts are read-only."""
+        mount_type, mount, relative = self._resolve_mount(path)
+        if mount_type == "content":
+            msg = f"Read-only mounted content: {path}"
+            raise PermissionError(msg)
+        if mount_type == "fs":
+            assert isinstance(mount, FilesystemMount)
+            return mount.fs, relative
+        return self.fs, path
+
     async def _pipe_file(
         self, path: str, value: bytes, overwrite: bool = True, **kwargs: Any
     ) -> None:
         self._ensure_initialized()
-        await self.fs._pipe_file(path, value, overwrite=overwrite, **kwargs)
+        fs, target = self._write_target(path)
+        await fs._pipe_file(target, value, overwrite=overwrite, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._rm_file(path, **kwargs)
+        fs, target = self._write_target(path)
+        await fs._rm_file(target, **kwargs)
 
     async def _rm(
         self,
@@ -492,15 +520,26 @@ class WrapperFileSystem(AsyncFileSystem):
         **kwargs: Any,
     ) -> None:
         self._ensure_initialized()
-        await self.fs._rm(path, recursive=recursive, maxdepth=maxdepth, **kwargs)
+        paths = [path] if isinstance(path, str) else list(path)
+        for p in paths:
+            fs, target = self._write_target(p)
+            await fs._rm(target, recursive=recursive, maxdepth=maxdepth, **kwargs)
 
     async def _cp_file(self, path1: str, path2: str, overwrite: bool = True, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._cp_file(path1, path2, overwrite=overwrite, **kwargs)
+        dst_fs, dst = self._write_target(path2)
+        mount_type, mount, relative = self._resolve_mount(path1)
+        if mount_type == "none" and dst_fs is self.fs:
+            await self.fs._cp_file(path1, dst, overwrite=overwrite, **kwargs)
+        elif mount_type == "fs" and isinstance(mount, FilesystemMount) and mount.fs is dst_fs:
+            await dst_fs._cp_file(relative, dst, overwrite=overwrite, **kwargs)
+        else:  # across mounts, or from mounted content: copy the bytes
+            await dst_fs._pipe_file(dst, await self._cat_file(path1), overwrite=overwrite)
 
     async def _makedirs(self, path: str, exist_ok: bool = False, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._makedirs(path, exist_ok=exist_ok, **kwargs)
+        fs, target = self._write_target(path)
+        await fs._makedirs(target, exist_ok=exist_ok, **kwargs)
 
     async def _isdir(self, path: str, **kwargs: Any) -> bool:
         self._ensure_initialized()
@@ -550,7 +589,8 @@ class WrapperFileSystem(AsyncFileSystem):
 
     async def _mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         self._ensure_initialized()
-        await self.fs._mkdir(path, create_parents=create_parents, **kwargs)
+        fs, target = self._write_target(path)
+        await fs._mkdir(target, create_parents=create_parents, **kwargs)
 
     async def _rmdir(self, path: str, **kwargs: Any) -> None:
         self._ensure_initialized()
@@ -608,23 +648,36 @@ class WrapperFileSystem(AsyncFileSystem):
         withdirs: bool = False,
         detail: bool = False,
         **kwargs: Any,
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | dict[str, dict[str, Any]]:
         self._ensure_initialized()
+        if self._content_mounts or self._fs_mounts:
+            # Walk through our own _ls so mounts show up (callbacks applied there)
+            return await AsyncFileSystem._find(
+                self, path, maxdepth=maxdepth, withdirs=withdirs, detail=detail, **kwargs
+            )
         result = await self.fs._find(
             path, maxdepth=maxdepth, withdirs=withdirs, detail=detail, **kwargs
         )
-        if detail and (self._ls_info_callback is not None or self._info_callback is not None):
-            return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
-        return result
+        return await self._apply_callbacks_to_detail(result) if detail else result
 
     async def _glob(
         self, path: str, detail: bool = False, **kwargs: Any
-    ) -> list[str] | list[dict[str, Any]]:
+    ) -> list[str] | dict[str, dict[str, Any]]:
         self._ensure_initialized()
+        if self._content_mounts or self._fs_mounts:
+            # fsspec's glob runs on our _find (and with it our mount-aware _ls)
+            return await AsyncFileSystem._glob(self, path, detail=detail, **kwargs)
         result = await self.fs._glob(path, detail=detail, **kwargs)
-        if detail and (self._ls_info_callback is not None or self._info_callback is not None):
-            return await self._apply_ls_info_callback(result)  # type: ignore[arg-type]
-        return result
+        return await self._apply_callbacks_to_detail(result) if detail else result
+
+    async def _apply_callbacks_to_detail(self, result: Any) -> Any:
+        """Apply info callbacks to a `{path: info}` result of find/glob."""
+        if self._ls_info_callback is None and self._info_callback is None:
+            return result
+        if isinstance(result, dict):
+            infos = await self._apply_ls_info_callback(list(result.values()))
+            return dict(zip(result, infos, strict=True))
+        return await self._apply_ls_info_callback(list(result))
 
     async def _du(
         self,
