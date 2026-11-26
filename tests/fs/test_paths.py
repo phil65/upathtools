@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -217,7 +218,12 @@ def test_join_path(parts: tuple[str, ...], expected: str) -> None:
         ("zip://a/b.txt::memory:///archive.zip", {"zip": {"mode": "r"}}),
         ("/tmp/plain.txt", {"auto_mkdir": True}),
         ("memory:///a/b.txt", {"foo": 1}),
-        ("simplecache::s3://bucket/key.txt", {"s3": {"anon": True}}),
+        pytest.param(
+            "simplecache::s3://bucket/key.txt",
+            {"s3": {"anon": True}},
+            # The oracle (fsspec) imports s3fs: an extra, missing where it has no wheel
+            marks=pytest.mark.skipif(not find_spec("s3fs"), reason="needs s3fs"),
+        ),
         ("/tmp/override.txt", {"protocol": "memory"}),
     ],
 )
