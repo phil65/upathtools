@@ -113,7 +113,7 @@ def test_fsspec_class_for_caches_per_class_and_protocol() -> None:
     assert cls_default_1.sep == MemoryFS.sep
     assert cls_default_1.cachable is False
     assert cls_default_1._strip_protocol("memory:///a/b/") == "/a/b"
-    assert cls_default_1._strip_protocol(["memory:///a", "coremem:///b/"]) == ["/a", "/b"]
+    assert cls_default_1._strip_protocol(["memory:///a", "memory:///b/"]) == ["/a", "/b"]
 
     cls_custom = fsspec_class_for(MemoryFS, protocol="customproto")
     assert cls_custom is not cls_default_1

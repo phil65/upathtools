@@ -41,10 +41,10 @@ async def test_memory_protocol_stripping_and_normalization() -> None:
     await fs.write_bytes("memory://a/b/c.txt", b"hello")
     assert await fs.read_bytes("a/b/c.txt") == b"hello"
     assert await fs.read_bytes("/a/b/c.txt") == b"hello"
-    assert await fs.read_bytes("coremem:///a/b/c.txt") == b"hello"
+    assert await fs.read_bytes("memory:///a/b/c.txt") == b"hello"
     assert (await fs.info("memory://a/b/")).path == "/a/b"
     assert MemoryFS.strip_protocol("memory://") == "/"
-    assert MemoryFS.strip_protocol("coremem:///x/y/") == "/x/y"
+    assert MemoryFS.strip_protocol("memory:///x/y/") == "/x/y"
 
 
 async def test_memory_instance_isolation() -> None:

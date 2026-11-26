@@ -320,9 +320,7 @@ class MemoryStore:
 class MemoryFS(AsyncFS[FileInfo]):
     """Instance-isolated, thread-safe in-memory :class:`AsyncFS`.
 
-    Protocols:
-      Accepts ``"memory"`` and ``"coremem"`` (the latter provides an unambiguous alias
-      when disambiguating from legacy ``fsspec`` memory filesystems).
+    Protocol: ``"memory"``.
 
     Behavioural notes:
       - Each ``MemoryFS()`` creates a fresh, isolated :class:`MemoryStore`. Pass
@@ -334,7 +332,7 @@ class MemoryFS(AsyncFS[FileInfo]):
         subsequent operations raise :class:`~upathtools.fs.errors.FilesystemClosedError`.
     """
 
-    protocol: ClassVar[str | tuple[str, ...]] = ("memory", "coremem")
+    protocol: ClassVar[str | tuple[str, ...]] = "memory"
 
     def __init__(
         self,
