@@ -76,7 +76,7 @@ uv run duty lint                     # ruff fix + format + ty
 
 ## Conventions
 
-- Python >= 3.13, PEP 695 generics, `from __future__ import annotations`, Google docstrings,
+- Python >= 3.14, PEP 695 generics, no `from __future__ import annotations` (PEP 649; banned via ruff TID251), Google docstrings,
   line length 100, ruff preview rules (see `pyproject.toml`).
 - Optional backends are imported lazily inside methods or under `TYPE_CHECKING`; `import
   upathtools` and `import upathtools.filesystems` must work with only the core dependencies.
