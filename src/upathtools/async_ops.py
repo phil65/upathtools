@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache
 from itertools import batched
 import logging
 import os
 import re
+import threading
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from fsspec.asyn import AsyncFileSystem
@@ -25,36 +25,64 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_SIZE = 64_000
 
 
-@lru_cache(maxsize=32)
-def _get_cached_fs(protocol_or_fs: str | fsspec.AbstractFileSystem) -> AsyncFileSystem:
-    """Cached filesystem creation."""
-    from upathtools import core
+# Async filesystems created for a protocol, per event loop: async filesystems (HTTP
+# sessions, ...) only work on the loop they were created on. Closed loops are dropped.
+_loop_fs_cache: dict[int, tuple[asyncio.AbstractEventLoop, dict[str, AsyncFileSystem]]] = {}
+_loop_fs_cache_lock = threading.Lock()
+
+
+def _fs_for_protocol(protocol: str, storage_options: Mapping[str, Any]) -> AsyncFileSystem:
+    """Async filesystem for a protocol, cached per running event loop."""
+    from fsspec.utils import tokenize
+
+    loop = asyncio.get_running_loop()
+    key = tokenize(protocol, dict(storage_options))
+    with _loop_fs_cache_lock:
+        for loop_id, (cached_loop, _) in list(_loop_fs_cache.items()):
+            if cached_loop.is_closed():
+                del _loop_fs_cache[loop_id]
+        entry = _loop_fs_cache.get(id(loop))
+        if entry is None or entry[0] is not loop:
+            entry = _loop_fs_cache[id(loop)] = (loop, {})
+        if (fs := entry[1].get(key)) is not None:
+            return fs
+    fs = _create_async_fs(protocol, storage_options)
+    with _loop_fs_cache_lock:
+        return entry[1].setdefault(key, fs)
+
+
+def _create_async_fs(protocol: str, storage_options: Mapping[str, Any]) -> AsyncFileSystem:
+    from fsspec.registry import get_filesystem_class
+
     from upathtools.filesystems import AsyncLocalFileSystem
 
-    if isinstance(protocol_or_fs, str):
-        if protocol_or_fs in ("", "file"):
-            return AsyncLocalFileSystem()
-
-        fs = core.filesystem(protocol_or_fs, asynchronous=True)
-    else:
-        fs = protocol_or_fs
-
-    return to_async_fs(fs)
+    if protocol in ("", "file", "local") and not storage_options:
+        return AsyncLocalFileSystem()
+    cls = get_filesystem_class(protocol)
+    if issubclass(cls, AsyncFileSystem):
+        # fsspec's instance cache is per thread, not per loop: skip it
+        return cls(asynchronous=True, skip_instance_cache=True, **storage_options)
+    return to_async_fs(cls(**storage_options))
 
 
 async def get_async_fs(
     path_or_fs: JoinablePathLike | fsspec.AbstractFileSystem,
 ) -> AsyncFileSystem:
-    """Get appropriate async filesystem for path."""
+    """Get appropriate async filesystem for path.
+
+    A filesystem instance is used itself (sync ones get an async wrapper, kept on the
+    instance), never one that merely compares equal to it. For a path, the filesystem
+    comes from its protocol and storage options, one per event loop.
+    """
     import fsspec
 
     from upathtools.helpers import to_upath
 
     if isinstance(path_or_fs, fsspec.AbstractFileSystem):
-        return _get_cached_fs(path_or_fs)
+        return to_async_fs(path_or_fs)
 
     path_obj = to_upath(path_or_fs)
-    return _get_cached_fs(path_obj.protocol)
+    return _fs_for_protocol(path_obj.protocol, path_obj.storage_options)
 
 
 @overload
@@ -69,7 +97,8 @@ def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> Asy
     """Convert a sync filesystem to async if needed.
 
     If the filesystem is already async, it is returned unchanged.
-    Otherwise, it is wrapped in a WrapperFileSystem.
+    Otherwise, it is wrapped in a WrapperFileSystem (one per instance: fsspec's instance
+    cache would hand out one wrapper for all instances that compare equal).
 
     Args:
         fs: The filesystem to convert
@@ -79,7 +108,12 @@ def to_async_fs(fs: fsspec.AbstractFileSystem, asynchronous: bool = True) -> Asy
 
     if isinstance(fs, AsyncFileSystem):
         return fs
-    return WrapperFileSystem(fs, asynchronous=asynchronous)
+    attr = "_upathtools_async_wrapper" if asynchronous else "_upathtools_sync_wrapper"
+    wrapper = fs.__dict__.get(attr)
+    if wrapper is None:
+        wrapper = WrapperFileSystem(fs, asynchronous=asynchronous, skip_instance_cache=True)
+        wrapper = fs.__dict__.setdefault(attr, wrapper)
+    return wrapper
 
 
 async def is_directory(
