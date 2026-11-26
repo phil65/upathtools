@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+METADATA_CONCURRENCY = 16
+"""Most `get_metadata` calls one `_ls` runs at once."""
 
 
 class CodexInfo(FileInfo, total=False):
@@ -104,34 +108,25 @@ class CodexFS(BaseAsyncFileSystem[CodexPath, CodexInfo]):
         if not detail:
             return [f"{path.rstrip('/')}/{e.file_name}" for e in entries]
 
-        results: list[CodexInfo] = []
-        for entry in entries:
+        semaphore = asyncio.Semaphore(METADATA_CONCURRENCY)
+
+        async def entry_info(entry: Any) -> CodexInfo:
             full_path = f"{path.rstrip('/')}/{entry.file_name}"
             file_type: Literal["file", "directory"] = "directory" if entry.is_directory else "file"
-            # Try to get metadata for timestamps
-            try:
-                meta = await client.fs.get_metadata(full_path)
-                results.append(
-                    CodexInfo(
-                        name=full_path,
-                        type=file_type,
-                        size=0,
-                        created=meta.created_at_ms / 1000.0,
-                        mtime=meta.modified_at_ms / 1000.0,
-                    )
-                )
+            try:  # Metadata only adds timestamps: a failure keeps the entry
+                async with semaphore:
+                    meta = await client.fs.get_metadata(full_path)
             except Exception:  # noqa: BLE001
-                results.append(
-                    CodexInfo(
-                        name=full_path,
-                        type=file_type,
-                        size=0,
-                        created=0.0,
-                        mtime=0.0,
-                    )
-                )
+                return CodexInfo(name=full_path, type=file_type, size=0, created=0.0, mtime=0.0)
+            return CodexInfo(
+                name=full_path,
+                type=file_type,
+                size=0,
+                created=meta.created_at_ms / 1000.0,
+                mtime=meta.modified_at_ms / 1000.0,
+            )
 
-        return results
+        return list(await asyncio.gather(*(entry_info(entry) for entry in entries)))
 
     async def _info(self, path: str, **kwargs: Any) -> CodexInfo:
         """Get info about a file or directory."""
