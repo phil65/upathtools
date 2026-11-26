@@ -139,8 +139,12 @@ class HTTPFileSystem(BaseAsyncFileSystem[HttpPath, HttpInfo]):
 
     async def set_session(self) -> httpx2.AsyncClient:
         if self._session is None:
-            self._session = await self.get_client(**self.client_kwargs)
-            assert self._session
+            client = await self.get_client(**self.client_kwargs)
+            assert client
+            if self._session is not None:  # another task won the race: keep its client
+                await client.aclose()
+                return self._session
+            self._session = client
             if not self.asynchronous:
                 weakref.finalize(self, self.close_session, self.loop, self._session)
         return self._session

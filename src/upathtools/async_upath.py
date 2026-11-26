@@ -157,22 +157,21 @@ class AsyncUPath(ProxyUPath):
             fs = await self.afs()
             full_pattern = str(self / pattern) if not pattern.startswith("/") else pattern
             matches = await fs._glob(full_pattern)
-            for match_path in matches:
-                if isinstance(match_path, dict):
-                    match_path = match_path.get("name", match_path.get("path", ""))
-                yield self._from_upath(
-                    type(self.__wrapped__)(
-                        match_path, protocol=self.protocol, **self.storage_options
-                    )
-                )
-
         except Exception:  # noqa: BLE001
-            # Final fallback to sync glob in thread
+            # Fallback to sync glob in thread (only when the async glob itself fails,
+            # so nothing is yielded twice)
             sync_matches = await asyncio.to_thread(
                 lambda: list(self.glob(pattern, case_sensitive=case_sensitive))
             )
             for match in sync_matches:
                 yield match
+            return
+        for match_path in matches:
+            if isinstance(match_path, dict):
+                match_path = match_path.get("name", match_path.get("path", ""))
+            yield self._from_upath(
+                type(self.__wrapped__)(match_path, protocol=self.protocol, **self.storage_options)
+            )
 
     def arglob(self, pattern: str, *, case_sensitive: bool | None = None) -> AsyncIterator[Self]:
         """Asynchronously recursively glob for paths matching pattern."""
