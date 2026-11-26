@@ -577,7 +577,7 @@ class AsyncFS[TInfo: FileInfo = FileInfo](ABC):
                 else:
                     current_level.append((dirpath, dirs, files))
                 if maxdepth is None or depth < maxdepth:
-                    next_frontier.extend(d.path for d in dirs)
+                    next_frontier.extend(d.path for d in dirs if not d.is_symlink)
 
             if not topdown and current_level:
                 levels.append(current_level)
@@ -772,7 +772,7 @@ class AsyncFS[TInfo: FileInfo = FileInfo](ABC):
             raise ValueError(f"Cannot remove root directory {norm!r}")
 
         entry = await self.info(norm)
-        if not entry.is_dir:
+        if not entry.is_dir or entry.is_symlink:
             await self.remove_file(norm)
             return
 

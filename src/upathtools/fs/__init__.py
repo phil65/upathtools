@@ -18,7 +18,7 @@ from upathtools.fs.glob import (
     has_magic,
     other_paths,
 )
-from upathtools.fs.implementations import MemoryFS, MemoryStore
+from upathtools.fs.implementations import DirFS, LocalFS, LocalFSInfo, MemoryFS, MemoryStore
 from upathtools.fs.interop import (
     AsFsspecFileSystem,
     FsspecAdapter,
@@ -81,6 +81,7 @@ __all__ = [
     "AsyncWriteStream",
     "ChainLink",
     "DirCache",
+    "DirFS",
     "EntryType",
     "FSError",
     "FSTimeoutError",
@@ -90,6 +91,8 @@ __all__ = [
     "FsspecAdapter",
     "FsspecSyncNote",
     "GrepMatch",
+    "LocalFS",
+    "LocalFSInfo",
     "LoopRunner",
     "MemoryFS",
     "MemoryStore",

@@ -9,6 +9,7 @@ from fsspec.asyn import AsyncFileSystem
 from fsspec.registry import get_filesystem_class as fsspec_get_filesystem_class
 
 from upathtools.fs._sync import FSSPEC_SYNC_VERSION, FsspecSyncNote
+from upathtools.fs.implementations.local import LocalFS
 from upathtools.fs.implementations.memory import MemoryFS
 from upathtools.fs.interop.from_fsspec import FsspecAdapter
 from upathtools.fs.paths import split_protocol
@@ -181,3 +182,5 @@ class ProtocolRegistry:
 
 default_registry = ProtocolRegistry()
 default_registry.register("memory", MemoryFS)
+default_registry.register("file", LocalFS)
+default_registry.register("local", LocalFS)

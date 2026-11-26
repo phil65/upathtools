@@ -13,6 +13,7 @@ import pytest
 
 from upathtools.fs import (
     FsspecAdapter,
+    LocalFS,
     MemoryFS,
     MemoryStore,
     ProtocolRegistry,
@@ -84,9 +85,15 @@ def test_register_unregister_lookup_and_clobber() -> None:
 
 def test_default_registry_has_memory_only_locally_never_in_fsspec() -> None:
     assert "memory" in default_registry.protocols()
+    assert "file" in default_registry.protocols()
+    assert "local" in default_registry.protocols()
     fs = default_registry.filesystem("memory")
     assert isinstance(fs, MemoryFS)
+    assert isinstance(default_registry.filesystem("file"), LocalFS)
+    assert isinstance(default_registry.filesystem("local"), LocalFS)
     assert get_filesystem_class("memory") is MemoryFileSystem
+    assert get_filesystem_class("file") is LocalFileSystem
+    assert get_filesystem_class("local") is LocalFileSystem
 
 
 async def test_fsspec_fallback_for_file_and_async_fs(tmp_path: Path) -> None:

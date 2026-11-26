@@ -3,6 +3,8 @@
 Covers:
   1. ``to_fsspec(MemoryFS())``
   2. Round-trip ``to_fsspec(from_fsspec(fsspec.filesystem("memory", ...)))``
+  3. ``to_fsspec(LocalFS())``
+  4. ``to_fsspec(DirFS(MemoryFS(), "/root"))``
 
 Note: In ``fsspec 2026.9.0``, ``fsspec.tests.abstract.mv`` defines two standalone
 functions hardcoded to ``fsspec.filesystem("file")`` rather than an ``AbstractMvTests``
@@ -25,11 +27,12 @@ from fsspec.tests.abstract import (
 import fsspec.tests.abstract.mv as fsspec_abstract_mv
 import pytest
 
-from upathtools.fs import LoopRunner, MemoryFS, from_fsspec, to_fsspec
+from upathtools.fs import DirFS, LocalFS, LoopRunner, MemoryFS, from_fsspec, to_fsspec
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from pathlib import Path
 
     from upathtools.fs import AsFsspecFileSystem
 
@@ -87,4 +90,33 @@ class TestRoundTripFsspecMemory(_CoreAbstractSuite):
         raw.pseudo_dirs[:] = [""]
         adapted = to_fsspec(from_fsspec(raw), runner=runner)
         adapted.makedirs(fs_path, exist_ok=True)
+        return adapted
+
+
+class TestToFsspecLocalFS(_CoreAbstractSuite):
+    """Run ``fsspec.tests.abstract`` against ``to_fsspec(LocalFS())``."""
+
+    @pytest.fixture
+    def fs_path(self, tmp_path: Path) -> str:
+        root = tmp_path / "fs_root"
+        root.mkdir()
+        return root.as_posix()
+
+    @pytest.fixture
+    def fs(self, runner: LoopRunner) -> AsFsspecFileSystem:
+        return to_fsspec(LocalFS(), runner=runner)
+
+
+class TestToFsspecDirFSMemory(_CoreAbstractSuite):
+    """Run ``fsspec.tests.abstract`` against ``to_fsspec(DirFS(MemoryFS(), '/root'))``."""
+
+    @pytest.fixture
+    def fs_path(self) -> str:
+        return "/"
+
+    @pytest.fixture
+    def fs(self, runner: LoopRunner) -> AsFsspecFileSystem:
+        mem = MemoryFS()
+        adapted = to_fsspec(DirFS(mem, "/root"), runner=runner)
+        adapted.makedirs("/", exist_ok=True)
         return adapted
