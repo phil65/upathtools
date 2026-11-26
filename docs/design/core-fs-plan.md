@@ -12,7 +12,8 @@ Gemini's is the base because it is better grounded (call-site counts, fsspec lin
 
 Verified on the code: `fsspec/tests/abstract/` ships in the fsspec wheel (copy/get/put/mv/open/
 pipe + glob edge cases), so the benchmark needs no vendoring; `fsspec.asyn.reset_after_fork`
-declares `global lock` while the variable is `_lock` (an upstream bug, worth a PR to fsspec);
+declares `global lock` while the variable is `_lock` (an upstream bug in 2026.9.0, fixed on
+fsspec master by `reset_lock()`, not released yet as of 2026-11-26);
 `pyproject.toml` ignores ty's `incompatible-{attribute,method,mutable}-override`; 26 files carry
 `= sync_wrapper(...)` boilerplate.
 
@@ -144,7 +145,7 @@ Every item below is directly evidenced in `upathtools` and `fsspec 2026.9.0`:
   - `DelegatingFileSystem._call_fs_method` (`src/upathtools/filesystems/delegating_fs.py:250-260`) must dynamically probe `isinstance(file_fs, AsyncFileSystem)` and `inspect.iscoroutinefunction(getattr(file_fs, f"_{method}"))` just to avoid deadlocking sync calls (`tests/test_get_upath.py:34-41`).
   - `AsyncSSHFileSystem` (`src/upathtools/filesystems/fsspec_filesystems/ssh.py:1-35`) exists solely because upstream `sshfs` calls `sync_wrapper` inside `__init__`, crashing when constructed inside an event loop.
   - `cli_ops.py:922-930` and `monty_os.py:60-65` have to borrow `fsspec.asyn.get_loop()` and `sync()`.
-- **Fork bug in fsspec (`fsspec/asyn.py:256-260`):** `reset_after_fork()` declares `global lock` instead of `global _lock`, leaving the parent's `_lock` alive in forked children!
+- **Fork bug in fsspec (`fsspec/asyn.py:256-260`):** `reset_after_fork()` declares `global lock` instead of `global _lock`, leaving the parent's `_lock` alive in forked children (fixed on fsspec master, after 2026.9.0).
 - **Runtime `__dict__` mutation destroys static typing (`fsspec/asyn.py:1090-1124`):** `mirror_sync_methods(obj)` injects sync methods onto each instance at `__call__` time. Type checkers (`ty`, `pyright`) cannot see them. Consequently:
   - **28 files** in `upathtools` manually re-declare `ls = sync_wrapper(_ls)` with `# pyright: ignore[reportAssignmentType]`.
   - `pyproject.toml:448-453` has to globally suppress `incompatible-attribute-override = "ignore"` and `incompatible-method-override = "ignore"` in `[tool.ty.rules]`, weakening type checking across the entire repository.
