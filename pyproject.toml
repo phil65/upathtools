@@ -454,6 +454,15 @@ incompatible-method-override = "ignore"
 possibly-missing-import = "warn"
 division-by-zero = "warn"
 
+[[tool.ty.overrides]]
+# upathtools.fs is not built on fsspec: its overrides must be consistent.
+include = ["src/upathtools/fs/**"]
+
+[tool.ty.overrides.rules]
+incompatible-attribute-override = "error"
+incompatible-method-override = "error"
+incompatible-mutable-override = "error"
+
 [tool.ty.src]
 # `ty check` (hooks, CI, editors) type-checks the package code only.
 include = ["src"]
