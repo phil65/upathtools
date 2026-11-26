@@ -2,7 +2,8 @@
 
 import asyncio
 import errno
-from typing import TYPE_CHECKING, ClassVar
+import inspect
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pytest
 
@@ -386,3 +387,54 @@ async def test_default_base_move_leaves_source_intact_on_mid_copy_failure() -> N
     assert not await fs.exists("/src")
     assert await fs.read_bytes("/dst/a.txt") == b"A"
     assert await fs.read_bytes("/dst/b.txt") == b"B"
+
+
+async def test_no_detail_polymorphism_and_no_sync_property() -> None:
+    """Core AsyncFS uses distinct typed methods (no detail:bool) and has no .sync property."""
+    for method_name in ("ls", "find", "glob"):
+        params = inspect.signature(getattr(AsyncFS, method_name)).parameters
+        assert "detail" not in params
+
+    fs = _DictReadOnlyFS({"/a.txt": b"1", "/sub/b.txt": b"22"})
+    assert not hasattr(AsyncFS, "sync")
+    assert not hasattr(fs, "sync")
+
+    # Calling with detail=... is rejected rather than changing return shapes.
+    any_fs: Any = fs
+    with pytest.raises(TypeError):
+        await any_fs.ls("/", detail=False)
+    with pytest.raises(TypeError):
+        await any_fs.find("/", detail=True)
+    with pytest.raises(TypeError):
+        await any_fs.glob("/**", detail=True)
+
+    # Distinct typed methods return FileInfo lists vs str lists unconditionally.
+    assert all(isinstance(entry, FileInfo) for entry in await fs.ls("/"))
+    assert all(isinstance(path, str) for path in await fs.ls_names("/"))
+    assert all(isinstance(entry, FileInfo) for entry in await fs.find("/"))
+    assert all(isinstance(path, str) for path in await fs.find_paths("/"))
+    assert all(isinstance(entry, FileInfo) for entry in await fs.glob("/**"))
+    assert all(isinstance(path, str) for path in await fs.glob_paths("/**"))
+
+
+async def test_du_runs_single_pass_without_per_file_info_calls() -> None:
+    """du() reuses find() metadata in a single pass instead of N+1 info() calls."""
+
+    class _CountingFS(_DictReadOnlyFS):
+        def __init__(self, files: dict[str, bytes]) -> None:
+            super().__init__(files)
+            self.info_calls: list[str] = []
+
+        async def info(self, path: str) -> FileInfo:
+            self.info_calls.append(self._norm(path))
+            return await super().info(path)
+
+    fs = _CountingFS({
+        "/a.bin": b"1234",
+        "/sub/b.bin": b"123456",
+        "/sub/deep/c.bin": b"12",
+    })
+    usage = await fs.du("/")
+    assert usage == {"/a.bin": 4, "/sub/b.bin": 6, "/sub/deep/c.bin": 2}
+    # Only the root probe inside find() calls info(); individual files are never re-stat'd.
+    assert fs.info_calls == ["/"]
