@@ -11,8 +11,6 @@ Structure:
     └── ...
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from upathtools.async_helpers import sync_wrapper

@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing Pydantic BaseModel schemas."""
 
-from __future__ import annotations
-
 import importlib
 import json
 from typing import TYPE_CHECKING, Any, Literal, TypeIs, get_args, get_origin, overload

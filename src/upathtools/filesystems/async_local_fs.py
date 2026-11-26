@@ -1,7 +1,5 @@
 """Async local filesystem with ripgrep-rs optimizations."""
 
-from __future__ import annotations
-
 from asyncio import get_running_loop
 from functools import partial
 from inspect import iscoroutinefunction

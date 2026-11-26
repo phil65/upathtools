@@ -5,8 +5,6 @@ allowing access to resources provided by MCP servers using standard
 filesystem operations.
 """
 
-from __future__ import annotations
-
 import base64
 from typing import TYPE_CHECKING, Any, Literal, Required, overload
 from urllib.parse import quote, unquote

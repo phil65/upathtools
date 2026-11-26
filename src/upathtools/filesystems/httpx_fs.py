@@ -1,7 +1,5 @@
 """HTTP filesystem implementation with async support using httpx2."""
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 from copy import copy

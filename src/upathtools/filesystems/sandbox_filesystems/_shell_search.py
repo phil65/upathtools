@@ -9,8 +9,6 @@ scripts and parse their output; each filesystem supplies a way to run a script.
 - find: GNU `find -printf` (Debian/Ubuntu based images)
 """
 
-from __future__ import annotations
-
 import base64
 from dataclasses import dataclass
 import json

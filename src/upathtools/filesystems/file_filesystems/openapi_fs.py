@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing OpenAPI specifications."""
 
-from __future__ import annotations
-
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, TypedDict, overload
 from urllib.parse import urlparse

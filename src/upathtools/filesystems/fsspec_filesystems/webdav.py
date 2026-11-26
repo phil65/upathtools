@@ -1,7 +1,5 @@
 """WebDAV filesystem with UPath integration (requires webdav4)."""
 
-from __future__ import annotations
-
 from upath.implementations.webdav import WebdavPath
 from webdav4.fsspec import WebdavFileSystem as _WebdavFileSystem
 

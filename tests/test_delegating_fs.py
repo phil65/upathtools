@@ -1,7 +1,5 @@
 """DelegatingFileSystem drops parsed views when the underlying file changes."""
 
-from __future__ import annotations
-
 import fsspec
 
 from upathtools.filesystems.delegating_fs import DelegatingFileSystem

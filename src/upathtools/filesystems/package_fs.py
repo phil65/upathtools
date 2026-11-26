@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing a single Python package."""
 
-from __future__ import annotations
-
 import importlib
 import os
 import pkgutil

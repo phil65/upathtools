@@ -1,7 +1,5 @@
 """Test module for fsspec-httpx filesystem implementation."""
 
-from __future__ import annotations
-
 from collections import ChainMap
 import contextlib
 import gzip

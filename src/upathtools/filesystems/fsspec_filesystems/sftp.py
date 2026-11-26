@@ -1,7 +1,5 @@
 """SFTP filesystem with UPath integration (requires paramiko)."""
 
-from __future__ import annotations
-
 from fsspec.implementations.sftp import SFTPFileSystem as _SFTPFileSystem
 from upath.implementations.sftp import SFTPPath
 

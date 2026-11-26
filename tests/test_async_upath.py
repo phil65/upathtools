@@ -1,7 +1,5 @@
 """Tests for AsyncUPath."""
 
-from __future__ import annotations
-
 import pytest
 
 from upathtools import AsyncUPath

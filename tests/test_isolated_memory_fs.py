@@ -1,7 +1,5 @@
 """IsolatedMemoryFileSystem leaves fsspec's memory:// alone and drops anonymous stores."""
 
-from __future__ import annotations
-
 import fsspec
 from fsspec.implementations.memory import MemoryFileSystem
 

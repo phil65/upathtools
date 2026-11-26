@@ -1,7 +1,5 @@
 """Concurrent HTTP session setup and AsyncUPath.aglob fallback."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 

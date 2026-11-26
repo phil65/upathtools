@@ -1,7 +1,5 @@
 """Base class for filesystems that operate on file content."""
 
-from __future__ import annotations
-
 from abc import abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar

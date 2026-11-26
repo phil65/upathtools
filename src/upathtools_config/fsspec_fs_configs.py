@@ -1,7 +1,5 @@
 """Configuration models for fsspec core filesystem implementations."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field, SecretStr

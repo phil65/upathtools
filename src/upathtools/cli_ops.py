@@ -4,8 +4,6 @@ This module provides async-first functions that emulate common CLI commands.
 All async functions have sync wrappers for convenience.
 """
 
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass, field
 import fnmatch

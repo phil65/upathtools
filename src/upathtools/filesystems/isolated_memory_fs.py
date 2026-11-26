@@ -1,7 +1,5 @@
 """Isolated memory filesystem with per-key storage."""
 
-from __future__ import annotations
-
 import threading
 from typing import Any, ClassVar
 import uuid

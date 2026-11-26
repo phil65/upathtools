@@ -297,7 +297,6 @@ extend-exclude = ["docs"]
 target-version = "py314"
 
 [tool.ruff.lint]
-future-annotations = true
 select = [
   "A",  # Flake8-builtins
   # "ANN",  # Flake8-Annotations
@@ -317,7 +316,6 @@ select = [
   # "ERA",  #  Eradicate
   "EXE",  # flake8-executable
   "F",  # PyFlakes
-  "FA",  # flake8-future-annotations
   # "FBT",  # flake8-boolean-trap
   # "FIX",  # flake8-fixme
   "FLY",  # flynt
@@ -401,6 +399,9 @@ ignore = [
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"__future__.annotations" = { msg = "Not needed on Python 3.14 (PEP 649)." }
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = [

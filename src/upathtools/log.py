@@ -1,7 +1,5 @@
 """Logging configuration for upathtools."""
 
-from __future__ import annotations
-
 import logging
 
 

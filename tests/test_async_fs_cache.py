@@ -1,7 +1,5 @@
 """get_async_fs never shares filesystems between instances, loops or threads."""
 
-from __future__ import annotations
-
 import asyncio
 import sys
 import threading

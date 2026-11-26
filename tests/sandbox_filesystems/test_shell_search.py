@@ -1,7 +1,5 @@
 """Tests for the sandbox shell search helpers, run against local rg/grep/find."""
 
-from __future__ import annotations
-
 import os
 from pathlib import Path
 import shutil

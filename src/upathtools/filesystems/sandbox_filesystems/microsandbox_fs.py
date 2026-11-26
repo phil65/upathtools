@@ -4,8 +4,6 @@ Uses microsandbox's native guest filesystem API (`Sandbox.fs`), so binary conten
 special characters and metadata are handled without shelling out.
 """
 
-from __future__ import annotations
-
 from contextlib import contextmanager
 import errno
 import logging

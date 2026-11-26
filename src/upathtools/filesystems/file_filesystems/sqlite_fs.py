@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing SQLite databases."""
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import csv

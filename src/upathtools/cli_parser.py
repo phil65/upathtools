@@ -3,8 +3,6 @@
 This module provides a shell-like interface for executing commands on filesystems and paths.
 """
 
-from __future__ import annotations
-
 from collections.abc import Sequence
 from dataclasses import dataclass
 import shlex

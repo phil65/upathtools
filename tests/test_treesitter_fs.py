@@ -1,7 +1,5 @@
 """Tests for TreeSitterFileSystem."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import fsspec

@@ -1,7 +1,5 @@
 """Configuration models for filesystem implementations."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import ConfigDict, Field, SecretStr

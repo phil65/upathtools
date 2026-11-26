@@ -4,8 +4,6 @@ Requires the microsandbox runtime and access to /dev/kvm (Linux) or
 Hypervisor.framework (macOS); skipped otherwise.
 """
 
-from __future__ import annotations
-
 import os
 import sys
 import time

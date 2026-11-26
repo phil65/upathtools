@@ -1,7 +1,5 @@
 """GitHub repository filesystem implementation with async support using httpx2."""
 
-from __future__ import annotations
-
 import base64
 import contextlib
 import logging

@@ -1,7 +1,5 @@
 """Compact FastMCP server demonstrating sampling and elicitation in one workflow."""
 
-from __future__ import annotations
-
 from fastmcp import FastMCP
 
 

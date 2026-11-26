@@ -1,7 +1,5 @@
 """Helper functions for CLI-style filesystem operations."""
 
-from __future__ import annotations
-
 import difflib
 import re
 from typing import TYPE_CHECKING, Any, Literal

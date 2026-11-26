@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing markdown documents by header hierarchy."""
 
-from __future__ import annotations
-
 import re
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required, overload

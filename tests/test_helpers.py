@@ -1,7 +1,5 @@
 """helpers.copy / clean_directory / to_upath / upath_to_fs on common inputs."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 import zipfile
 

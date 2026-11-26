@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing Python packages hierarchically."""
 
-from __future__ import annotations
-
 import importlib.metadata
 import importlib.util
 import os

@@ -1,7 +1,5 @@
 """BaseAsyncFileSystem._grep reads files concurrently, keeps file order and limits."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 

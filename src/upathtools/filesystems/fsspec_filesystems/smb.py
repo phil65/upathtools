@@ -1,7 +1,5 @@
 """SMB filesystem with UPath integration (requires smbprotocol)."""
 
-from __future__ import annotations
-
 from fsspec.implementations.smb import SMBFileSystem as _SMBFileSystem
 from upath.implementations.smb import SMBPath
 

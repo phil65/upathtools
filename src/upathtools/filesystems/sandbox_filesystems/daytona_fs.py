@@ -1,7 +1,5 @@
 """Daytona async filesystem implementation for upathtools."""
 
-from __future__ import annotations
-
 from datetime import datetime
 import logging
 import os

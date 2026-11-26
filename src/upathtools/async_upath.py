@@ -1,7 +1,5 @@
 """Async UPath implementation using ProxyUPath with fallback to thread pools."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import IO, TYPE_CHECKING, Any, Self
 

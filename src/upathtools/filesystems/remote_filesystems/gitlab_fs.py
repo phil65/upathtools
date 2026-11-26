@@ -1,7 +1,5 @@
 """GitLab filesystem implementation using python-gitlab client."""
 
-from __future__ import annotations
-
 import asyncio
 import os
 from typing import TYPE_CHECKING, Any, Literal, overload

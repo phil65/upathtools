@@ -1,7 +1,5 @@
 """Base filesystem classes."""
 
-from __future__ import annotations
-
 from upathtools.filesystems.base.basefilesystem import (
     BaseAsyncFileSystem,
     BaseFileSystem,

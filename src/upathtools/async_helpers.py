@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from asyncio import get_running_loop
 import asyncio.events

@@ -5,8 +5,6 @@ as a virtual filesystem. For example, MarkdownFileSystem exposes markdown header
 as directories.
 """
 
-from __future__ import annotations
-
 from upathtools.filesystems.file_filesystems.jsonschema_fs import (
     JsonSchemaFileSystem,
     JsonSchemaInfo,

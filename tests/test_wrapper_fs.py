@@ -1,7 +1,5 @@
 """WrapperFileSystem: callbacks on find/glob details, mounts in find/glob and writes."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import fsspec

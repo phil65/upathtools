@@ -4,8 +4,6 @@ fsspec's `AsyncFileSystem` does not define these, while `AsyncFileSystemWrapper`
 and many implementations do. Check with `isinstance()` before calling.
 """
 
-from __future__ import annotations
-
 from typing import Any, Protocol, runtime_checkable
 
 

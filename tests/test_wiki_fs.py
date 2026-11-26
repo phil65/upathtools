@@ -1,7 +1,5 @@
 """Wiki filesystem: how often it pulls (no network: git is faked)."""
 
-from __future__ import annotations
-
 import pathlib
 import subprocess
 from typing import TYPE_CHECKING, Any

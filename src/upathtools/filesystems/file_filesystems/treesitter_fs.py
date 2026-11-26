@@ -1,7 +1,5 @@
 """Filesystem implementation for browsing code structure using tree-sitter."""
 
-from __future__ import annotations
-
 import os
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 

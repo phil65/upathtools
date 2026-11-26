@@ -1,7 +1,5 @@
 """Configuration models for filesystem implementations."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 from urllib.parse import urlparse
 

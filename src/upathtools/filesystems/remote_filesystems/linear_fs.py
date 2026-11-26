@@ -1,7 +1,5 @@
 """Linear Issues filesystem implementation with async support using httpx2."""
 
-from __future__ import annotations
-
 import contextlib
 import logging
 import os

@@ -4,8 +4,6 @@ Uses Anthropic's sandbox-runtime to provide sandboxed filesystem access
 with configurable network and filesystem restrictions.
 """
 
-from __future__ import annotations
-
 import asyncio
 import base64
 import json

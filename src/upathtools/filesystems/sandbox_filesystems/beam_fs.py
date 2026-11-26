@@ -1,7 +1,5 @@
 """Beam async filesystem implementation for upathtools."""
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import errno

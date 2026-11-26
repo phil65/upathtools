@@ -4,8 +4,6 @@ Provides a layered filesystem where reads search through layers top-to-bottom,
 but writes always go to the uppermost (first) filesystem layer.
 """
 
-from __future__ import annotations
-
 import asyncio
 import errno
 import os

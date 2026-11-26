@@ -1,7 +1,5 @@
 """Fsspec filesystem classes with UPath integration."""
 
-from __future__ import annotations
-
 from fsspec.implementations.cached import SimpleCacheFileSystem as _SimpleCacheFileSystem
 from fsspec.implementations.data import DataFileSystem as _DataFileSystem
 from fsspec.implementations.github import GithubFileSystem as _GithubFileSystem

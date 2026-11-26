@@ -1,7 +1,5 @@
 """Tests for JsonSchemaFileSystem.from_type() with various Python types."""
 
-from __future__ import annotations
-
 import dataclasses
 import json
 from typing import TypedDict

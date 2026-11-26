@@ -5,8 +5,6 @@ File operations use the /api/file/* endpoints where available, falling back
 to shell commands via /api/execute for metadata operations.
 """
 
-from __future__ import annotations
-
 import base64
 import contextlib
 import logging

@@ -1,7 +1,5 @@
 """Notion async filesystem implementation for upathtools."""
 
-from __future__ import annotations
-
 import io
 import json
 from typing import TYPE_CHECKING, Any

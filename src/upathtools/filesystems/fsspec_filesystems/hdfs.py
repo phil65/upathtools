@@ -1,7 +1,5 @@
 """HDFS filesystem with UPath integration (requires pyarrow)."""
 
-from __future__ import annotations
-
 from fsspec.implementations.arrow import HadoopFileSystem as _HadoopFileSystem
 from upath.implementations.hdfs import HDFSPath
 

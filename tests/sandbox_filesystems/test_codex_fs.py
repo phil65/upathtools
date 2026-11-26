@@ -1,7 +1,5 @@
 """Codex filesystem listing with a fake client (no codex app-server)."""
 
-from __future__ import annotations
-
 import asyncio
 from types import SimpleNamespace
 from typing import Any

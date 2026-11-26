@@ -1,7 +1,5 @@
 """Filesystem implementation that flattens multiple filesystems into a single view."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any, Literal, overload
 

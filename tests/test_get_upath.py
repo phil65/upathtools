@@ -1,7 +1,5 @@
 """Regression tests for UPath access to upathtools filesystems."""
 
-from __future__ import annotations
-
 import subprocess
 import sys
 import textwrap

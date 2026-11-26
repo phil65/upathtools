@@ -13,8 +13,6 @@ For files where multiple filesystems match the extension (e.g., .json for
 both JSON Schema and OpenAPI), content probing determines the best match.
 """
 
-from __future__ import annotations
-
 import inspect
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload

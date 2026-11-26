@@ -4,8 +4,6 @@ Uses the Sprites filesystem REST API directly via httpx2.
 All file operations use dedicated /fs/* endpoints.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 import logging
 from typing import TYPE_CHECKING, Any, Literal, Required, overload

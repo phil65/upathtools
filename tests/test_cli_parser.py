@@ -1,7 +1,5 @@
 """Tests for the CLI-style command interface."""
 
-from __future__ import annotations
-
 from upath import UPath
 
 from upathtools.cli_parser import execute_cli

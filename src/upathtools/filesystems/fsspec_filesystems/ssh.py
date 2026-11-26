@@ -4,8 +4,6 @@ This wraps sshfs's SSHFileSystem to allow proper async initialization,
 avoiding the sync_wrapper hack that breaks when already in an async event loop.
 """
 
-from __future__ import annotations
-
 from contextlib import AsyncExitStack
 from typing import Any
 import weakref

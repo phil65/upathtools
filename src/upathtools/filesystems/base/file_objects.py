@@ -1,7 +1,5 @@
 """Base File objects."""
 
-from __future__ import annotations
-
 import io
 from typing import (
     TYPE_CHECKING,

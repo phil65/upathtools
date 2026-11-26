@@ -1,7 +1,5 @@
 """Test MCP server with sample tools for MCPToolsFileSystem testing."""
 
-from __future__ import annotations
-
 from fastmcp import FastMCP
 
 
