@@ -19,6 +19,16 @@ from upathtools.fs.glob import (
     other_paths,
 )
 from upathtools.fs.implementations import MemoryFS, MemoryStore
+from upathtools.fs.interop import (
+    AsFsspecFileSystem,
+    FsspecAdapter,
+    ensure_async_fs,
+    from_fsspec,
+    fsspec_class_for,
+    register_fsspec_bridge,
+    register_upath_bridge,
+    to_fsspec,
+)
 from upathtools.fs.paths import (
     ChainLink,
     check_contained,
@@ -31,6 +41,7 @@ from upathtools.fs.paths import (
     tokenize,
     unchain,
 )
+from upathtools.fs.pool import FilesystemPool
 from upathtools.fs.protocols import (
     SupportsGrep,
     SupportsMove,
@@ -38,6 +49,7 @@ from upathtools.fs.protocols import (
     SupportsSign,
     SupportsWrite,
 )
+from upathtools.fs.registry import ProtocolRegistry, default_registry
 from upathtools.fs.runner import LoopRunner, get_default_runner
 from upathtools.fs.streams import (
     DEFAULT_BLOCK_SIZE,
@@ -60,6 +72,7 @@ from upathtools.fs.types import (
 __all__ = [
     "DEFAULT_BLOCK_SIZE",
     "FSSPEC_SYNC_VERSION",
+    "AsFsspecFileSystem",
     "AsyncBufferedReader",
     "AsyncBufferedWriter",
     "AsyncFS",
@@ -73,6 +86,8 @@ __all__ = [
     "FSTimeoutError",
     "FileInfo",
     "FilesystemClosedError",
+    "FilesystemPool",
+    "FsspecAdapter",
     "FsspecSyncNote",
     "GrepMatch",
     "LoopRunner",
@@ -80,6 +95,7 @@ __all__ = [
     "MemoryStore",
     "OpenMode",
     "PathEscapeError",
+    "ProtocolRegistry",
     "SupportsGrep",
     "SupportsMove",
     "SupportsRangeRead",
@@ -92,6 +108,10 @@ __all__ = [
     "check_contained",
     "common_prefix",
     "compile_glob",
+    "default_registry",
+    "ensure_async_fs",
+    "from_fsspec",
+    "fsspec_class_for",
     "get_default_runner",
     "glob_translate",
     "has_magic",
@@ -100,9 +120,12 @@ __all__ = [
     "normalize_path",
     "other_paths",
     "parent_path",
+    "register_fsspec_bridge",
+    "register_upath_bridge",
     "run_bounded",
     "split_protocol",
     "strip_protocol",
+    "to_fsspec",
     "tokenize",
     "unchain",
 ]

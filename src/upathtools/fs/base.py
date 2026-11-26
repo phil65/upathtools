@@ -792,7 +792,11 @@ class AsyncFS[TInfo: FileInfo = FileInfo](ABC):
                 limit=self.batch_size,
             )
         for dirpath in dirs_bottom_up:
-            await self.rmdir(dirpath)
+            try:
+                await self.rmdir(dirpath)
+            except FileNotFoundError:
+                # Implied/virtual directories on object stores vanish once their files are deleted.
+                continue
 
     async def copy_file(self, src: str, dst: str, *, overwrite: bool = True) -> None:
         """Copy a single file from ``src`` to exact destination path ``dst``."""
@@ -844,7 +848,7 @@ class AsyncFS[TInfo: FileInfo = FileInfo](ABC):
 
         if (
             dst_norm == src_norm
-            or (src_norm == "/" and dst_norm != "/")
+            or (src_norm == self.root_marker and dst_norm != self.root_marker)
             or dst_norm.startswith(f"{src_norm}/")
         ):
             raise ValueError(f"Cannot copy directory {src_norm!r} into itself ({dst_norm!r})")
