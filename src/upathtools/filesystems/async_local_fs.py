@@ -195,173 +195,63 @@ class AsyncLocalFileSystem(BaseAsyncFileSystem[LocalPath, LocalFileInfo], LocalF
         detail: bool = False,
         **kwargs: Any,
     ) -> list[str] | dict[str, LocalFileInfo]:
-        """Find files recursively, using ripgrep-rs for speed when available.
+        """Find files recursively, walking the tree with ripgrep-rs.
 
-        Uses ripgrep-rs for both detail=False and detail=True modes.
+        Same results as fsspec's `find` (hidden and git-ignored files included,
+        `maxdepth`, `withdirs` with the root itself); pass `hidden=False` /
+        `no_ignore=False` to skip those. `_glob` builds on this.
         """
-        from ripgrep_rs import files as rg_files, files_with_info
+        from ripgrep_rs import files_with_info
 
-        loop = get_running_loop()
-        abs_path = str(Path(self._strip_protocol(path)).resolve())
-
-        if detail:
-            # Use files_with_info for metadata - returns dict[str, FileInfo]
-            rg_result = await loop.run_in_executor(
-                None,
-                partial(
-                    files_with_info,
-                    paths=[abs_path],
-                    hidden=kwargs.get("hidden", False),
-                    no_ignore=kwargs.get("no_ignore", False),
-                    include_dirs=withdirs,
-                    absolute=True,
-                ),
-            )
-            # Convert FileInfo objects to fsspec-compatible dicts
-            # Normalize paths to forward slashes (fsspec convention)
-            return {
-                _normalize_path(p): LocalFileInfo(
-                    name=info.name,
-                    size=info.size,
-                    type="directory" if info.type == "directory" else "file",
-                    created=info.created,
-                    islink=info.islink,
-                    mode=info.mode,
-                    uid=info.uid,
-                    gid=info.gid,
-                    mtime=info.mtime,
-                    ino=info.ino,
-                    nlink=info.nlink,
-                    destination=False,  # Not a symlink destination
-                )
-                for p, info in rg_result.items()
-            }
-
-        # ripgrep-rs runs in a thread pool since it releases the GIL
-        results = await loop.run_in_executor(
-            None,
-            partial(
-                rg_files,
-                paths=[abs_path],
-                hidden=kwargs.get("hidden", False),
-                no_ignore=kwargs.get("no_ignore", False),
-                include_dirs=withdirs,
-                absolute=True,  # Ensure absolute paths (for Windows)
-            ),
-        )
-        # Normalize paths to forward slashes (fsspec convention)
-        return [_normalize_path(p) for p in results]
-
-    @overload
-    async def _glob(
-        self,
-        path: str,
-        maxdepth: int | None = None,
-        *,
-        detail: Literal[False] = False,
-        **kwargs: Any,
-    ) -> list[str]: ...
-
-    @overload
-    async def _glob(
-        self,
-        path: str,
-        maxdepth: int | None = None,
-        *,
-        detail: Literal[True],
-        **kwargs: Any,
-    ) -> dict[str, LocalFileInfo]: ...
-
-    async def _glob(
-        self,
-        path: str,
-        maxdepth: int | None = None,
-        *,
-        detail: bool = False,
-        **kwargs: Any,
-    ) -> list[str] | dict[str, LocalFileInfo]:
-        """Glob for files, using ripgrep-rs for speed when available.
-
-        Uses ripgrep-rs for both detail=False and detail=True modes.
-        Falls back to base implementation for complex glob patterns that ripgrep can't handle.
-        """
-        from glob import has_magic
-
-        from ripgrep_rs import files as rg_files, files_with_info
-
+        if maxdepth is not None and maxdepth < 1:
+            raise ValueError("maxdepth must be at least 1")
         stripped = self._strip_protocol(path)
-        if not has_magic(path):
-            # No glob pattern - fall back to base implementation
-            if detail:
-                return await super()._glob(path, maxdepth=maxdepth, detail=True, **kwargs)
-            return await super()._glob(path, maxdepth=maxdepth, detail=False, **kwargs)
-
-        # Fast path: use ripgrep-rs for globs
+        root = stripped if isinstance(stripped, str) else stripped[0]
+        abs_path = str(Path(root).resolve())
         loop = get_running_loop()
-
-        if "**" in stripped:
-            # Recursive glob - split at first **
-            # e.g., "/home/user/**/*.py" -> base="/home/user", pattern="**/*.py"
-            idx = stripped.find("**")
-            base = stripped[:idx].rstrip("/") or "."
-            glob_pattern = stripped[idx:]
-            depth = None  # No depth limit for ** patterns
-        else:
-            # Non-recursive glob - use max_depth=1
-            # e.g., "/home/user/*.py" -> base="/home/user", pattern="*.py"
-            p = Path(stripped)
-            base = str(p.parent) if str(p.parent) != "." else "."
-            glob_pattern = p.name
-            depth = 1  # Only match in the specified directory
-
-        abs_base = str(Path(base).resolve())
-        if detail:
-            # Use files_with_info for metadata - returns dict[str, FileInfo]
-            rg_result = await loop.run_in_executor(
-                None,
-                partial(
-                    files_with_info,
-                    paths=[abs_base],
-                    globs=[glob_pattern],
-                    hidden=kwargs.get("hidden", False),
-                    no_ignore=kwargs.get("no_ignore", False),
-                    max_depth=depth,
-                    absolute=True,
-                ),
-            )
-            # Convert FileInfo objects to fsspec-compatible dicts
-            # Normalize paths to forward slashes (fsspec convention)
-            return {
-                _normalize_path(p): LocalFileInfo(
-                    name=info.name,
-                    size=info.size,
-                    type="directory" if info.type == "directory" else "file",
-                    created=info.created,
-                    islink=info.islink,
-                    mode=info.mode,
-                    uid=info.uid,
-                    gid=info.gid,
-                    mtime=info.mtime,
-                    ino=info.ino,
-                    nlink=info.nlink,
-                    destination=False,  # Not a symlink destination
-                )
-                for p, info in rg_result.items()
-            }
-        results = await loop.run_in_executor(
+        # ripgrep-rs runs in a thread pool since it releases the GIL
+        rg_result = await loop.run_in_executor(
             None,
             partial(
-                rg_files,
-                paths=[abs_base],
-                globs=[glob_pattern],
-                hidden=kwargs.get("hidden", False),
-                no_ignore=kwargs.get("no_ignore", False),
-                max_depth=depth,
-                absolute=True,  # Ensure absolute paths (for Windows)
+                files_with_info,
+                paths=[abs_path],
+                hidden=kwargs.get("hidden", True),
+                no_ignore=kwargs.get("no_ignore", True),
+                include_dirs=withdirs,
+                max_depth=maxdepth,
+                absolute=True,
             ),
         )
-        # Normalize paths to forward slashes (fsspec convention)
-        return [_normalize_path(p) for p in results]
+        out: dict[str, LocalFileInfo] = {}
+        # The root itself is part of the result (posix glob compliance)
+        if withdirs and root and await self._isdir(root):
+            out[root] = await self._info(root)
+        # Report paths under the given root, not its resolved form (symlinks)
+        resolved_root = _normalize_path(abs_path)
+        for p, info in rg_result.items():
+            name = _normalize_path(p)  # forward slashes (fsspec convention)
+            if name.startswith(resolved_root):
+                name = root.rstrip("/") + name[len(resolved_root) :]
+            out[name] = LocalFileInfo(
+                name=name,
+                size=info.size,
+                type="directory" if info.type == "directory" else "file",
+                created=info.created,
+                islink=info.islink,
+                mode=info.mode,
+                uid=info.uid,
+                gid=info.gid,
+                mtime=info.mtime,
+                ino=info.ino,
+                nlink=info.nlink,
+                destination=False,  # Not a symlink destination
+            )
+        if not out and await self._isfile(root):
+            out[root] = await self._info(root)
+        names = sorted(out)
+        if detail:
+            return {name: out[name] for name in names}
+        return names
 
     async def _grep(
         self,
