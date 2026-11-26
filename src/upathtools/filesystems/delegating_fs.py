@@ -442,6 +442,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
             raise NotImplementedError("Cannot write to internal paths in delegated filesystems")
+        self._invalidate(file_path)
         await self.fs._pipe_file(file_path, value, **kwargs)
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
@@ -449,8 +450,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         if internal_path is not None:
             msg = "Cannot remove internal paths in delegated filesystems"
             raise NotImplementedError(msg)
-        # Clear cache if removing a file we have cached
-        self._fs_cache.pop(file_path, None)
+        self._invalidate(file_path)
         await self.fs._rm_file(file_path, **kwargs)
 
     async def _rm(
@@ -459,7 +459,7 @@ class DelegatingFileSystem(AsyncFileSystem):
         file_path, internal_path = self._parse_path(path)
         if internal_path is not None:
             raise NotImplementedError("Cannot remove internal paths in delegated filesystems")
-        self._fs_cache.pop(file_path, None)
+        self._invalidate(file_path)
         await self.fs._rm(file_path, recursive=recursive, maxdepth=maxdepth, **kwargs)
 
     async def _makedirs(self, path: str, exist_ok: bool = False, **kwargs: Any) -> None:
@@ -474,7 +474,14 @@ class DelegatingFileSystem(AsyncFileSystem):
         _, internal2 = self._parse_path(path2)
         if internal1 is not None or internal2 is not None:
             raise NotImplementedError("Cannot copy internal paths in delegated filesystems")
+        self._invalidate(path2)
         await self.fs._cp_file(path1, path2, overwrite=overwrite, **kwargs)
+
+    def _invalidate(self, path: str) -> None:
+        """Drop parsed views of a file, or of every file below a directory."""
+        prefix = path.rstrip("/") + "/"
+        for cached in [p for p in self._fs_cache if p == path or p.startswith(prefix)]:
+            self._fs_cache.pop(cached, None)
 
     def clear_cache(self, path: str | None = None) -> None:
         """Clear cached file filesystem instances.
