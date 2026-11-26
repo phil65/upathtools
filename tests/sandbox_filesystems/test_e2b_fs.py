@@ -367,3 +367,53 @@ async def test_e2b_rmdir_refuses_non_empty_directory(shared_e2b_fs: E2BFS):
     await shared_e2b_fs._rm_file("/tmp/upt-rmdir/keep.txt")
     await shared_e2b_fs._rmdir("/tmp/upt-rmdir")
     assert not await shared_e2b_fs._exists("/tmp/upt-rmdir")
+
+
+async def test_ls_detail_uses_listing_info_only(monkeypatch: pytest.MonkeyPatch):
+    """One list() call per directory: no get_info() per entry."""
+    from datetime import UTC, datetime
+
+    from e2b.sandbox.filesystem.filesystem import EntryInfo, FileType
+
+    entries = [
+        EntryInfo(
+            name=name,
+            type=kind,
+            path=f"/d/{name}",
+            size=size,
+            mode=0o644,
+            permissions="-rw-r--r--",
+            owner="user",
+            group="user",
+            modified_time=datetime(2026, 1, 1, tzinfo=UTC),
+            symlink_target=None,
+        )
+        for name, kind, size in [("a.txt", FileType.FILE, 3), ("sub", FileType.DIR, 0)]
+    ]
+
+    class Files:
+        async def list(self, path: str):
+            return entries
+
+        async def get_info(self, path: str):
+            raise AssertionError("get_info must not be called per entry")
+
+    class Sandbox:
+        files = Files()
+
+    fs = E2BFS(api_key="unused")
+
+    async def noop() -> None:
+        return None
+
+    async def sandbox():
+        return Sandbox()
+
+    monkeypatch.setattr(fs, "set_session", noop)
+    monkeypatch.setattr(fs, "_get_sandbox", sandbox)
+    infos = await fs._ls("/d", detail=True)
+    assert [(i["name"], i["type"], i["size"]) for i in infos] == [
+        ("/d/a.txt", "file", 3),
+        ("/d/sub", "directory", 0),
+    ]
+    assert infos[0]["mtime"] == datetime(2026, 1, 1, tzinfo=UTC).timestamp()

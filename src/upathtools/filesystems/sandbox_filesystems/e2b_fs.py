@@ -166,42 +166,23 @@ class E2BFS(BaseAsyncFileSystem[E2BPath, E2BInfo]):
         if not detail:
             return [item.path for item in items]
 
-        result = []
-        for item in items:
-            try:
-                info = await sandbox.files.get_info(item.path)
-                from e2b.sandbox.filesystem.filesystem import FileType
+        from e2b.sandbox.filesystem.filesystem import FileType
 
-                result.append(
-                    E2BInfo(
-                        name=item.path,
-                        size=info.size,
-                        type="directory" if info.type == FileType.DIR else "file",
-                        mtime=info.modified_time.timestamp() if info.modified_time else 0,
-                        mode=info.mode,
-                        permissions=info.permissions,
-                        owner=info.owner,
-                        group=info.group,
-                        symlink_target=info.symlink_target,
-                    )
-                )
-            except Exception:  # noqa: BLE001
-                # Fallback if get_info fails - use item.is_dir
-                result.append(
-                    E2BInfo(
-                        name=item.path,
-                        size=0,
-                        type="directory" if item.type == FileType.DIR else "file",
-                        mtime=0,
-                        mode=0,
-                        permissions="",
-                        owner="",
-                        group="",
-                        symlink_target=None,
-                    )
-                )
-
-        return result
+        # list() already returns full EntryInfo (size, mode, owner, mtime, ...)
+        return [
+            E2BInfo(
+                name=item.path,
+                size=item.size,
+                type="directory" if item.type == FileType.DIR else "file",
+                mtime=item.modified_time.timestamp() if item.modified_time else 0,
+                mode=item.mode,
+                permissions=item.permissions,
+                owner=item.owner,
+                group=item.group,
+                symlink_target=item.symlink_target,
+            )
+            for item in items
+        ]
 
     async def _cat_file(
         self, path: str, start: int | None = None, end: int | None = None, **kwargs: Any
