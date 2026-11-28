@@ -2,7 +2,7 @@
 
 [project]
 name = "upathtools"
-version = "1.26.0"
+version = "1.26.1"
 description = "Async helpers, typed base classes and many filesystem implementations for fsspec and universal-pathlib"
 readme = "README.md"
 requires-python = ">=3.14"
